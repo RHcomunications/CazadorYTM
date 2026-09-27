@@ -11,6 +11,8 @@ public class AppUpdaterTests
     [InlineData("1.1.1", "1.1.0", true)]
     [InlineData("v1.2.0", "v1.1.0", true)]
     [InlineData("1.1.0", "1.1.0", false)]
+    [InlineData("1.1.0", "1.1", false)]
+    [InlineData("1.1", "1.1.0", false)]
     [InlineData("1.0.9", "1.1.0", false)]
     [InlineData("1.1", "1.1", false)]
     [InlineData("1.2", "1.1", true)]

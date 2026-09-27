@@ -120,8 +120,11 @@ public static class AppUpdaterService
     {
         try
         {
-            if (Version.TryParse(NormalizeVersionString(remoteVersionStr), out var remoteVer) &&
-                Version.TryParse(NormalizeVersionString(localVersionStr), out var localVer))
+            var normRemote = NormalizeVersionString(remoteVersionStr);
+            var normLocal = NormalizeVersionString(localVersionStr);
+
+            if (Version.TryParse(normRemote, out var remoteVer) &&
+                Version.TryParse(normLocal, out var localVer))
             {
                 return remoteVer > localVer;
             }
@@ -134,9 +137,10 @@ public static class AppUpdaterService
 
     private static string NormalizeVersionString(string version)
     {
-        var parts = version.Split(new[] { '.', '-', '+' }, StringSplitOptions.RemoveEmptyEntries);
+        var clean = Regex.Replace(version ?? string.Empty, @"^[^\d]*", "");
+        var parts = clean.Split(new[] { '.', '-', '+' }, StringSplitOptions.RemoveEmptyEntries);
         var nums = parts.Where(p => int.TryParse(p, out _)).Take(4).ToList();
-        while (nums.Count < 2) nums.Add("0");
+        while (nums.Count < 3) nums.Add("0");
         return string.Join(".", nums);
     }
 
@@ -199,7 +203,13 @@ public static class AppUpdaterService
         var batContent = new StringBuilder();
         batContent.AppendLine("@echo off");
         batContent.AppendLine("chcp 65001 > nul");
-        batContent.AppendLine("timeout /t 2 /nobreak > nul");
+        batContent.AppendLine(":WAIT_LOOP");
+        batContent.AppendLine("tasklist /FI \"IMAGENAME eq CazadorYTM.Gui.exe\" 2>NUL | find /I /N \"CazadorYTM.Gui.exe\">NUL");
+        batContent.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (");
+        batContent.AppendLine("    timeout /t 1 /nobreak > nul");
+        batContent.AppendLine("    goto WAIT_LOOP");
+        batContent.AppendLine(")");
+        batContent.AppendLine("timeout /t 1 /nobreak > nul");
         batContent.AppendLine($"xcopy \"{actualSourceDir}\\*\" \"{targetBaseDir}\\\" /E /Y /Q /R /H");
         batContent.AppendLine($"cd /d \"{targetBaseDir}\"");
         batContent.AppendLine("if exist \"CazadorYTM.Gui.exe\" (");
