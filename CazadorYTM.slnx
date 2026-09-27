@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CazadorYTM.Core/CazadorYTM.Core.csproj" />
+    <Project Path="src/CazadorYTM.Gui/CazadorYTM.Gui.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CazadorYTM.Tests/CazadorYTM.Tests.csproj" />
+  </Folder>
+</Solution>

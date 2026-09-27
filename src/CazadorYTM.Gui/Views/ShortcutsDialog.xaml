@@ -1,0 +1,61 @@
+<Window x:Class="CazadorYTM.Gui.Views.ShortcutsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+        Title="Tabla de Atajos de Teclado - Cazador YTM"
+        Width="700" Height="580"
+        MinWidth="550" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        AutomationProperties.Name="Tabla de Atajos de Teclado"
+        AutomationProperties.HelpText="Usa las flechas arriba y abajo para recorrer los atajos de teclado, o presiona Escape para cerrar.">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Atajos de Teclado de Cazador YTM" FontSize="20" FontWeight="Bold" 
+                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" Margin="0,0,0,4"/>
+            <TextBlock Text="Navegación completa por teclado accesible compatible con lectores de pantalla." 
+                       FontSize="13" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+        </StackPanel>
+
+        <!-- List of Shortcuts -->
+        <ListView x:Name="LstShortcuts" Grid.Row="1" 
+                  SelectionMode="Single"
+                  FocusVisualStyle="{DynamicResource {x:Static SystemParameters.FocusVisualStyleKey}}"
+                  AutomationProperties.Name="Lista de atajos de teclado">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Atajo de Teclado" Width="240">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Shortcut}" FontWeight="SemiBold" 
+                                           Foreground="{DynamicResource SystemControlHighlightAccentBrush}"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Acción / Descripción" Width="380">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <!-- Footer -->
+        <DockPanel Grid.Row="2" Margin="0,16,0,0" LastChildFill="False">
+            <Button Content="Cerrar (Escape)" Width="150" Height="36" DockPanel.Dock="Right" 
+                    IsDefault="True" IsCancel="True" Click="OnCloseClicked"
+                    AutomationProperties.Name="Cerrar tabla de atajos"/>
+        </DockPanel>
+    </Grid>
+</Window>

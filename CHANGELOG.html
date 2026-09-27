@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cazador YTM — Registro de Cambios (Changelog)</title>
+    <style>
+        :root {
+            --bg-color: #f9f9fb;
+            --text-color: #202124;
+            --card-bg: #ffffff;
+            --primary: #0078d4;
+            --primary-hover: #106ebe;
+            --border-color: #e1dfdd;
+            --subtle-text: #605e5c;
+            --table-header: #f3f2f1;
+            --tag-new: #107c10;
+            --tag-python: #d83b01;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #202020;
+                --text-color: #ffffff;
+                --card-bg: #2d2d2d;
+                --primary: #60cdff;
+                --primary-hover: #7ae0ff;
+                --border-color: #3d3d3d;
+                --subtle-text: #d0d0d0;
+                --table-header: #383838;
+                --tag-new: #6ccb5f;
+                --tag-python: #f7630c;
+            }
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 30px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+        }
+        h1 {
+            color: var(--primary);
+            font-size: 2.2rem;
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+        h2 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-top: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        h3 {
+            font-size: 1.2rem;
+            margin-top: 20px;
+        }
+        p, li {
+            font-size: 1.05rem;
+        }
+        ul {
+            padding-left: 24px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .badge {
+            display: inline-block;
+            background-color: var(--primary);
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .card {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 18px 22px;
+            margin: 18px 0;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #fff;
+            margin-right: 6px;
+        }
+        .tag-new {
+            background-color: var(--tag-new);
+        }
+        .tag-python {
+            background-color: var(--tag-python);
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--subtle-text);
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>📜 Registro de Cambios (Changelog)</h1>
+        <p>Historial de evolución y mejoras de <strong>Cazador YTM</strong> desde sus primeras versiones hasta el lanzamiento oficial de la nueva generación.</p>
+
+        <h2>[Versión 1.0] — Lanzamiento de la Nueva Generación</h2>
+        <p>Esta versión representa una reconstrucción integral de Cazador YTM, rediseñada desde sus cimientos para brindar una experiencia más ágil, moderna y accesible.</p>
+
+        <div class="card">
+            <h3><span class="tag tag-python">Versión Original</span> Lo que teníamos en la versión anterior</h3>
+            <ul>
+                <li>Búsqueda y descarga básica de canciones en YouTube y YouTube Music.</li>
+                <li>Soporte para múltiples formatos de música (MP3, FLAC, M4A, etc.).</li>
+                <li>Funciones para nivelar el volumen y quitar partes habladas o silencios de los videos.</li>
+                <li>Reproductor básico integrado y registro simple de descargas.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3><span class="tag tag-new">Versión 1.0</span> Grandes Mejoras y Novedades Implementadas</h3>
+            <ul>
+                <li><strong>⚡ Inicio instantáneo y fluidez superior</strong>: El programa abre de inmediato, responde sin trabas y consume mucha menos memoria en tu computadora.</li>
+                <li><strong>♿ Accesibilidad Total y Navegación Cómoda</strong>:
+                    <ul>
+                        <li>Optimizada especialmente para lectores de pantalla como <strong>NVDA, JAWS y el Narrador de Windows</strong>.</li>
+                        <li>Al abrir la aplicación, el foco va directo a la caja de búsqueda sin mensajes repetitivos ni carátulas confusas.</li>
+                        <li>En la lista de resultados, te mueves fácilmente con las <strong>flechas arriba y abajo</strong> y marcas canciones con la <strong>barra espaciadora</strong>, anunciando claramente si está marcada o no.</li>
+                    </ul>
+                </li>
+                <li><strong>⚙️ Nueva Ventana de Preferencias (Ctrl + ,)</strong>: Todas las configuraciones avanzadas se organizaron en un panel limpio y ordenado, liberando la pantalla principal para que sea rápida y despejada.</li>
+                <li><strong>🔢 Descargas Múltiples con Conteo Claro</strong>: El programa te muestra exactamente qué canción se está descargando y cuántas faltan (por ejemplo: <em>«[1 de 10] Descargando...»</em> y <em>«[1 de 10] Completada»</em>).</li>
+                <li><strong>📚 Biblioteca en Tiempo Real</strong>: Cada canción que descargas aparece al instante en tu biblioteca sin necesidad de reiniciar el programa. Además, al presionar <strong>Enter</strong> sobre cualquier canción, empieza a sonar de inmediato.</li>
+                <li><strong>🌐 Soporte Multilenguaje</strong>: Selector de idioma entre <strong>Español</strong> e <strong>Inglés</strong> con cambio al instante.</li>
+                <li><strong>🔄 Actualizador en un solo paso</strong>: Comprueba y actualiza las herramientas del programa directamente desde la ventana de preferencias con solo pulsar un botón.</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><strong>Cazador YTM</strong> — Un desarrollo oficial de <strong>narayan project's</strong>.</p>
+            <p>Copyright © 2026 <strong>narayan project's</strong>. Todos los derechos reservados.</p>
+        </div>
+    </main>
+</body>
+</html>

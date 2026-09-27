@@ -1,0 +1,37 @@
+# Build Results
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*~
+
+# Native heavy binaries (downloaded via BinaryUpdater or Release assets)
+*.exe
+*.dll
+*.pdb
+*.zip
+*.7z
+*.tar.gz
+*.download
+*.old
+
+# Sensitive / User Data
+cookies.txt
+cazador_config.json
+downloads_history.json
+*.log
+
+# Non-Cazador workspace files
+BibliotecaSagradaHindu/
+HinduScriptures*
+Iniciar-Biblioteca-Hindu*
+LEEME_ACCESIBILIDAD.txt
+.agents/

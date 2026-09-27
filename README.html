@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cazador YTM v1.0 — Guía de Usuario</title>
+    <style>
+        :root {
+            --bg-color: #f9f9fb;
+            --text-color: #202124;
+            --card-bg: #ffffff;
+            --primary: #0078d4;
+            --primary-hover: #106ebe;
+            --border-color: #e1dfdd;
+            --subtle-text: #605e5c;
+            --table-header: #f3f2f1;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #202020;
+                --text-color: #ffffff;
+                --card-bg: #2d2d2d;
+                --primary: #60cdff;
+                --primary-hover: #7ae0ff;
+                --border-color: #3d3d3d;
+                --subtle-text: #d0d0d0;
+                --table-header: #383838;
+            }
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 30px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+        }
+        h1 {
+            color: var(--primary);
+            font-size: 2.2rem;
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+        h2 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-top: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        h3 {
+            font-size: 1.2rem;
+            margin-top: 20px;
+        }
+        p, li {
+            font-size: 1.05rem;
+        }
+        ul {
+            padding-left: 24px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+        th {
+            background-color: var(--table-header);
+            font-weight: 600;
+        }
+        .badge {
+            display: inline-block;
+            background-color: var(--primary);
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .card {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 18px 22px;
+            margin: 18px 0;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--subtle-text);
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>🎵 Cazador YTM <span class="badge">v1.0</span></h1>
+        
+        <p><strong>Cazador YTM</strong> es una aplicación moderna, rápida y accesible diseñada para buscar, escuchar y descargar música y videos de YouTube y YouTube Music en la mejor calidad de audio disponible.</p>
+        
+        <p>Está pensada especialmente para ser fácil de usar por cualquier persona, incluyendo compatibilidad total con lectores de pantalla (como <strong>NVDA, JAWS y el Narrador de Windows</strong>) y manejo completo a través del teclado.</p>
+
+        <h2>🌟 Funcionalidades Principales</h2>
+        
+        <div class="card">
+            <h3>📥 1. Búsquedas y Descargas Inteligentes</h3>
+            <ul>
+                <li><strong>Búsqueda por nombre o enlace</strong>: Escribe el título de una canción o pega directamente la dirección web de un video o álbum.</li>
+                <li><strong>Catálogo especializado</strong>: Puedes elegir entre buscar en <em>YouTube Music</em> (para obtener pistas de estudio oficiales y discos) o en <em>YouTube General</em> (para videos y conciertos).</li>
+                <li><strong>Formatos de alta calidad</strong>: Descarga en MP3 (hasta 320 kbps), FLAC (calidad de disco sin pérdidas), M4A, WAV, OPUS o MP4 con un solo clic.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>📚 2. Biblioteca Musical e Historial</h3>
+            <ul>
+                <li><strong>Registro automático</strong>: Cada canción que descargas aparece al instante en tu biblioteca.</li>
+                <li><strong>Acciones rápidas</strong>: Presiona <strong>Enter</strong> para escuchar cualquier canción, abre la carpeta donde se guardó en tu computadora o copia su enlace original.</li>
+                <li><strong>Buscador en vivo</strong>: Encuentra rápidamente canciones descargadas escribiendo en el filtro de la biblioteca.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>🎧 3. Reproductor Integrado</h3>
+            <ul>
+                <li>Escucha tus canciones directamente dentro de la aplicación sin abrir otros programas.</li>
+                <li>Controla el volumen, adelanta o retrocede la pista y navega fácilmente con el teclado.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>🔔 4. Notificaciones Nativas del Sistema</h3>
+            <ul>
+                <li>El programa te avisa mediante notificaciones de Windows cuando terminan tus descargas, cuando se verifican archivos o si ocurre algún error, sin que tengas que estar mirando la ventana.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>⚙️ 5. Panel de Preferencias (Ctrl + ,)</h3>
+            <ul>
+                <li>Elige la carpeta donde quieres que se guarden tus canciones.</li>
+                <li><strong>Normalización de volumen</strong>: Hace que todas tus canciones suenen con el mismo nivel de volumen parejo.</li>
+                <li><strong>SponsorBlock</strong>: Quita automáticamente intros largas y partes habladas de los videos musicales.</li>
+                <li><strong>Letras de canciones</strong>: Descarga las letras sincronizadas en archivos <code>.lrc</code>.</li>
+                <li><strong>Actualizador con un botón</strong>: Mantén los componentes del motor al día automáticamente.</li>
+                <li><strong>Idiomas</strong>: Selecciona entre Español e Inglés.</li>
+            </ul>
+        </div>
+
+        <h2>⌨️ Atajos de Teclado Rápidos</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Atajo</th>
+                    <th>¿Qué hace?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Enter</strong></td>
+                    <td>En la caja de búsqueda: descarga si es enlace o busca si es texto. En listas: reproduce o confirma.</td>
+                </tr>
+                <tr>
+                    <td><strong>Barra Espaciadora</strong></td>
+                    <td>En listas: marca o desmarca canciones. En el reproductor: reproduce o pausa.</td>
+                </tr>
+                <tr>
+                    <td><strong>Ctrl + 1</strong></td>
+                    <td>Ir a la pantalla de <strong>Descargas</strong>.</td>
+                </tr>
+                <tr>
+                    <td><strong>Ctrl + 2</strong></td>
+                    <td>Ir a la <strong>Biblioteca / Historial</strong>.</td>
+                </tr>
+                <tr>
+                    <td><strong>Ctrl + 3</strong></td>
+                    <td>Ir al <strong>Reproductor Musical</strong>.</td>
+                </tr>
+                <tr>
+                    <td><strong>Ctrl + ,</strong> <em>(coma)</em></td>
+                    <td>Abrir la ventana de <strong>Preferencias y Configuración</strong>.</td>
+                </tr>
+                <tr>
+                    <td><strong>Ctrl + O</strong></td>
+                    <td>Cargar una lista de canciones desde un archivo de texto.</td>
+                </tr>
+                <tr>
+                    <td><strong>Ctrl + S</strong></td>
+                    <td>Abrir la carpeta donde se guardan tus descargas.</td>
+                </tr>
+                <tr>
+                    <td><strong>Alt o F10</strong></td>
+                    <td>Activar la barra de menús superior.</td>
+                </tr>
+                <tr>
+                    <td><strong>Escape</strong></td>
+                    <td>Cerrar ventanas emergentes o salir de los menús.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>🚀 Guía de Inicio Rápido</h2>
+        <ol>
+            <li><strong>Para descargar una canción</strong>: Escribe el nombre de la canción en la barra principal y presiona <strong>Enter</strong>. Se abrirá la lista de resultados; muévete con las <strong>flechas arriba/abajo</strong>, presiona <strong>Espacio</strong> para marcar las canciones que deseas y presiona <strong>Enter</strong> para empezar a descargar.</li>
+            <li><strong>Para descargar una lista de canciones</strong>: Haz clic en <strong>Cargar Lista</strong> (o presiona <strong>Ctrl + O</strong>) y selecciona un archivo de texto con los títulos o enlaces.</li>
+            <li><strong>Para escuchar tu música</strong>: Ve a la pestaña <strong>Biblioteca</strong> (Ctrl + 2), selecciona cualquier canción y presiona <strong>Enter</strong>.</li>
+        </ol>
+
+        <div class="footer">
+            <p><strong>Cazador YTM v1.0</strong> — Desarrollado por <strong>narayan project's</strong>.</p>
+            <p>Copyright © 2026 <strong>narayan project's</strong>. Todos los derechos reservados.</p>
+        </div>
+    </main>
+</body>
+</html>

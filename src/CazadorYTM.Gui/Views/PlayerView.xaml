@@ -1,0 +1,104 @@
+<UserControl x:Class="CazadorYTM.Gui.Views.PlayerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019"
+             xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             AutomationProperties.Name="{loc:Loc PlayerPanelName}"
+             KeyboardNavigation.TabNavigation="Cycle">
+
+    <UserControl.InputBindings>
+        <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}"/>
+        <KeyBinding Modifiers="Shift" Key="Left" Command="{Binding SeekRelativeCommand}" CommandParameter="-5"/>
+        <KeyBinding Modifiers="Shift" Key="Right" Command="{Binding SeekRelativeCommand}" CommandParameter="5"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Left" Command="{Binding SeekRelativeCommand}" CommandParameter="-30"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Right" Command="{Binding SeekRelativeCommand}" CommandParameter="30"/>
+        <KeyBinding Modifiers="Ctrl" Key="Up" Command="{Binding VolumeUpCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Down" Command="{Binding VolumeDownCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Down" Command="{Binding MuteToggleCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Up" Command="{Binding MaxVolumeCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding StopCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding OpenFileCommand}"/>
+        <KeyBinding Key="Home" Command="{Binding SeekToStartCommand}"/>
+        <KeyBinding Key="End" Command="{Binding SeekToEndCommand}"/>
+    </UserControl.InputBindings>
+
+    <Grid Margin="32">
+        <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}" 
+                BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}" 
+                BorderThickness="1" CornerRadius="12" Padding="32" MaxWidth="720" VerticalAlignment="Center">
+            <StackPanel HorizontalAlignment="Stretch">
+
+                <!-- Header / Track Details -->
+                <StackPanel HorizontalAlignment="Center" Margin="0,0,0,24">
+                    <TextBlock Text="{Binding TrackTitle}" FontSize="22" FontWeight="Bold" 
+                               HorizontalAlignment="Center" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="620" Margin="0,0,0,6"
+                               AutomationProperties.Name="Título de la pista actual"
+                               AutomationProperties.LiveSetting="Polite"/>
+                    <TextBlock Text="{Binding TrackArtist}" FontSize="15" 
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" HorizontalAlignment="Center"
+                               AutomationProperties.Name="Artista de la pista actual"/>
+                </StackPanel>
+
+                <!-- Timeline Slider & Time Labels -->
+                <StackPanel Margin="0,0,0,24">
+                    <Label x:Name="LblSeek" Target="{Binding ElementName=SldPosition}" Content="{loc:Loc TrackPositionLabel}" FontSize="12" Margin="0,0,0,4"/>
+                    <Slider x:Name="SldPosition" Minimum="0" Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds, Mode=TwoWay}"
+                            TickFrequency="1" IsSnapToTickEnabled="False" HorizontalAlignment="Stretch" Margin="0,0,0,6"
+                            SmallChange="5" LargeChange="30"
+                            AutomationProperties.Name="{Binding AccessiblePositionText}"
+                            AutomationProperties.HelpText="Usa Shift con flechas izquierda o derecha para retroceder o avanzar 5 segundos, Ctrl con Shift para 30 segundos, o Inicio y Fin para ir al principio o final."/>
+                    <Grid>
+                        <TextBlock Text="{Binding CurrentPositionText}" HorizontalAlignment="Left" FontSize="12" 
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock Text="{Binding DurationText}" HorizontalAlignment="Right" FontSize="12" 
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Control Buttons -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Content="{loc:Loc BtnOpenAudioFile}" Command="{Binding OpenFileCommand}" 
+                            HorizontalAlignment="Left" Width="140" Height="40"
+                            AutomationProperties.Name="Abrir archivo de audio local"
+                            AutomationProperties.HelpText="Atajo: Control + O"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="{loc:Loc BtnStop}" Command="{Binding StopCommand}" Width="100" Height="40" Margin="0,0,12,0"
+                                AutomationProperties.Name="Detener reproducción"
+                                AutomationProperties.HelpText="Atajo: Control + Shift + S"/>
+                        <Button Content="{loc:Loc BtnPlayPause}" Style="{DynamicResource AccentButtonStyle}" 
+                                Command="{Binding PlayPauseCommand}" Width="170" Height="40"
+                                AutomationProperties.Name="Reproducir o Pausar"
+                                AutomationProperties.HelpText="Atajo: Barra Espaciadora"/>
+                    </StackPanel>
+
+                    <!-- Volume -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Label x:Name="LblVol" Target="{Binding ElementName=SldVolume}" Content="{loc:Loc VolumeLabel}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <Slider x:Name="SldVolume" Minimum="0" Maximum="1" Value="{Binding Volume, Mode=TwoWay}" Width="110" VerticalAlignment="Center"
+                                SmallChange="0.05" LargeChange="0.1"
+                                AutomationProperties.Name="{Binding AccessibleVolumeText}"
+                                AutomationProperties.HelpText="Atajos: Control + Arriba para subir volumen, Control + Abajo para bajar volumen, Control + Shift + Abajo para silenciar."
+                                ValueChanged="SldVolume_ValueChanged"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Live Region for assertive volume updates during manipulation -->
+                <TextBlock x:Name="VolumeLiveAnnouncer" 
+                           Text="{Binding VolumeAnnouncement}" 
+                           AutomationProperties.LiveSetting="Assertive"
+                           Height="1" Width="1" Opacity="0.01" Focusable="False"/>
+
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

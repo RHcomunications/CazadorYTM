@@ -1,0 +1,42 @@
+<Application x:Class="CazadorYTM.Gui.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019"
+             xmlns:conv="clr-namespace:CazadorYTM.Gui.Converters"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemeResources />
+                <ui:XamlControlsResources />
+            </ResourceDictionary.MergedDictionaries>
+            <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
+            <!-- Global WinUI 3 Fluent Typography and Render Styles -->
+            <Style TargetType="Window">
+                <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, sans-serif" />
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+                <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
+                <Setter Property="RenderOptions.ClearTypeHint" Value="Enabled" />
+            </Style>
+
+            <Style TargetType="UserControl">
+                <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, sans-serif" />
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+            </Style>
+
+            <!-- Card Style for Elevated Content -->
+            <Style x:Key="ElevatedCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SystemControlStrokeColorCardStrokeBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="Margin" Value="0,0,0,12" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

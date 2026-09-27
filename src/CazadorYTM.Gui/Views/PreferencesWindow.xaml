@@ -1,0 +1,154 @@
+<Window x:Class="CazadorYTM.Gui.Views.PreferencesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+        Title="{loc:Loc PreferencesTitle}"
+        Width="680" Height="620"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        AutomationProperties.Name="{loc:Loc PreferencesTitle}"
+        AutomationProperties.HelpText="{loc:Loc PrefWindowHelpText}">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="{loc:Loc PreferencesTitle}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+        <!-- Tabs -->
+        <TabControl Grid.Row="1" Margin="0,0,0,16" Focusable="False">
+            <!-- Tab 1: General & Descargas -->
+            <TabItem Header="{loc:Loc PrefDownloadsTab}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                    <StackPanel>
+                        <!-- Destination Folder -->
+                        <Label x:Name="LblPrefDest" Target="{Binding ElementName=TxtPrefDest}" Content="{loc:Loc PrefDestFolder}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtPrefDest" Text="{Binding DestinationFolder}" IsReadOnly="True" Height="36" VerticalContentAlignment="Center"
+                                     AutomationProperties.LabeledBy="{Binding ElementName=LblPrefDest}"/>
+                            <Button Grid.Column="1" Content="{loc:Loc BtnBrowse}" Command="{Binding SelectDestinationFolderCommand}" Height="36" Margin="8,0,0,0"/>
+                        </Grid>
+
+                        <!-- Bitrate -->
+                        <Label x:Name="LblPrefBitrate" Target="{Binding ElementName=CmbPrefBitrate}" Content="{loc:Loc PrefBitrate}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbPrefBitrate" ItemsSource="{Binding Bitrates}" SelectedItem="{Binding SelectedBitrate}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefBitrate}"/>
+
+                        <!-- Concurrency -->
+                        <Label x:Name="LblPrefConcurrent" Target="{Binding ElementName=CmbPrefConcurrent}" Content="{loc:Loc PrefConcurrent}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbPrefConcurrent" ItemsSource="{Binding ConcurrencyOptions}" SelectedItem="{Binding SelectedConcurrent}" Height="36" Margin="0,0,0,16" HorizontalAlignment="Stretch"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefConcurrent}"/>
+
+                        <!-- Checkboxes -->
+                        <CheckBox Content="{loc:Loc PrefSponsorBlock}" IsChecked="{Binding IsSponsorBlock}" Margin="0,0,0,8"/>
+                        <CheckBox Content="{loc:Loc PrefNormalize}" IsChecked="{Binding IsNormalize}" Margin="0,0,0,8"/>
+                        <CheckBox Content="{loc:Loc PrefEmbedLyrics}" IsChecked="{Binding IsEmbedLyrics}" Margin="0,0,0,8"/>
+                        <CheckBox Content="{loc:Loc PrefEnumerate}" IsChecked="{Binding IsEnumerate}" Margin="0,0,0,8"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Red y Personalización -->
+            <TabItem Header="{loc:Loc PrefNetworkTab}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                    <StackPanel>
+                        <!-- Language -->
+                        <Label x:Name="LblPrefLang" Target="{Binding ElementName=CmbPrefLang}" Content="{loc:Loc PrefLanguage}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbPrefLang" ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguage}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefLang}"/>
+
+                        <!-- Theme -->
+                        <Label x:Name="LblPrefTheme" Target="{Binding ElementName=CmbPrefTheme}" Content="{loc:Loc PrefTheme}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbPrefTheme" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefTheme}"/>
+
+                        <!-- Browser Cookies -->
+                        <Label x:Name="LblPrefBrowser" Target="{Binding ElementName=CmbPrefBrowser}" Content="{loc:Loc PrefBrowser}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbPrefBrowser" ItemsSource="{Binding Browsers}" SelectedItem="{Binding SelectedBrowser}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefBrowser}"/>
+
+                        <!-- Proxy -->
+                        <Label x:Name="LblPrefProxy" Target="{Binding ElementName=TxtPrefProxy}" Content="{loc:Loc PrefProxy}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtPrefProxy" Text="{Binding ProxyUrl}" Height="36" VerticalContentAlignment="Center" Margin="0,0,0,14"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=LblPrefProxy}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 3: Herramientas y Mantenimiento -->
+            <TabItem Header="{loc:Loc PrefToolsTab}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                    <StackPanel>
+                        <!-- Updater -->
+                        <GroupBox Header="{loc:Loc PrefUpdaterHeader}" Margin="0,0,0,14">
+                            <StackPanel Margin="10">
+                                <TextBlock Text="{loc:Loc PrefUpdaterDesc}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                <WrapPanel Margin="0,0,0,8">
+                                    <Button Content="{loc:Loc PrefCheckAppUpdates}" Command="{Binding CheckAppUpdateCommand}" Height="36" Padding="14,0" Margin="0,0,8,6"
+                                            IsEnabled="{Binding IsCheckingUpdates, Converter={StaticResource InverseBooleanConverter}}"/>
+                                    <Button Content="{loc:Loc PrefCheckUpdates}" Command="{Binding CheckUpdatesCommand}" Height="36" Padding="14,0" Margin="0,0,8,6"
+                                            IsEnabled="{Binding IsCheckingUpdates, Converter={StaticResource InverseBooleanConverter}}"/>
+                                </WrapPanel>
+                                <TextBlock Text="{Binding UpdateStatusText}" FontWeight="Medium" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                           AutomationProperties.LiveSetting="Polite"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Verifier -->
+                        <GroupBox Header="{loc:Loc PrefVerifierHeader}" Margin="0,0,0,14">
+                            <StackPanel Margin="10">
+                                <TextBlock Text="{loc:Loc PrefVerifierDesc}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                <Button Content="{loc:Loc PrefVerifyBtn}" Command="{Binding RunVerifyCommand}" Height="36" Width="260" HorizontalAlignment="Left" Margin="0,0,0,8"
+                                        IsEnabled="{Binding IsVerifying, Converter={StaticResource InverseBooleanConverter}}"/>
+                                <TextBlock Text="{Binding VerifyStatusText}" FontWeight="Medium" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                           AutomationProperties.LiveSetting="Polite"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 4: Registros y Diagnóstico -->
+            <TabItem Header="{loc:Loc PrefLogsTab}">
+                <Grid DataContext="{Binding LogsVM}" Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Label Content="{loc:Loc PrefFilterLogs}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SelectedFilter}" Width="140" Height="34"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" CornerRadius="4">
+                        <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="12"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+                    </Border>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="{loc:Loc PrefCopyLogs}" Command="{Binding CopyLogsCommand}" Height="34" Margin="0,0,8,0"/>
+                        <Button Content="{loc:Loc PrefExportLogs}" Command="{Binding ExportLogsCommand}" Height="34" Margin="0,0,8,0"/>
+                        <Button Content="{loc:Loc PrefClearLogs}" Command="{Binding ClearLogsCommand}" Height="34"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="{loc:Loc Save}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding SaveCommand}" Width="120" Height="38" Margin="0,0,10,0"/>
+            <Button Content="{loc:Loc BtnCancel}" IsCancel="True" Command="{Binding CancelCommand}" Width="110" Height="38"/>
+        </StackPanel>
+    </Grid>
+</Window>

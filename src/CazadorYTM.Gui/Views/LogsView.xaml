@@ -1,0 +1,60 @@
+<UserControl x:Class="CazadorYTM.Gui.Views.LogsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             AutomationProperties.Name="Panel de Consola de Registros y Eventos"
+             KeyboardNavigation.TabNavigation="Cycle">
+    <Grid Margin="24,20,24,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" Text="Consola de Registros &amp; Eventos" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <!-- Toolbar -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Label x:Name="LblLogFilter" Target="{Binding ElementName=CmbLogFilter}" 
+                   Content="_Nivel de Registro:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+            <ComboBox x:Name="CmbLogFilter" Grid.Column="1" ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SelectedFilter}"
+                      Height="36"
+                      AutomationProperties.Name="Filtrar nivel de registro"
+                      AutomationProperties.LabeledBy="{Binding ElementName=LblLogFilter}"/>
+
+            <Button Grid.Column="3" Content="📋 _Copiar" Command="{Binding CopyLogsCommand}" 
+                    Width="110" Height="36" Margin="0,0,8,0"
+                    AutomationProperties.Name="Copiar registros al portapapeles"/>
+            
+            <Button Grid.Column="4" Content="💾 _Exportar" Command="{Binding ExportLogsCommand}" 
+                    Width="110" Height="36" Margin="0,0,8,0"
+                    AutomationProperties.Name="Exportar registros a un archivo de texto"/>
+            
+            <Button Grid.Column="5" Content="🗑️ _Limpiar" Command="{Binding ClearLogsCommand}" 
+                    Width="110" Height="36"
+                    AutomationProperties.Name="Limpiar consola de registros"/>
+        </Grid>
+
+        <!-- Log Textbox -->
+        <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" CornerRadius="4">
+            <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" 
+                     FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12"
+                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                     Padding="12" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                     AutomationProperties.Name="Contenido de registros y eventos del sistema"/>
+        </Border>
+    </Grid>
+</UserControl>

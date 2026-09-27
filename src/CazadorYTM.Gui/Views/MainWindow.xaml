@@ -1,0 +1,109 @@
+<Window x:Class="CazadorYTM.Gui.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+        xmlns:views="clr-namespace:CazadorYTM.Gui.Views"
+        xmlns:vm="clr-namespace:CazadorYTM.Gui.ViewModels"
+        Title="Cazador YTM v1.0"
+        Width="1080" Height="760"
+        MinWidth="860" MinHeight="580"
+        WindowStartupLocation="CenterScreen"
+        FocusVisualStyle="{DynamicResource {x:Static SystemParameters.FocusVisualStyleKey}}"
+        AutomationProperties.Name="{loc:Loc AppName}"
+        AutomationProperties.HelpText="{loc:Loc MainWindowHelpText}">
+
+    <Window.InputBindings>
+        <KeyBinding Modifiers="Ctrl" Key="D1" Command="{Binding NavigateToTabCommand}" CommandParameter="0"/>
+        <KeyBinding Modifiers="Ctrl" Key="D2" Command="{Binding NavigateToTabCommand}" CommandParameter="1"/>
+        <KeyBinding Modifiers="Ctrl" Key="D3" Command="{Binding NavigateToTabCommand}" CommandParameter="2"/>
+        <KeyBinding Modifiers="Ctrl" Key="L" Command="{Binding ShowShortcutsCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="OemComma" Command="{Binding OpenPreferencesCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding DownloadVM.LoadListFileCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding OpenDownloadsFolderCommand}"/>
+        
+        <!-- Controles globales del Reproductor estilo Spotify -->
+        <KeyBinding Modifiers="Shift" Key="Left" Command="{Binding PlayerVM.SeekRelativeCommand}" CommandParameter="-5"/>
+        <KeyBinding Modifiers="Shift" Key="Right" Command="{Binding PlayerVM.SeekRelativeCommand}" CommandParameter="5"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Left" Command="{Binding PlayerVM.SeekRelativeCommand}" CommandParameter="-30"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Right" Command="{Binding PlayerVM.SeekRelativeCommand}" CommandParameter="30"/>
+        <KeyBinding Modifiers="Ctrl" Key="Up" Command="{Binding PlayerVM.VolumeUpCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Down" Command="{Binding PlayerVM.VolumeDownCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Down" Command="{Binding PlayerVM.MuteToggleCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="Up" Command="{Binding PlayerVM.MaxVolumeCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding PlayerVM.StopCommand}"/>
+    </Window.InputBindings>
+
+    <DockPanel LastChildFill="True">
+        <!-- Menu Bar: Hidden by default; activated dynamically with ALT or F10 (WCAG 2.2 Standard) -->
+        <Menu x:Name="MainMenu" DockPanel.Dock="Top" FontSize="13" 
+              Visibility="Collapsed" 
+              AutomationProperties.Name="{loc:Loc MenuNavigation}"
+              AutomationProperties.HelpText="{loc:Loc MenuBarHelpText}">
+            <MenuItem x:Name="MenuArchivo" Header="{loc:Loc MenuFile}">
+                <MenuItem Header="{loc:Loc MenuLoadList}" InputGestureText="Ctrl+O" 
+                          Command="{Binding DownloadVM.LoadListFileCommand}"/>
+                <MenuItem Header="{loc:Loc MenuOpenFolder}" InputGestureText="Ctrl+S" 
+                          Command="{Binding OpenDownloadsFolderCommand}"/>
+                <Separator/>
+                <MenuItem Header="{loc:Loc MenuPreferences}" InputGestureText="Ctrl+," 
+                          Command="{Binding OpenPreferencesCommand}"/>
+                <Separator/>
+                <MenuItem Header="{loc:Loc MenuExit}" Click="ExitApp"/>
+            </MenuItem>
+            
+            <MenuItem x:Name="MenuNavegacion" Header="{loc:Loc MenuNavigation}">
+                <MenuItem Header="{loc:Loc TabDownloads}" InputGestureText="Ctrl+1" 
+                          Command="{Binding NavigateToTabCommand}" CommandParameter="0"/>
+                <MenuItem Header="{loc:Loc TabLibrary}" InputGestureText="Ctrl+2" 
+                          Command="{Binding NavigateToTabCommand}" CommandParameter="1"/>
+                <MenuItem Header="{loc:Loc TabPlayer}" InputGestureText="Ctrl+3" 
+                          Command="{Binding NavigateToTabCommand}" CommandParameter="2"/>
+            </MenuItem>
+
+            <MenuItem x:Name="MenuHerramientas" Header="{loc:Loc MenuTools}">
+                <MenuItem Header="{loc:Loc MenuCheckAppUpdate}" 
+                          Command="{Binding CheckAppUpdateCommand}"/>
+                <MenuItem Header="{loc:Loc MenuCheckComponentsUpdate}" 
+                          Command="{Binding CheckComponentsUpdateCommand}"/>
+            </MenuItem>
+            
+            <MenuItem x:Name="MenuAyuda" Header="{loc:Loc MenuHelp}">
+                <MenuItem Header="{loc:Loc MenuShortcuts}" Command="{Binding ShowShortcutsCommand}"/>
+                <Separator/>
+                <MenuItem Header="{loc:Loc MenuAbout}" Command="{Binding ShowAboutCommand}"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Bottom Status Bar (WCAG 2.2 Live Region) -->
+        <StatusBar DockPanel.Dock="Bottom" Height="32" 
+                   AutomationProperties.Name="{loc:Loc StatusBarName}">
+            <StatusBarItem>
+                <TextBlock Text="{Binding AppTitle}" FontWeight="SemiBold" FontSize="12" 
+                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding DownloadVM.StatusText}" FontSize="12"
+                           AutomationProperties.Name="{loc:Loc StatusLabel}"
+                           AutomationProperties.LiveSetting="Polite"/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <!-- Main Tab Control -->
+        <TabControl x:Name="MainTabs" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" 
+                    Margin="0"
+                    Focusable="False"
+                    KeyboardNavigation.TabNavigation="Cycle">
+            <TabItem Header="{loc:Loc TabDownloads}">
+                <views:DownloadView x:Name="ViewDescarga" DataContext="{Binding DownloadVM}" />
+            </TabItem>
+            <TabItem Header="{loc:Loc TabLibrary}">
+                <views:HistoryView DataContext="{Binding HistoryVM}" />
+            </TabItem>
+            <TabItem Header="{loc:Loc TabPlayer}">
+                <views:PlayerView DataContext="{Binding PlayerVM}" />
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

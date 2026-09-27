@@ -1,0 +1,131 @@
+<UserControl x:Class="CazadorYTM.Gui.Views.AdvancedView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             AutomationProperties.Name="Panel de Herramientas Avanzadas y Diagnóstico"
+             KeyboardNavigation.TabNavigation="Cycle">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="24,20,24,24" MaxWidth="920" HorizontalAlignment="Stretch">
+
+            <!-- Title -->
+            <TextBlock Text="Herramientas Avanzadas &amp; Diagnóstico" FontSize="22" FontWeight="Bold" 
+                       Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}" Margin="0,0,0,16"/>
+
+            <!-- Section 1: File Verifier -->
+            <GroupBox Header="Verificador de Integridad de Audio (FFprobe)" Margin="0,0,0,16"
+                      AutomationProperties.Name="Grupo del verificador de integridad de audio">
+                <StackPanel Margin="12">
+                    <Label x:Name="LblVerifyFolder" Target="{Binding ElementName=TxtVerifyFolder}" 
+                           Content="_Carpeta de archivos de audio a verificar:" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtVerifyFolder" Grid.Column="0" 
+                                 Text="{Binding VerifyFolderPath, UpdateSourceTrigger=PropertyChanged}" 
+                                 ui:ControlHelper.PlaceholderText="Carpeta con archivos de audio a verificar..." 
+                                 VerticalContentAlignment="Center" Height="36" Margin="0,0,10,0"
+                                 AutomationProperties.Name="Carpeta para verificar integridad de archivos"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=LblVerifyFolder}"/>
+                        
+                        <Button Grid.Column="1" Content="_Examinar..." Width="110" Height="36" 
+                                Command="{Binding SelectVerifyFolderCommand}" Margin="0,0,10,0"
+                                AutomationProperties.Name="Examinar carpeta de audio a verificar"/>
+                        
+                        <Button Grid.Column="2" Content="🔍 _Verificar Carpeta" Style="{DynamicResource AccentButtonStyle}" 
+                                Width="160" Height="36" Command="{Binding StartVerificationCommand}"
+                                AutomationProperties.Name="Iniciar verificación de integridad de la carpeta"/>
+                    </Grid>
+
+                    <WrapPanel Margin="0,0,0,10">
+                        <CheckBox Content="_Verificación profunda (Decodificación completa con FFmpeg)" 
+                                  IsChecked="{Binding IsDeepVerify}" Margin="0,0,20,6" Height="28"
+                                  AutomationProperties.Name="Activar verificación profunda con decodificación completa"/>
+                        <Button Content="📄 Ver _Reporte Generado" Height="32" Padding="12,0"
+                                Command="{Binding OpenReportCommand}"
+                                AutomationProperties.Name="Abrir archivo de reporte generado en el editor de texto"/>
+                    </WrapPanel>
+
+                    <ProgressBar Value="{Binding VerifyProgress}" Minimum="0" Maximum="100" Height="8" Margin="0,0,0,6"
+                                 AutomationProperties.Name="Progreso de verificación de archivos"
+                                 AutomationProperties.LiveSetting="Polite"/>
+                    
+                    <TextBlock Text="{Binding VerifyStatus}" FontSize="12" 
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,4"
+                               AutomationProperties.Name="Estado de verificación"
+                               AutomationProperties.LiveSetting="Polite"/>
+                    
+                    <TextBlock Text="{Binding VerifySummary}" FontWeight="SemiBold" FontSize="13" 
+                               Foreground="{DynamicResource SystemControlHighlightAccentBrush}" Margin="0,0,0,10"
+                               AutomationProperties.Name="Resumen de resultados de integridad"
+                               AutomationProperties.LiveSetting="Polite"/>
+
+                    <!-- Results DataGrid -->
+                    <DataGrid ItemsSource="{Binding VerificationResults}" AutoGenerateColumns="False" 
+                              Height="180" IsReadOnly="True" HeadersVisibility="Column"
+                              BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                              AutomationProperties.Name="Lista de resultados de verificación de archivos">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="110"/>
+                            <DataGridTextColumn Header="Archivo" Binding="{Binding Nombre}" Width="260"/>
+                            <DataGridTextColumn Header="Ruta Completa" Binding="{Binding Ruta}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Section 2: Binary Updater -->
+            <GroupBox Header="Actualizador de Binarios del Motor (yt-dlp, FFmpeg, Deno)" Margin="0,0,0,16"
+                      AutomationProperties.Name="Grupo de actualización de componentes externos">
+                <StackPanel Margin="12">
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding UpdateStatus}" VerticalAlignment="Center" FontWeight="Medium"
+                                   AutomationProperties.Name="Estado de actualización de binarios"
+                                   AutomationProperties.LiveSetting="Polite"/>
+                        <Button Grid.Column="1" Content="Comprobar Actualizaciones" Width="220" Height="36" 
+                                Command="{Binding CheckUpdatesCommand}"
+                                AutomationProperties.Name="Buscar y actualizar componentes del motor en la nube"/>
+                    </Grid>
+                    <ProgressBar Value="{Binding UpdateProgress}" Minimum="0" Maximum="100" Height="8"
+                                 AutomationProperties.Name="Progreso de actualización de binarios"
+                                 AutomationProperties.LiveSetting="Polite"/>
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Section 3: Proxy Configuration -->
+            <GroupBox Header="Configuración de Red &amp; Proxy" Margin="0,0,0,10"
+                      AutomationProperties.Name="Grupo de configuración de red y proxy">
+                <StackPanel Margin="12">
+                    <Label x:Name="LblProxy" Target="{Binding ElementName=TxtProxy}" 
+                           Content="Dirección del Servidor _Proxy (opcional):" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtProxy" Grid.Column="0" 
+                                 Text="{Binding ProxyText, UpdateSourceTrigger=PropertyChanged}" 
+                                 ui:ControlHelper.PlaceholderText="Ej: http://127.0.0.1:8080 o socks5://127.0.0.1:1080" 
+                                 VerticalContentAlignment="Center" Height="36" Margin="0,0,10,0"
+                                 AutomationProperties.Name="Servidor proxy"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=LblProxy}"/>
+                        <Button Grid.Column="1" Content="💾 _Guardar Proxy" Width="140" Height="36" 
+                                Command="{Binding SaveProxyCommand}"
+                                AutomationProperties.Name="Guardar configuración del servidor proxy"/>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
