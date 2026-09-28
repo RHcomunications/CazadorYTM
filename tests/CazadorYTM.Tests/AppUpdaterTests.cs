@@ -24,4 +24,15 @@ public class AppUpdaterTests
         var result = AppUpdaterService.IsRemoteVersionNewer(remote, local);
         Assert.Equal(expected, result);
     }
+
+    [Fact]
+    public void FormatReleaseNotesForDisplay_CleansMarkdown()
+    {
+        var markdown = "## Título\n\n- **Elemento**: `código`";
+        var cleaned = AppUpdaterService.FormatReleaseNotesForDisplay(markdown);
+        Assert.DoesNotContain("##", cleaned);
+        Assert.DoesNotContain("**", cleaned);
+        Assert.DoesNotContain("`", cleaned);
+        Assert.Contains("• Elemento: código", cleaned);
+    }
 }

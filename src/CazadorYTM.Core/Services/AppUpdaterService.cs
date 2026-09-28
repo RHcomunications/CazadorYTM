@@ -65,7 +65,7 @@ public static class AppUpdaterService
 
             if (root.TryGetProperty("body", out var bodyProp))
             {
-                result.ReleaseNotes = bodyProp.GetString() ?? string.Empty;
+                result.ReleaseNotes = FormatReleaseNotesForDisplay(bodyProp.GetString() ?? string.Empty);
             }
 
             if (root.TryGetProperty("html_url", out var htmlProp))
@@ -231,5 +231,22 @@ public static class AppUpdaterService
         };
 
         Process.Start(psi);
+    }
+
+    public static string FormatReleaseNotesForDisplay(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown)) return string.Empty;
+
+        var text = markdown;
+        // Strip markdown header indicators (e.g. ## Title -> Title)
+        text = Regex.Replace(text, @"^#{1,6}\s*", "", RegexOptions.Multiline);
+        // Strip bold and italic markdown markers
+        text = Regex.Replace(text, @"\*\*([^*]+)\*\*", "$1");
+        text = Regex.Replace(text, @"\*([^*]+)\*", "$1");
+        // Strip inline code markers
+        text = Regex.Replace(text, @"`([^`]+)`", "$1");
+        // Replace markdown list dashes with clear bullet points
+        text = Regex.Replace(text, @"^\s*-\s+", "  • ", RegexOptions.Multiline);
+        return text.Trim();
     }
 }
