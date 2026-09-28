@@ -76,6 +76,7 @@
   "PrefNormalize": "Normalización de volumen EBU R128 (FFmpeg)",
   "PrefEmbedLyrics": "Incrustar Letras sincronizadas (.lrc)",
   "PrefEnumerate": "Enumerar pistas numéricamente (01 -, 02 -)",
+  "PrefClipboardMonitor": "Monitoreo inteligente del portapapeles (detectar enlaces copiados automáticamente)",
   "PrefLanguage": "Idioma de la aplicación:",
   "PrefTheme": "Tema visual:",
   "PrefBrowser": "Cookies del navegador:",

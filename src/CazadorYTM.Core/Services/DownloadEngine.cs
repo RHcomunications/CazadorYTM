@@ -30,7 +30,7 @@ public static class DownloadEngine
     public static List<string> GetCliArgs(string formatType = "mp3", string bitrate = "320k", bool sponsorblock = false,
         string? cookiesBrowser = null, string? playlistItems = null, string? rawArgs = null,
         string? ffmpegLocation = null, string? proxy = null, bool normalize = false,
-        bool embedLyrics = false, string? cookiesPath = null)
+        bool embedLyrics = false, string? cookiesPath = null, string? playerClient = null)
     {
         var args = new List<string>
         {
@@ -72,7 +72,10 @@ public static class DownloadEngine
             args.AddRange(new[] { "--cookies-from-browser", cookiesBrowser.ToLower() });
         }
 
-        args.AddRange(new[] { "--extractor-args", "youtube:player_client=android,web;po_token=web+" });
+        var clientExtractor = !string.IsNullOrEmpty(playerClient)
+            ? $"youtube:player_client={playerClient}"
+            : "youtube:player_client=android,web;po_token=web+";
+        args.AddRange(new[] { "--extractor-args", clientExtractor });
 
         var baseDir = Helpers.GetBaseDir();
         var denoPath = BinaryManager.GetDenoPath(baseDir);

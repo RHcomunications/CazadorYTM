@@ -126,6 +126,64 @@ public partial class MainWindow : Window
         }
     }
 
+    private void MainWindow_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Text))
+        {
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+    }
+
+    private async void MainWindow_Drop(object sender, DragEventArgs e)
+    {
+        if (DataContext is not MainViewModel mainVm) return;
+
+        try
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if (files == null || files.Length == 0) return;
+
+                var txtFile = System.Linq.Enumerable.FirstOrDefault(files, f =>
+                    f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".csv", StringComparison.OrdinalIgnoreCase));
+
+                if (txtFile != null)
+                {
+                    mainVm.NavigateToTabCommand.Execute("0");
+                    await mainVm.DownloadVM.LoadListFileFromPath(txtFile);
+                    return;
+                }
+
+                var audioFiles = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(files, f =>
+                    f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".flac", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".opus", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)));
+
+                if (audioFiles.Count > 0)
+                {
+                    mainVm.NavigateToTabCommand.Execute("2");
+                    mainVm.PlayerVM.SetQueue(audioFiles, 0);
+                    return;
+                }
+            }
+            else if (e.Data.GetDataPresent(DataFormats.Text))
+            {
+                var text = (string)e.Data.GetData(DataFormats.Text);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    mainVm.NavigateToTabCommand.Execute("0");
+                    mainVm.DownloadVM.InputText = text.Trim();
+                }
+            }
+        }
+        catch { }
+    }
+
     private void ExitApp(object sender, RoutedEventArgs e)
     {
         Close();

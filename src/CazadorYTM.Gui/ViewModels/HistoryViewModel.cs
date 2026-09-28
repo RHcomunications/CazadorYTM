@@ -124,12 +124,84 @@ public partial class HistoryViewModel : ObservableObject
         var realPath = ResolveActualFilePath(target);
         if (!string.IsNullOrEmpty(realPath) && File.Exists(realPath))
         {
-            AudioPlayerService.Instance.Play(realPath);
+            // Populate the queue with all currently displayed/filtered library tracks
+            var allTracks = FilteredEntries
+                .Select(ResolveActualFilePath)
+                .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
+                .Cast<string>()
+                .ToList();
+
+            var targetIdx = allTracks.IndexOf(realPath);
+            if (targetIdx >= 0)
+            {
+                AudioPlayerService.Instance.SetQueue(allTracks, targetIdx);
+            }
+            else
+            {
+                AudioPlayerService.Instance.Play(realPath);
+            }
+
             NotificationService.Instance.Notify("Reproductor", $"Reproduciendo: {target.Title}", NotificationType.Info);
         }
         else
         {
             DialogService.Instance.ShowMessage($"El archivo '{target.Title}' no se encuentra en el disco:\n{target.FilePath}", "Aviso", MessageBoxImage.Warning);
+        }
+    }
+
+    [RelayCommand]
+    public void PlayAll()
+    {
+        var allTracks = FilteredEntries
+            .Select(ResolveActualFilePath)
+            .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
+            .Cast<string>()
+            .ToList();
+
+        if (allTracks.Count == 0)
+        {
+            DialogService.Instance.ShowMessage("No hay archivos de audio disponibles en la biblioteca para reproducir.", "Aviso", MessageBoxImage.Information);
+            return;
+        }
+
+        AudioPlayerService.Instance.SetQueue(allTracks, 0);
+        NotificationService.Instance.Notify("Reproductor", $"Reproduciendo toda la biblioteca ({allTracks.Count} pistas)", NotificationType.Info);
+    }
+
+    [RelayCommand]
+    public void ExportPlaylistM3U8()
+    {
+        var allTracks = FilteredEntries
+            .Select(e => (Entry: e, Path: ResolveActualFilePath(e)))
+            .Where(t => !string.IsNullOrEmpty(t.Path) && File.Exists(t.Path))
+            .ToList();
+
+        if (allTracks.Count == 0)
+        {
+            DialogService.Instance.ShowMessage("No hay archivos en la biblioteca para exportar a lista de reproducción.", "Aviso", MessageBoxImage.Information);
+            return;
+        }
+
+        var savePath = DialogService.Instance.SaveFile("Cazador_Biblioteca.m3u8", "Lista de reproducción M3U8 (*.m3u8)|*.m3u8|Lista M3U (*.m3u)|*.m3u");
+        if (string.IsNullOrEmpty(savePath)) return;
+
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("#EXTM3U");
+            foreach (var item in allTracks)
+            {
+                sb.AppendLine($"#EXTINF:-1,{item.Entry.Title ?? Path.GetFileNameWithoutExtension(item.Path)}");
+                sb.AppendLine(item.Path);
+            }
+
+            File.WriteAllText(savePath, sb.ToString(), System.Text.Encoding.UTF8);
+            NotificationService.Instance.Notify("Lista Exportada", $"Se exportaron {allTracks.Count} canciones a la lista M3U8.", NotificationType.Success);
+            DialogService.Instance.ShowMessage($"Lista de reproducción guardada exitosamente:\n{savePath}", "Exportación Completada");
+        }
+        catch (Exception ex)
+        {
+            DialogService.Instance.ShowMessage($"Error al exportar la lista de reproducción: {ex.Message}", "Error", MessageBoxImage.Error);
         }
     }
 

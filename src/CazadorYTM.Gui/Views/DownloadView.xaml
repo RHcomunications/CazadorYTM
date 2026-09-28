@@ -144,6 +144,36 @@
 
             <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="14" 
                          AutomationProperties.LiveSetting="Polite"/>
+
+            <!-- Batch Active Slots Section (Phase 5: Granular per-thread progress) -->
+            <Border Margin="0,12,0,0" Padding="12" CornerRadius="8"
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                    BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                    BorderThickness="1"
+                    Visibility="{Binding HasActiveBatchSlots, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="Descargas simultáneas activas en curso:" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                    <ItemsControl ItemsSource="{Binding ActiveSlots}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="65" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                        <ColumnDefinition Width="100" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding SlotNumber, StringFormat='Hilo {0}:'}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <ProgressBar Grid.Column="2" Minimum="0" Maximum="100" Value="{Binding Progress}" Height="8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding Speed}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center" TextAlignment="Right"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

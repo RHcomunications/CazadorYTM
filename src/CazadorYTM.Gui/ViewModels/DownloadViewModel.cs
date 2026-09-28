@@ -67,11 +67,21 @@ public partial class DownloadViewModel : ObservableObject
     [ObservableProperty]
     private string _selectedSearchSource = "YouTube Music";
 
+    [ObservableProperty]
+    private bool _isClipboardMonitorEnabled = false;
+
+    [ObservableProperty]
+    private bool _hasActiveBatchSlots = false;
+
     public ObservableCollection<string> Formats { get; } = new(Constants.FormatsDisplay);
     public ObservableCollection<string> Bitrates { get; } = new(Constants.Bitrates);
     public ObservableCollection<int> ConcurrencyOptions { get; } = new(Constants.MaxConcurrentValues);
     public ObservableCollection<string> Browsers { get; } = new(Constants.Browsers);
     public ObservableCollection<string> SearchSources { get; } = new(Constants.SearchSources);
+    public ObservableCollection<ActiveDownloadSlot> ActiveSlots { get; } = new();
+
+    private readonly System.Windows.Threading.DispatcherTimer _clipboardTimer;
+    private string _lastClipboardUrl = string.Empty;
 
     public DownloadViewModel()
     {
@@ -86,6 +96,7 @@ public partial class DownloadViewModel : ObservableObject
         _isNormalize = _config.Get("normalize", true);
         _isEmbedLyrics = _config.Get("embed_lyrics", false);
         _isEnumerate = _config.Get("enumerar", false);
+        _isClipboardMonitorEnabled = _config.Get("clipboard_monitor", false);
 
         var savedDest = _config.Get("destination_folder", "");
         _destinationFolder = string.IsNullOrWhiteSpace(savedDest) || !Directory.Exists(savedDest)
@@ -93,6 +104,50 @@ public partial class DownloadViewModel : ObservableObject
             : savedDest;
 
         Directory.CreateDirectory(_destinationFolder);
+
+        _clipboardTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1.5)
+        };
+        _clipboardTimer.Tick += OnClipboardTimerTick;
+        if (_isClipboardMonitorEnabled)
+        {
+            _clipboardTimer.Start();
+        }
+    }
+
+    partial void OnIsClipboardMonitorEnabledChanged(bool value)
+    {
+        if (value)
+            _clipboardTimer.Start();
+        else
+            _clipboardTimer.Stop();
+
+        SavePreferences();
+    }
+
+    private void OnClipboardTimerTick(object? sender, EventArgs e)
+    {
+        if (!IsClipboardMonitorEnabled || IsBusy) return;
+
+        try
+        {
+            if (Clipboard.ContainsText())
+            {
+                var text = Clipboard.GetText()?.Trim();
+                if (!string.IsNullOrEmpty(text) && text != _lastClipboardUrl && Helpers.IsUrl(text) &&
+                    (text.Contains("youtube.com/") || text.Contains("youtu.be/") || text.Contains("soundcloud.com/")))
+                {
+                    _lastClipboardUrl = text;
+                    if (string.IsNullOrWhiteSpace(InputText))
+                    {
+                        InputText = text;
+                        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automáticamente.", NotificationType.Info);
+                    }
+                }
+            }
+        }
+        catch { }
     }
 
     private void SavePreferences()
@@ -106,6 +161,7 @@ public partial class DownloadViewModel : ObservableObject
         _config.Set("embed_lyrics", IsEmbedLyrics);
         _config.Set("enumerar", IsEnumerate);
         _config.Set("destination_folder", DestinationFolder);
+        _config.Set("clipboard_monitor", IsClipboardMonitorEnabled);
         _config.Save();
     }
 
@@ -121,11 +177,16 @@ public partial class DownloadViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task LoadListFile()
+    public async Task LoadListFile()
     {
         var file = DialogService.Instance.SelectFile("Archivos de lista (*.txt;*.csv)|*.txt;*.csv|Todos los archivos (*.*)|*.*");
         if (string.IsNullOrEmpty(file) || !File.Exists(file)) return;
 
+        await LoadListFileFromPath(file);
+    }
+
+    public async Task LoadListFileFromPath(string file)
+    {
         try
         {
             var content = File.ReadAllText(file);
@@ -366,12 +427,26 @@ public partial class DownloadViewModel : ObservableObject
         ProgressDetail = $"0 de {total} completadas";
         LogService.Instance.Info($"Carpeta de destino para la lista: {batchTargetFolder}");
 
+        var slotPool = new System.Collections.Concurrent.ConcurrentQueue<int>(Enumerable.Range(0, SelectedConcurrent));
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            ActiveSlots.Clear();
+            for (int i = 0; i < SelectedConcurrent; i++)
+            {
+                ActiveSlots.Add(new ActiveDownloadSlot { SlotNumber = i + 1, Title = "En espera...", IsActive = false });
+            }
+            HasActiveBatchSlots = true;
+        });
+
         try
         {
             var throttler = new SemaphoreSlim(SelectedConcurrent);
             var tasks = entries.Select(async entry =>
             {
                 await throttler.WaitAsync(_downloadCts.Token);
+                var hasSlot = slotPool.TryDequeue(out var slotIdx);
+                var slot = hasSlot && slotIdx < ActiveSlots.Count ? ActiveSlots[slotIdx] : null;
+
                 try
                 {
                     if (_downloadCts.Token.IsCancellationRequested) return;
@@ -379,7 +454,19 @@ public partial class DownloadViewModel : ObservableObject
                     var itemIndex = Interlocked.Increment(ref startedCount);
                     var itemTitle = entry.Title ?? "Canción";
 
-                    Application.Current.Dispatcher.Invoke(() =>
+                    if (slot != null)
+                    {
+                        Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            slot.Title = itemTitle;
+                            slot.Progress = 0;
+                            slot.Speed = "...";
+                            slot.Eta = "...";
+                            slot.IsActive = true;
+                        });
+                    }
+
+                    Application.Current?.Dispatcher.Invoke(() =>
                     {
                         StatusText = $"[{itemIndex} de {total}] Descargando: {itemTitle}";
                     });
@@ -399,7 +486,25 @@ public partial class DownloadViewModel : ObservableObject
                         loggerCallback: msg => LogService.Instance.Info(msg),
                         isEnumerate: IsEnumerate,
                         itemIndex: itemIndex,
-                        searchSource: SelectedSearchSource));
+                        searchSource: SelectedSearchSource,
+                        progressCallback: dict =>
+                        {
+                            if (slot != null)
+                            {
+                                if (dict.TryGetValue("percent", out var pctStr) && double.TryParse(pctStr, out var pct))
+                                {
+                                    Application.Current?.Dispatcher.Invoke(() => slot.Progress = pct);
+                                }
+                                if (dict.TryGetValue("speed", out var spd))
+                                {
+                                    Application.Current?.Dispatcher.Invoke(() => slot.Speed = spd);
+                                }
+                                if (dict.TryGetValue("eta", out var eta))
+                                {
+                                    Application.Current?.Dispatcher.Invoke(() => slot.Eta = eta);
+                                }
+                            }
+                        }));
 
                     var done = Interlocked.Increment(ref completed);
                     if (res.Success)
@@ -417,7 +522,7 @@ public partial class DownloadViewModel : ObservableObject
                     }
 
                     var overallPct = Math.Round((double)done / total * 100, 1);
-                    Application.Current.Dispatcher.Invoke(() =>
+                    Application.Current?.Dispatcher.Invoke(() =>
                     {
                         ProgressPercentage = overallPct;
                         ProgressDetail = $"Completadas: {done} de {total} ({overallPct}%)";
@@ -426,6 +531,18 @@ public partial class DownloadViewModel : ObservableObject
                 }
                 finally
                 {
+                    if (slot != null)
+                    {
+                        Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            slot.IsActive = false;
+                            slot.Title = "En espera";
+                            slot.Progress = 0;
+                            slot.Speed = string.Empty;
+                            slot.Eta = string.Empty;
+                        });
+                        slotPool.Enqueue(slotIdx);
+                    }
                     throttler.Release();
                 }
             });
@@ -449,6 +566,11 @@ public partial class DownloadViewModel : ObservableObject
         {
             IsBusy = false;
             _downloadCts = null;
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                HasActiveBatchSlots = false;
+                ActiveSlots.Clear();
+            });
         }
     }
 
@@ -461,4 +583,25 @@ public partial class DownloadViewModel : ObservableObject
             StatusText = "Cancelando descarga...";
         }
     }
+}
+
+public partial class ActiveDownloadSlot : ObservableObject
+{
+    [ObservableProperty]
+    private int _slotNumber;
+
+    [ObservableProperty]
+    private string _title = "En espera...";
+
+    [ObservableProperty]
+    private double _progress = 0;
+
+    [ObservableProperty]
+    private string _speed = string.Empty;
+
+    [ObservableProperty]
+    private string _eta = string.Empty;
+
+    [ObservableProperty]
+    private bool _isActive = false;
 }

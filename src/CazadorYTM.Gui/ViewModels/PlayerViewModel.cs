@@ -50,6 +50,24 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private bool _isPaused = false;
 
+    [ObservableProperty]
+    private bool _isShuffle = false;
+
+    [ObservableProperty]
+    private PlaybackRepeatMode _repeatMode = PlaybackRepeatMode.Off;
+
+    [ObservableProperty]
+    private string _repeatModeText = "Repetición: Desactivada";
+
+    [ObservableProperty]
+    private bool _hasNext = false;
+
+    [ObservableProperty]
+    private bool _hasPrevious = false;
+
+    [ObservableProperty]
+    private string _queueStatusText = string.Empty;
+
     public PlayerViewModel()
     {
         _player = AudioPlayerService.Instance;
@@ -72,6 +90,26 @@ public partial class PlayerViewModel : ObservableObject
     {
         IsPlaying = _player.IsPlaying;
         IsPaused = _player.IsPaused;
+        HasNext = _player.HasNext;
+        HasPrevious = _player.HasPrevious;
+        IsShuffle = _player.IsShuffle;
+        RepeatMode = _player.RepeatMode;
+
+        RepeatModeText = RepeatMode switch
+        {
+            PlaybackRepeatMode.All => "Repetir: Toda la lista",
+            PlaybackRepeatMode.One => "Repetir: Esta canción",
+            _ => "Repetir: Desactivado"
+        };
+
+        if (_player.Queue.Count > 1)
+        {
+            QueueStatusText = $"Pista {_player.CurrentQueueIndex + 1} de {_player.Queue.Count}";
+        }
+        else
+        {
+            QueueStatusText = string.Empty;
+        }
 
         if (!string.IsNullOrEmpty(_player.CurrentFilePath))
         {
@@ -95,6 +133,7 @@ public partial class PlayerViewModel : ObservableObject
 
         PositionSeconds = pos.TotalSeconds;
         DurationSeconds = dur.TotalSeconds;
+        HasPrevious = _player.HasPrevious;
     }
 
     partial void OnVolumeChanged(double value)
@@ -207,8 +246,50 @@ public partial class PlayerViewModel : ObservableObject
         AccessiblePositionText = $"Posición: {CurrentPositionText} de {DurationText}";
     }
 
+    [RelayCommand]
+    public void PlayNext()
+    {
+        _player.PlayNext();
+    }
+
+    [RelayCommand]
+    public void PlayPrevious()
+    {
+        _player.PlayPrevious();
+    }
+
+    [RelayCommand]
+    public void ToggleShuffle()
+    {
+        _player.IsShuffle = !_player.IsShuffle;
+        IsShuffle = _player.IsShuffle;
+    }
+
+    [RelayCommand]
+    public void ToggleRepeat()
+    {
+        _player.RepeatMode = _player.RepeatMode switch
+        {
+            PlaybackRepeatMode.Off => PlaybackRepeatMode.All,
+            PlaybackRepeatMode.All => PlaybackRepeatMode.One,
+            _ => PlaybackRepeatMode.Off
+        };
+        RepeatMode = _player.RepeatMode;
+        RepeatModeText = RepeatMode switch
+        {
+            PlaybackRepeatMode.All => "Repetir: Toda la lista",
+            PlaybackRepeatMode.One => "Repetir: Esta canción",
+            _ => "Repetir: Desactivado"
+        };
+    }
+
     public void PlayTrack(string filePath)
     {
         _player.Play(filePath);
+    }
+
+    public void SetQueue(IEnumerable<string> tracks, int startIndex = 0)
+    {
+        _player.SetQueue(tracks, startIndex);
     }
 }

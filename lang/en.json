@@ -76,6 +76,7 @@
   "PrefNormalize": "Volume normalization EBU R128 (FFmpeg)",
   "PrefEmbedLyrics": "Embed synchronized lyrics (.lrc)",
   "PrefEnumerate": "Enumerate tracks numerically (01 -, 02 -)",
+  "PrefClipboardMonitor": "Smart clipboard monitoring (auto-detect copied links)",
   "PrefLanguage": "Application Language:",
   "PrefTheme": "Visual Theme:",
   "PrefBrowser": "Browser Cookies:",

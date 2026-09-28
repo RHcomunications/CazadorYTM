@@ -34,6 +34,26 @@ jobs:
         Copy-Item -Path "lang" -Destination "publish/" -Recurse -Force
         Copy-Item -Path "README.html", "CHANGELOG.html", "ytdlp_help.txt" -Destination "publish/" -Force
 
+    - name: Download Latest Dependencies (yt-dlp, Deno, FFmpeg)
+      run: |
+        Write-Host "Downloading latest yt-dlp.exe..."
+        Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" -OutFile "publish/yt-dlp.exe"
+        
+        Write-Host "Downloading latest Deno..."
+        Invoke-WebRequest -Uri "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip" -OutFile "deno.zip"
+        Expand-Archive -Path "deno.zip" -DestinationPath "publish/" -Force
+        Remove-Item "deno.zip" -Force
+        
+        Write-Host "Downloading latest FFmpeg binaries..."
+        Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+        Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_temp" -Force
+        $binFolder = Get-ChildItem -Path "ffmpeg_temp" -Recurse -Directory -Filter "bin" | Select-Object -First 1
+        if ($binFolder) {
+            Copy-Item -Path "$($binFolder.FullName)\ffmpeg.exe", "$($binFolder.FullName)\ffprobe.exe", "$($binFolder.FullName)\ffplay.exe" -Destination "publish/" -Force
+        }
+        Remove-Item "ffmpeg.zip" -Force
+        Remove-Item "ffmpeg_temp" -Recurse -Force
+
     - name: Create Release Archive
       run: |
         Compress-Archive -Path "publish/*" -DestinationPath "CazadorYTM-win-x64.zip" -CompressionLevel Optimal

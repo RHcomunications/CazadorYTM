@@ -53,6 +53,7 @@
                         <CheckBox Content="{loc:Loc PrefNormalize}" IsChecked="{Binding IsNormalize}" Margin="0,0,0,8"/>
                         <CheckBox Content="{loc:Loc PrefEmbedLyrics}" IsChecked="{Binding IsEmbedLyrics}" Margin="0,0,0,8"/>
                         <CheckBox Content="{loc:Loc PrefEnumerate}" IsChecked="{Binding IsEnumerate}" Margin="0,0,0,8"/>
+                        <CheckBox Content="{loc:Loc PrefClipboardMonitor}" IsChecked="{Binding IsClipboardMonitor}" Margin="0,0,0,8"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

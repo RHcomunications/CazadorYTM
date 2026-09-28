@@ -44,6 +44,9 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     private bool _isEnumerate = false;
 
     [ObservableProperty]
+    private bool _isClipboardMonitor = false;
+
+    [ObservableProperty]
     private string _destinationFolder = string.Empty;
 
     [ObservableProperty]
@@ -86,6 +89,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
         _isNormalize = _config.Get("normalize", true);
         _isEmbedLyrics = _config.Get("embed_lyrics", false);
         _isEnumerate = _config.Get("enumerar", false);
+        _isClipboardMonitor = _config.Get("clipboard_monitor", false);
         _proxyUrl = _config.Get("proxy", "");
         _selectedTheme = _config.Get("theme", "Automático");
 
@@ -284,6 +288,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
         _config.Set("normalize", IsNormalize);
         _config.Set("embed_lyrics", IsEmbedLyrics);
         _config.Set("enumerar", IsEnumerate);
+        _config.Set("clipboard_monitor", IsClipboardMonitor);
         _config.Set("destination_folder", DestinationFolder);
         _config.Set("proxy", ProxyUrl);
         _config.Set("theme", SelectedTheme);

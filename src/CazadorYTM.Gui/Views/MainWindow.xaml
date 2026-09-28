@@ -5,10 +5,13 @@
         xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
         xmlns:views="clr-namespace:CazadorYTM.Gui.Views"
         xmlns:vm="clr-namespace:CazadorYTM.Gui.ViewModels"
-        Title="Cazador YTM v1.0"
+        Title="{Binding AppTitle}"
         Width="1080" Height="760"
         MinWidth="860" MinHeight="580"
         WindowStartupLocation="CenterScreen"
+        AllowDrop="True"
+        Drop="MainWindow_Drop"
+        DragOver="MainWindow_DragOver"
         FocusVisualStyle="{DynamicResource {x:Static SystemParameters.FocusVisualStyleKey}}"
         AutomationProperties.Name="{loc:Loc AppName}"
         AutomationProperties.HelpText="{loc:Loc MainWindowHelpText}">
@@ -23,6 +26,11 @@
         <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding OpenDownloadsFolderCommand}"/>
         
         <!-- Controles globales del Reproductor estilo Spotify -->
+        <KeyBinding Key="Space" Command="{Binding PlayerVM.PlayPauseCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Left" Command="{Binding PlayerVM.PlayPreviousCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Right" Command="{Binding PlayerVM.PlayNextCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="R" Command="{Binding PlayerVM.ToggleRepeatCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="H" Command="{Binding PlayerVM.ToggleShuffleCommand}"/>
         <KeyBinding Modifiers="Shift" Key="Left" Command="{Binding PlayerVM.SeekRelativeCommand}" CommandParameter="-5"/>
         <KeyBinding Modifiers="Shift" Key="Right" Command="{Binding PlayerVM.SeekRelativeCommand}" CommandParameter="5"/>
         <KeyBinding Modifiers="Ctrl+Shift" Key="Left" Command="{Binding PlayerVM.SeekRelativeCommand}" CommandParameter="-30"/>

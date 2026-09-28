@@ -59,38 +59,75 @@
                 </StackPanel>
 
                 <!-- Control Buttons -->
-                <Grid Margin="0,0,0,10">
+                <Grid Margin="0,0,0,14">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
+                    <!-- Open File -->
                     <Button Grid.Column="0" Content="{loc:Loc BtnOpenAudioFile}" Command="{Binding OpenFileCommand}" 
-                            HorizontalAlignment="Left" Width="140" Height="40"
+                            HorizontalAlignment="Left" Width="130" Height="40"
                             AutomationProperties.Name="Abrir archivo de audio local"
                             AutomationProperties.HelpText="Atajo: Control + O"/>
 
+                    <!-- Playback Controls (Shuffle, Prev, Play/Pause, Next, Repeat) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content="{loc:Loc BtnStop}" Command="{Binding StopCommand}" Width="100" Height="40" Margin="0,0,12,0"
-                                AutomationProperties.Name="Detener reproducción"
-                                AutomationProperties.HelpText="Atajo: Control + Shift + S"/>
+                        <!-- Shuffle -->
+                        <Button Content="🔀" Command="{Binding ToggleShuffleCommand}" Width="44" Height="40" Margin="0,0,6,0"
+                                ToolTip="Modo Aleatorio (Shuffle)"
+                                AutomationProperties.Name="Modo Aleatorio"
+                                AutomationProperties.HelpText="{Binding IsShuffle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                        <!-- Previous -->
+                        <Button Content="⏮" Command="{Binding PlayPreviousCommand}" Width="48" Height="40" Margin="0,0,6,0"
+                                IsEnabled="{Binding HasPrevious}"
+                                ToolTip="Pista Anterior (Ctrl + Izquierda)"
+                                AutomationProperties.Name="Pista Anterior"
+                                AutomationProperties.HelpText="Atajo: Control + Flecha Izquierda"/>
+
+                        <!-- Play/Pause -->
                         <Button Content="{loc:Loc BtnPlayPause}" Style="{DynamicResource AccentButtonStyle}" 
-                                Command="{Binding PlayPauseCommand}" Width="170" Height="40"
+                                Command="{Binding PlayPauseCommand}" Width="150" Height="40" Margin="0,0,6,0"
                                 AutomationProperties.Name="Reproducir o Pausar"
                                 AutomationProperties.HelpText="Atajo: Barra Espaciadora"/>
+
+                        <!-- Next -->
+                        <Button Content="⏭" Command="{Binding PlayNextCommand}" Width="48" Height="40" Margin="0,0,6,0"
+                                IsEnabled="{Binding HasNext}"
+                                ToolTip="Pista Siguiente (Ctrl + Derecha)"
+                                AutomationProperties.Name="Pista Siguiente"
+                                AutomationProperties.HelpText="Atajo: Control + Flecha Derecha"/>
+
+                        <!-- Repeat -->
+                        <Button Content="🔁" Command="{Binding ToggleRepeatCommand}" Width="44" Height="40" Margin="0,0,6,0"
+                                ToolTip="{Binding RepeatModeText}"
+                                AutomationProperties.Name="{Binding RepeatModeText}"
+                                AutomationProperties.HelpText="Alterna entre Desactivado, Repetir Todo y Repetir Esta Canción"/>
+
+                        <!-- Stop -->
+                        <Button Content="{loc:Loc BtnStop}" Command="{Binding StopCommand}" Width="80" Height="40"
+                                AutomationProperties.Name="Detener reproducción"
+                                AutomationProperties.HelpText="Atajo: Control + Shift + S"/>
                     </StackPanel>
 
                     <!-- Volume -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Label x:Name="LblVol" Target="{Binding ElementName=SldVolume}" Content="{loc:Loc VolumeLabel}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                        <Slider x:Name="SldVolume" Minimum="0" Maximum="1" Value="{Binding Volume, Mode=TwoWay}" Width="110" VerticalAlignment="Center"
+                        <Slider x:Name="SldVolume" Minimum="0" Maximum="1" Value="{Binding Volume, Mode=TwoWay}" Width="100" VerticalAlignment="Center"
                                 SmallChange="0.05" LargeChange="0.1"
                                 AutomationProperties.Name="{Binding AccessibleVolumeText}"
                                 AutomationProperties.HelpText="Atajos: Control + Arriba para subir volumen, Control + Abajo para bajar volumen, Control + Shift + Abajo para silenciar."
                                 ValueChanged="SldVolume_ValueChanged"/>
                     </StackPanel>
                 </Grid>
+
+                <!-- Queue Status Indicator -->
+                <TextBlock Text="{Binding QueueStatusText}" HorizontalAlignment="Center" FontSize="12" Margin="0,0,0,6"
+                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                           AutomationProperties.Name="Estado de la cola de reproducción"
+                           AutomationProperties.LiveSetting="Polite"/>
 
                 <!-- Live Region for assertive volume updates during manipulation -->
                 <TextBlock x:Name="VolumeLiveAnnouncer" 

@@ -12,9 +12,12 @@
         </Grid.RowDefinitions>
 
         <!-- Search Bar and Count -->
+        <!-- Search & Action Bar -->
         <Grid Grid.Row="0" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
@@ -22,9 +25,17 @@
                      Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}" 
                      FontSize="13" Height="36" VerticalContentAlignment="Center"
                      ui:ControlHelper.PlaceholderText="{loc:Loc LibraryFilterPlaceholder}"
-                     Margin="0,0,12,0"/>
+                     Margin="0,0,8,0"/>
 
-            <Button Grid.Column="1" Content="{loc:Loc BtnRefresh}" Command="{Binding RefreshHistoryCommand}" Height="36" Width="130"/>
+            <Button Grid.Column="1" Content="▶ Reproducir Todo" Command="{Binding PlayAllCommand}" Height="36" Padding="12,0" Margin="0,0,8,0"
+                    ToolTip="Reproduce toda la biblioteca o lista filtrada de forma continua"
+                    AutomationProperties.Name="Reproducir toda la biblioteca"/>
+
+            <Button Grid.Column="2" Content="📁 Exportar M3U8" Command="{Binding ExportPlaylistM3U8Command}" Height="36" Padding="12,0" Margin="0,0,8,0"
+                    ToolTip="Exporta las pistas descargadas a una lista de reproducción .m3u8"
+                    AutomationProperties.Name="Exportar a lista de reproducción M3U8"/>
+
+            <Button Grid.Column="3" Content="{loc:Loc BtnRefresh}" Command="{Binding RefreshHistoryCommand}" Height="36" Width="100"/>
         </Grid>
 
         <!-- History DataGrid: FullRow Navigation with Single Tab Jump Out and UI Virtualization -->
