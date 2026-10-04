@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <SatelliteResourceLanguages>none</SatelliteResourceLanguages>
     <DebugType>none</DebugType>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <AssemblyTitle>Cazador YTM Core</AssemblyTitle>
     <Product>Cazador YTM</Product>
     <Company>narayan project's</Company>
