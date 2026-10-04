@@ -200,24 +200,8 @@ public static class AppUpdaterService
         statusCallback?.Invoke("Preparando script de actualización y reinicio...");
 
         var batPath = Path.Combine(tempRoot, "apply_update.bat");
-        var batContent = new StringBuilder();
-        batContent.AppendLine("@echo off");
-        batContent.AppendLine("chcp 65001 > nul");
-        batContent.AppendLine(":WAIT_LOOP");
-        batContent.AppendLine("tasklist /FI \"IMAGENAME eq CazadorYTM.Gui.exe\" 2>NUL | find /I /N \"CazadorYTM.Gui.exe\">NUL");
-        batContent.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (");
-        batContent.AppendLine("    timeout /t 1 /nobreak > nul");
-        batContent.AppendLine("    goto WAIT_LOOP");
-        batContent.AppendLine(")");
-        batContent.AppendLine("timeout /t 1 /nobreak > nul");
-        batContent.AppendLine($"xcopy \"{actualSourceDir}\\*\" \"{targetBaseDir}\\\" /E /Y /Q /R /H");
-        batContent.AppendLine($"cd /d \"{targetBaseDir}\"");
-        batContent.AppendLine("if exist \"CazadorYTM.Gui.exe\" (");
-        batContent.AppendLine("    start \"\" \"CazadorYTM.Gui.exe\"");
-        batContent.AppendLine(")");
-        batContent.AppendLine("exit");
-
-        File.WriteAllText(batPath, batContent.ToString(), Encoding.GetEncoding(65001));
+        var batContent = GenerateUpdateBatchScript(actualSourceDir, targetBaseDir);
+        File.WriteAllText(batPath, batContent, Encoding.GetEncoding(65001));
 
         statusCallback?.Invoke("Reiniciando Cazador YTM para completar la actualización...");
 
@@ -248,5 +232,34 @@ public static class AppUpdaterService
         // Replace markdown list dashes with clear bullet points
         text = Regex.Replace(text, @"^\s*-\s+", "  • ", RegexOptions.Multiline);
         return text.Trim();
+    }
+
+    public static string GenerateUpdateBatchScript(string actualSourceDir, string targetBaseDir)
+    {
+        var batContent = new StringBuilder();
+        batContent.AppendLine("@echo off");
+        batContent.AppendLine("chcp 65001 > nul");
+        batContent.AppendLine("set RETRIES=0");
+        batContent.AppendLine(":WAIT_LOOP");
+        batContent.AppendLine("tasklist /FI \"IMAGENAME eq CazadorYTM.Gui.exe\" 2>NUL | find /I /N \"CazadorYTM.Gui.exe\">NUL");
+        batContent.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (");
+        batContent.AppendLine("    set /a RETRIES+=1");
+        batContent.AppendLine("    if %RETRIES% geq 30 (");
+        batContent.AppendLine("        taskkill /F /IM CazadorYTM.Gui.exe >nul 2>&1");
+        batContent.AppendLine("        timeout /t 1 /nobreak > nul");
+        batContent.AppendLine("        goto APPLY_COPY");
+        batContent.AppendLine("    )");
+        batContent.AppendLine("    timeout /t 1 /nobreak > nul");
+        batContent.AppendLine("    goto WAIT_LOOP");
+        batContent.AppendLine(")");
+        batContent.AppendLine(":APPLY_COPY");
+        batContent.AppendLine("timeout /t 1 /nobreak > nul");
+        batContent.AppendLine($"xcopy \"{actualSourceDir}\\*\" \"{targetBaseDir}\\\" /E /Y /Q /R /H");
+        batContent.AppendLine($"cd /d \"{targetBaseDir}\"");
+        batContent.AppendLine("if exist \"CazadorYTM.Gui.exe\" (");
+        batContent.AppendLine("    start \"\" \"CazadorYTM.Gui.exe\"");
+        batContent.AppendLine(")");
+        batContent.AppendLine("exit");
+        return batContent.ToString();
     }
 }

@@ -58,4 +58,36 @@ public class HelpersTests
         Assert.Equal(1, warn);
         Assert.Equal(1, err);
     }
+
+    [Fact]
+    public void CleanOldBinaryBackups_DeletesResidualFiles()
+    {
+        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "CazadorTest_Clean_" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(tempDir);
+        try
+        {
+            var oldFile = System.IO.Path.Combine(tempDir, "ffmpeg.exe.old");
+            var dlFile = System.IO.Path.Combine(tempDir, "deno.exe.download");
+            var keepFile = System.IO.Path.Combine(tempDir, "yt-dlp.exe");
+
+            System.IO.File.WriteAllText(oldFile, "dummy");
+            System.IO.File.WriteAllText(dlFile, "dummy");
+            System.IO.File.WriteAllText(keepFile, "keep");
+
+            var cleaned = CazadorYTM.Core.Services.BinaryManager.CleanOldBinaryBackups(tempDir);
+
+            Assert.Equal(2, cleaned);
+            Assert.False(System.IO.File.Exists(oldFile));
+            Assert.False(System.IO.File.Exists(dlFile));
+            Assert.True(System.IO.File.Exists(keepFile));
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(tempDir))
+            {
+                try { System.IO.Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+    }
 }
+

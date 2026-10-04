@@ -94,6 +94,9 @@ public partial class App : Application
         {
             ThemeManager.Current.ApplicationTheme = null; // Auto / System
         }
+
+        // Clean up stale temporary binaries (.old, .download) in background
+        Task.Run(() => BinaryManager.CleanOldBinaryBackups());
     }
 
     protected override void OnExit(ExitEventArgs e)

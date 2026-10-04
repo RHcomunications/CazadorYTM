@@ -236,4 +236,45 @@ public static class BinaryManager
 
         return null;
     }
+
+    public static int CleanOldBinaryBackups(string? baseDir = null)
+    {
+        var resolvedBase = string.IsNullOrEmpty(baseDir) ? Helpers.GetBaseDir() : baseDir;
+        var dirsToClean = new List<string> { resolvedBase };
+        var internalDir = Path.Combine(resolvedBase, "internal");
+        if (Directory.Exists(internalDir))
+            dirsToClean.Add(internalDir);
+
+        var cleanedCount = 0;
+        foreach (var dir in dirsToClean)
+        {
+            if (!Directory.Exists(dir)) continue;
+
+            try
+            {
+                var files = Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(f => f.EndsWith(".old", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".download", StringComparison.OrdinalIgnoreCase));
+
+                foreach (var file in files)
+                {
+                    try
+                    {
+                        File.Delete(file);
+                        cleanedCount++;
+                    }
+                    catch
+                    {
+                        // File might be locked or in use, ignore silently
+                    }
+                }
+            }
+            catch
+            {
+                // Access issues, ignore
+            }
+        }
+
+        return cleanedCount;
+    }
 }

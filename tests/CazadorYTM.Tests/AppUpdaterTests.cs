@@ -35,4 +35,17 @@ public class AppUpdaterTests
         Assert.DoesNotContain("`", cleaned);
         Assert.Contains("• Elemento: código", cleaned);
     }
+
+    [Fact]
+    public void GenerateUpdateBatchScript_ContainsTimeoutAndFallbackKill()
+    {
+        var src = "C:\\Temp\\Source";
+        var dst = "C:\\App";
+        var script = AppUpdaterService.GenerateUpdateBatchScript(src, dst);
+
+        Assert.Contains("set RETRIES=0", script);
+        Assert.Contains("if %RETRIES% geq 30", script);
+        Assert.Contains("taskkill /F /IM CazadorYTM.Gui.exe", script);
+        Assert.Contains("xcopy \"C:\\Temp\\Source\\*\" \"C:\\App\\\"", script);
+    }
 }
