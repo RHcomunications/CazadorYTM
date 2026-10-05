@@ -200,7 +200,7 @@ public static class AppUpdaterService
         statusCallback?.Invoke("Preparando script de actualización y reinicio...");
 
         var batPath = Path.Combine(tempRoot, "apply_update.bat");
-        var batContent = GenerateUpdateBatchScript(actualSourceDir, targetBaseDir);
+        var batContent = GenerateUpdateBatchScript(actualSourceDir, targetBaseDir, tempRoot);
         File.WriteAllText(batPath, batContent, Encoding.GetEncoding(65001));
 
         statusCallback?.Invoke("Reiniciando Cazador YTM para completar la actualización...");
@@ -234,7 +234,7 @@ public static class AppUpdaterService
         return text.Trim();
     }
 
-    public static string GenerateUpdateBatchScript(string actualSourceDir, string targetBaseDir)
+    public static string GenerateUpdateBatchScript(string actualSourceDir, string targetBaseDir, string? tempRoot = null)
     {
         var batContent = new StringBuilder();
         batContent.AppendLine("@echo off");
@@ -259,7 +259,30 @@ public static class AppUpdaterService
         batContent.AppendLine("if exist \"CazadorYTM.Gui.exe\" (");
         batContent.AppendLine("    start \"\" \"CazadorYTM.Gui.exe\"");
         batContent.AppendLine(")");
+        if (!string.IsNullOrEmpty(tempRoot))
+        {
+            batContent.AppendLine("cd /d \"%TEMP%\"");
+            batContent.AppendLine($"start \"\" /b cmd /c \"timeout /t 3 /nobreak >nul & rd /s /q \\\"{tempRoot}\\\"\"");
+        }
         batContent.AppendLine("exit");
         return batContent.ToString();
+    }
+
+    public static bool CleanStaleUpdateArtifacts(string? tempPath = null)
+    {
+        try
+        {
+            var root = tempPath ?? Path.Combine(Path.GetTempPath(), "CazadorYTM_Update");
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+                return true;
+            }
+        }
+        catch
+        {
+            // Silently ignore if locked or inaccessible
+        }
+        return false;
     }
 }

@@ -48,4 +48,28 @@ public class AppUpdaterTests
         Assert.Contains("taskkill /F /IM CazadorYTM.Gui.exe", script);
         Assert.Contains("xcopy \"C:\\Temp\\Source\\*\" \"C:\\App\\\"", script);
     }
+
+    [Fact]
+    public void GenerateUpdateBatchScript_WithTempRoot_ContainsSelfCleanup()
+    {
+        var src = "C:\\Temp\\Source";
+        var dst = "C:\\App";
+        var tempRoot = "C:\\Temp\\CazadorYTM_Update";
+        var script = AppUpdaterService.GenerateUpdateBatchScript(src, dst, tempRoot);
+
+        Assert.Contains("rd /s /q \\\"C:\\Temp\\CazadorYTM_Update\\\"", script);
+    }
+
+    [Fact]
+    public void CleanStaleUpdateArtifacts_DeletesTargetDirectory()
+    {
+        var tempFolder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "CazadorTest_UpdateArtifact_" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(tempFolder);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(tempFolder, "dummy.zip"), "test");
+
+        var result = AppUpdaterService.CleanStaleUpdateArtifacts(tempFolder);
+
+        Assert.True(result);
+        Assert.False(System.IO.Directory.Exists(tempFolder));
+    }
 }
