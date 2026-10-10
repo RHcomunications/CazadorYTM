@@ -16,6 +16,11 @@
         AutomationProperties.Name="{loc:Loc AppName}"
         AutomationProperties.HelpText="{loc:Loc MainWindowHelpText}">
 
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo ProgressState="{Binding TaskbarProgressState}"
+                         ProgressValue="{Binding TaskbarProgressValue}"/>
+    </Window.TaskbarItemInfo>
+
     <Window.InputBindings>
         <KeyBinding Modifiers="Ctrl" Key="D1" Command="{Binding NavigateToTabCommand}" CommandParameter="0"/>
         <KeyBinding Modifiers="Ctrl" Key="D2" Command="{Binding NavigateToTabCommand}" CommandParameter="1"/>

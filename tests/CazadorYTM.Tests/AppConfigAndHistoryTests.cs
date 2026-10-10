@@ -112,4 +112,25 @@ public class HistoryManagerTests : IDisposable
         history.Clear();
         Assert.Empty(history.GetEntries());
     }
+
+    [Fact]
+    public void HistoryManager_RemoveEntries_RemovesMultipleEntries()
+    {
+        var history = new HistoryManager(_tempHistoryPath);
+        var entry1 = new DownloadEntry { Title = "Song 1", Url = "url1", FilePath = "C:/Music/1.mp3" };
+        var entry2 = new DownloadEntry { Title = "Song 2", Url = "url2", FilePath = "C:/Music/2.mp3" };
+        var entry3 = new DownloadEntry { Title = "Song 3", Url = "url3", FilePath = "C:/Music/3.mp3" };
+
+        history.AddEntry(entry1);
+        history.AddEntry(entry2);
+        history.AddEntry(entry3);
+        Assert.Equal(3, history.GetEntries().Count);
+
+        var removed = history.RemoveEntries(new[] { entry1, entry3 });
+        Assert.Equal(2, removed);
+
+        var remaining = history.GetEntries();
+        Assert.Single(remaining);
+        Assert.Equal("Song 2", remaining[0].Title);
+    }
 }

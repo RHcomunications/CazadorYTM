@@ -1,9 +1,11 @@
 namespace CazadorYTM.Gui.Services;
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Threading;
+using CazadorYTM.Core.Services;
 
 public enum PlaybackRepeatMode
 {
@@ -50,6 +52,9 @@ public class AudioPlayerService : IAudioPlayerService
     private readonly DispatcherTimer _timer = new();
     private readonly List<string> _queue = new();
     private readonly Random _random = new();
+
+    private string? _currentTempWav;
+    private bool _isFallbackAttempt;
 
     public event Action? StateChanged;
     public event Action<TimeSpan, TimeSpan>? PositionChanged;
@@ -113,8 +118,21 @@ public class AudioPlayerService : IAudioPlayerService
 
         _mediaPlayer.MediaFailed += (s, e) =>
         {
+            if (CurrentFilePath != null && !_isFallbackAttempt)
+            {
+                _isFallbackAttempt = true;
+                var transcoded = TryTranscodeToTempWav(CurrentFilePath);
+                if (transcoded != null)
+                {
+                    LogService.Instance.Info($"Reproduciendo mediante decodificador universal FFmpeg: {Path.GetFileName(CurrentFilePath)}");
+                    _mediaPlayer.Open(new Uri(transcoded, UriKind.Absolute));
+                    _mediaPlayer.Play();
+                    return;
+                }
+            }
+            _isFallbackAttempt = false;
             Stop();
-            LogService.Instance.Error($"Error al reproducir audio: {e.ErrorException?.Message ?? "Desconocido"}");
+            LogService.Instance.Error($"Error al reproducir audio: {e.ErrorException?.Message ?? "Formato o códec no soportado"}");
         };
     }
 
@@ -195,9 +213,26 @@ public class AudioPlayerService : IAudioPlayerService
     {
         try
         {
+            CleanupTempWav();
+            _isFallbackAttempt = false;
             _mediaPlayer.Close();
             CurrentFilePath = filePath;
-            _mediaPlayer.Open(new Uri(filePath, UriKind.Absolute));
+
+            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            var targetUri = filePath;
+
+            // Direct transcode for formats notoriously unsupported by default Windows Media Foundation (.opus, .ogg, .webm)
+            if (ext == ".opus" || ext == ".ogg" || ext == ".webm")
+            {
+                var transcoded = TryTranscodeToTempWav(filePath);
+                if (transcoded != null)
+                {
+                    targetUri = transcoded;
+                    _isFallbackAttempt = true;
+                }
+            }
+
+            _mediaPlayer.Open(new Uri(targetUri, UriKind.Absolute));
             _mediaPlayer.Play();
             IsPlaying = true;
             IsPaused = false;
@@ -295,6 +330,8 @@ public class AudioPlayerService : IAudioPlayerService
         }
         catch { }
 
+        CleanupTempWav();
+        _isFallbackAttempt = false;
         _timer.Stop();
         IsPlaying = false;
         IsPaused = false;
@@ -309,6 +346,65 @@ public class AudioPlayerService : IAudioPlayerService
         {
             _mediaPlayer.Position = position;
             PositionChanged?.Invoke(position, Duration);
+        }
+    }
+
+    public string? TryTranscodeToTempWav(string sourcePath)
+    {
+        try
+        {
+            var ffmpegDir = BinaryManager.FindFfmpegPath();
+            if (string.IsNullOrEmpty(ffmpegDir)) return null;
+
+            var ffmpegExe = Path.Combine(ffmpegDir, Environment.OSVersion.Platform == PlatformID.Win32NT ? "ffmpeg.exe" : "ffmpeg");
+            if (!File.Exists(ffmpegExe)) return null;
+
+            var tempDir = Path.Combine(Path.GetTempPath(), "CazadorYTM_Player");
+            Directory.CreateDirectory(tempDir);
+
+            var tempWav = Path.Combine(tempDir, $"cache_{Guid.NewGuid():N}.wav");
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffmpegExe,
+                Arguments = $"-y -v error -i \"{sourcePath}\" -vn -c:a pcm_s16le \"{tempWav}\"",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+
+            using var process = Process.Start(psi);
+            if (process == null) return null;
+
+            var exited = process.WaitForExit(15000);
+            if (!exited)
+            {
+                try { process.Kill(); } catch { }
+                return null;
+            }
+
+            if (process.ExitCode == 0 && File.Exists(tempWav) && new FileInfo(tempWav).Length > 0)
+            {
+                _currentTempWav = tempWav;
+                return tempWav;
+            }
+        }
+        catch (Exception ex)
+        {
+            LogService.Instance.Error($"Fallo al decodificar audio con FFmpeg: {ex.Message}");
+        }
+        return null;
+    }
+
+    private void CleanupTempWav()
+    {
+        if (!string.IsNullOrEmpty(_currentTempWav) && File.Exists(_currentTempWav))
+        {
+            try
+            {
+                File.Delete(_currentTempWav);
+            }
+            catch { }
+            _currentTempWav = null;
         }
     }
 }

@@ -162,6 +162,28 @@ public class HistoryManager
         GlobalHistoryChanged?.Invoke();
     }
 
+    public int RemoveEntries(IEnumerable<DownloadEntry> toRemove)
+    {
+        var entries = LoadFromDisk();
+        var toRemoveList = toRemove.ToList();
+        if (toRemoveList.Count == 0) return 0;
+
+        var initialCount = entries.Count;
+        entries.RemoveAll(d =>
+            toRemoveList.Any(entry =>
+                (entry.Title != null && d.TryGetValue("title", out var t) && t?.ToString() == entry.Title) ||
+                (entry.FilePath != null && d.TryGetValue("file_path", out var fp) && fp?.ToString() == entry.FilePath) ||
+                (entry.Url != null && d.TryGetValue("url", out var u) && u?.ToString() == entry.Url)));
+
+        var removed = initialCount - entries.Count;
+        if (removed > 0)
+        {
+            SaveToDisk(entries);
+            GlobalHistoryChanged?.Invoke();
+        }
+        return removed;
+    }
+
     public void Clear()
     {
         SaveToDisk(new List<Dictionary<string, object>>());

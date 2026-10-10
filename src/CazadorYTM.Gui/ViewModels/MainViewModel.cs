@@ -23,6 +23,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _statusText = "Listo";
 
+    [ObservableProperty]
+    private System.Windows.Shell.TaskbarItemProgressState _taskbarProgressState = System.Windows.Shell.TaskbarItemProgressState.None;
+
+    [ObservableProperty]
+    private double _taskbarProgressValue = 0.0;
+
     public string AppTitle => $"{Constants.AppTitle}";
 
     public MainViewModel()
@@ -32,9 +38,55 @@ public partial class MainViewModel : ObservableObject
         HistoryVM = new HistoryViewModel();
         LogsVM = new LogsViewModel();
 
+        DownloadVM.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(DownloadVM.IsBusy) ||
+                e.PropertyName == nameof(DownloadVM.ProgressPercentage) ||
+                e.PropertyName == nameof(DownloadVM.StatusText))
+            {
+                UpdateTaskbarProgress();
+            }
+        };
+
+        HistoryVM.RetryRequested += (entry) =>
+        {
+            SelectedTabIndex = 0;
+            var target = !string.IsNullOrWhiteSpace(entry.Url) ? entry.Url : entry.Title ?? "";
+            DownloadVM.InputText = target;
+            NotificationService.Instance.Notify("Reintentar Descarga", $"Canción cargada en el panel de descargas: {target}", NotificationType.Info);
+        };
+
         LogService.Instance.Info($"{Constants.AppTitle} iniciado correctamente.");
 
         _ = CheckForUpdatesSilentlyAsync();
+    }
+
+    public void UpdateTaskbarProgress()
+    {
+        if (!DownloadVM.IsBusy)
+        {
+            TaskbarProgressState = System.Windows.Shell.TaskbarItemProgressState.None;
+            TaskbarProgressValue = 0.0;
+            return;
+        }
+
+        var status = DownloadVM.StatusText ?? "";
+        if (status.Contains("Error", StringComparison.OrdinalIgnoreCase) || status.Contains("Fallo", StringComparison.OrdinalIgnoreCase))
+        {
+            TaskbarProgressState = System.Windows.Shell.TaskbarItemProgressState.Error;
+            return;
+        }
+
+        if (DownloadVM.ProgressPercentage <= 0.0 || (DownloadVM.ProgressPercentage >= 100.0 && status.Contains("Procesando", StringComparison.OrdinalIgnoreCase)))
+        {
+            TaskbarProgressState = System.Windows.Shell.TaskbarItemProgressState.Indeterminate;
+            TaskbarProgressValue = 0.0;
+        }
+        else
+        {
+            TaskbarProgressState = System.Windows.Shell.TaskbarItemProgressState.Normal;
+            TaskbarProgressValue = Math.Clamp(DownloadVM.ProgressPercentage / 100.0, 0.0, 1.0);
+        }
     }
 
     private async Task CheckForUpdatesSilentlyAsync()

@@ -270,19 +270,29 @@ public static class AppUpdaterService
 
     public static bool CleanStaleUpdateArtifacts(string? tempPath = null)
     {
+        var cleaned = false;
         try
         {
             var root = tempPath ?? Path.Combine(Path.GetTempPath(), "CazadorYTM_Update");
             if (Directory.Exists(root))
             {
                 Directory.Delete(root, true);
-                return true;
+                cleaned = true;
             }
         }
-        catch
+        catch { }
+
+        try
         {
-            // Silently ignore if locked or inaccessible
+            var playerCache = Path.Combine(Path.GetTempPath(), "CazadorYTM_Player");
+            if (Directory.Exists(playerCache))
+            {
+                Directory.Delete(playerCache, true);
+                cleaned = true;
+            }
         }
-        return false;
+        catch { }
+
+        return cleaned;
     }
 }

@@ -16,6 +16,8 @@ public partial class HistoryViewModel : ObservableObject
 {
     private readonly HistoryManager _historyManager;
 
+    public event Action<DownloadEntry>? RetryRequested;
+
     [ObservableProperty]
     private string _searchFilter = string.Empty;
 
@@ -280,6 +282,48 @@ public partial class HistoryViewModel : ObservableObject
             _historyManager.Clear();
             RefreshHistory();
             LogService.Instance.Info("Historial de descargas vaciado.");
+        }
+    }
+
+    [RelayCommand]
+    public void RetryDownload(DownloadEntry? entry = null)
+    {
+        var target = entry ?? SelectedEntry ?? FilteredEntries.FirstOrDefault();
+        if (target == null)
+        {
+            DialogService.Instance.ShowMessage("Seleccione una canción para reintentar su descarga.", "Aviso", MessageBoxImage.Information);
+            return;
+        }
+
+        RetryRequested?.Invoke(target);
+    }
+
+    [RelayCommand]
+    public void CleanMissingEntries()
+    {
+        var all = HistoryEntries.ToList();
+        var missing = all.Where(e =>
+        {
+            var path = ResolveActualFilePath(e);
+            return string.IsNullOrEmpty(path) || !File.Exists(path);
+        }).ToList();
+
+        if (missing.Count == 0)
+        {
+            DialogService.Instance.ShowMessage("Todos los archivos registrados en la biblioteca existen en disco.", "Biblioteca en orden", MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = DialogService.Instance.ShowConfirmation(
+            $"Se encontraron {missing.Count} registros de canciones cuyos archivos ya no existen en disco.\n\n¿Desea eliminarlos del historial de la biblioteca?",
+            "Depurar Biblioteca");
+
+        if (confirm)
+        {
+            var removed = _historyManager.RemoveEntries(missing);
+            RefreshHistory();
+            NotificationService.Instance.Notify("Biblioteca Depurada", $"Se eliminaron {removed} registros obsoletos.", NotificationType.Success);
+            LogService.Instance.Info($"Depuración de biblioteca: {removed} registros removidos.");
         }
     }
 }
