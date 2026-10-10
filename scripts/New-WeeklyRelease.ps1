@@ -146,12 +146,20 @@ try {
     git tag "v$TargetVersion"
     Write-Host "  [OK] Commit y Tag v$TargetVersion creados localmente." -ForegroundColor Green
 
-    if ($Push) {
+    $doPush = $Push
+    if (-not $doPush -and [Environment]::UserInteractive) {
+        $response = Read-Host "`n¿Deseas subir el release a GitHub (origin main y tags) ahora mismo? (S/n)"
+        if ([string]::IsNullOrWhiteSpace($response) -or $response -match '^[sSyY]') {
+            $doPush = $true
+        }
+    }
+
+    if ($doPush) {
         Write-Host "Subiendo a GitHub (origin main y tags)..." -ForegroundColor Cyan
         git push origin main --tags
         Write-Host "[EXITO] Push completado. GitHub Actions ha iniciado la compilacion del release." -ForegroundColor Green
     } else {
-        Write-Host "`nPara publicar este release en GitHub y disparar el empaquetado automatico, ejecuta:" -ForegroundColor Cyan
+        Write-Host "`nPara publicar este release en GitHub posteriormente, ejecuta:" -ForegroundColor Cyan
         Write-Host "  git push origin main --tags" -ForegroundColor White
     }
 }
