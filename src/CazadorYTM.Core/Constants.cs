@@ -1,4 +1,4 @@
-﻿namespace CazadorYTM.Core;
+namespace CazadorYTM.Core;
 
 public static class Constants
 {
@@ -34,11 +34,6 @@ public static class Constants
 
     public const string ConfigFilename = "cazador_config.json";
     public const string HistoryFilename = "downloads_history.json";
-
-    public static readonly HashSet<string> ExcludedTxtFiles = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ytdlp_help.txt", "ytdlp_help_utf8.txt"
-    };
 
     public const string MultiDownloadFolder = "Cazador_YTM";
     public const string SingleDownloadFolder = "Descargas_Individuales";

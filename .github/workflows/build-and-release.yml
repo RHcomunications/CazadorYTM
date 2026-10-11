@@ -32,7 +32,7 @@ jobs:
     - name: Copy Auxiliary Assets
       run: |
         Copy-Item -Path "lang" -Destination "publish/" -Recurse -Force
-        Copy-Item -Path "README.html", "CHANGELOG.html", "ytdlp_help.txt" -Destination "publish/" -Force
+        Copy-Item -Path "README.html", "CHANGELOG.html" -Destination "publish/" -Force
 
     - name: Download Latest Dependencies (yt-dlp, Deno, FFmpeg)
       run: |
