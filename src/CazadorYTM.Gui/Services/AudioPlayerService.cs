@@ -53,6 +53,11 @@ public class AudioPlayerService : IAudioPlayerService
     private readonly List<string> _queue = new();
     private readonly Random _random = new();
 
+    private readonly object _cacheLock = new();
+    private readonly Dictionary<string, string> _lruTranscodeCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly LinkedList<string> _lruOrder = new();
+    private const int MaxLruCachedTracks = 5;
+
     private string? _currentTempWav;
     private bool _isFallbackAttempt;
 
@@ -213,7 +218,6 @@ public class AudioPlayerService : IAudioPlayerService
     {
         try
         {
-            CleanupTempWav();
             _isFallbackAttempt = false;
             _mediaPlayer.Close();
             CurrentFilePath = filePath;
@@ -330,7 +334,6 @@ public class AudioPlayerService : IAudioPlayerService
         }
         catch { }
 
-        CleanupTempWav();
         _isFallbackAttempt = false;
         _timer.Stop();
         IsPlaying = false;
@@ -353,6 +356,17 @@ public class AudioPlayerService : IAudioPlayerService
     {
         try
         {
+            lock (_cacheLock)
+            {
+                if (_lruTranscodeCache.TryGetValue(sourcePath, out var cachedWav) && File.Exists(cachedWav))
+                {
+                    _lruOrder.Remove(sourcePath);
+                    _lruOrder.AddFirst(sourcePath);
+                    _currentTempWav = cachedWav;
+                    return cachedWav;
+                }
+            }
+
             var ffmpegDir = BinaryManager.FindFfmpegPath();
             if (string.IsNullOrEmpty(ffmpegDir)) return null;
 
@@ -384,7 +398,32 @@ public class AudioPlayerService : IAudioPlayerService
 
             if (process.ExitCode == 0 && File.Exists(tempWav) && new FileInfo(tempWav).Length > 0)
             {
-                _currentTempWav = tempWav;
+                lock (_cacheLock)
+                {
+                    // Evict oldest if exceeding capacity
+                    while (_lruOrder.Count >= MaxLruCachedTracks)
+                    {
+                        var oldest = _lruOrder.Last?.Value;
+                        if (oldest != null)
+                        {
+                            _lruOrder.RemoveLast();
+                            if (_lruTranscodeCache.TryGetValue(oldest, out var oldestWav))
+                            {
+                                _lruTranscodeCache.Remove(oldest);
+                                if (oldestWav != _currentTempWav && File.Exists(oldestWav))
+                                {
+                                    try { File.Delete(oldestWav); } catch { }
+                                }
+                            }
+                        }
+                        else break;
+                    }
+
+                    _lruTranscodeCache[sourcePath] = tempWav;
+                    _lruOrder.AddFirst(sourcePath);
+                    _currentTempWav = tempWav;
+                }
+
                 return tempWav;
             }
         }
@@ -395,16 +434,31 @@ public class AudioPlayerService : IAudioPlayerService
         return null;
     }
 
-    private void CleanupTempWav()
+    public void CleanupAllTempCache()
     {
-        if (!string.IsNullOrEmpty(_currentTempWav) && File.Exists(_currentTempWav))
+        lock (_cacheLock)
         {
-            try
+            foreach (var wav in _lruTranscodeCache.Values)
             {
-                File.Delete(_currentTempWav);
+                try
+                {
+                    if (File.Exists(wav)) File.Delete(wav);
+                }
+                catch { }
             }
-            catch { }
+            _lruTranscodeCache.Clear();
+            _lruOrder.Clear();
             _currentTempWav = null;
         }
+
+        try
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "CazadorYTM_Player");
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+        catch { }
     }
 }

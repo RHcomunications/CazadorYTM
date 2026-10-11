@@ -109,6 +109,8 @@ public partial class App : Application
         {
             NotificationService.Instance.Cleanup();
             AudioPlayerService.Instance.Stop();
+            AudioPlayerService.Instance.CleanupAllTempCache();
+            new HistoryManager().Flush();
 
             if (_singleInstanceMutex != null)
             {

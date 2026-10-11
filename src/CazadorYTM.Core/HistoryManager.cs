@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using CazadorYTM.Core.Models;
 
@@ -13,10 +12,17 @@ public class HistoryManager
     private static readonly object _fileLock = new();
     private readonly string _path;
 
+    private readonly object _stateLock = new();
+    private List<DownloadHistoryRecord>? _cachedRecords;
+    private bool _hasPendingChanges;
+    private Timer? _debounceTimer;
+    private readonly int _debounceMilliseconds;
+
     public static event Action? GlobalHistoryChanged;
 
-    public HistoryManager(string? baseDir = null)
+    public HistoryManager(string? baseDir = null, int debounceMilliseconds = 1500)
     {
+        _debounceMilliseconds = debounceMilliseconds;
         if (baseDir is not null && (File.Exists(baseDir) || baseDir.EndsWith(".json")))
         {
             _path = baseDir;
@@ -28,7 +34,21 @@ public class HistoryManager
         }
     }
 
-    private List<Dictionary<string, object>> LoadFromDisk()
+    private List<DownloadHistoryRecord> EnsureLoaded()
+    {
+        lock (_stateLock)
+        {
+            if (_cachedRecords != null)
+            {
+                return _cachedRecords;
+            }
+
+            _cachedRecords = LoadFromDisk();
+            return _cachedRecords;
+        }
+    }
+
+    private List<DownloadHistoryRecord> LoadFromDisk()
     {
         lock (_fileLock)
         {
@@ -39,17 +59,17 @@ public class HistoryManager
                     var json = File.ReadAllText(_path);
                     if (!string.IsNullOrWhiteSpace(json))
                     {
-                        var data = JsonHelper.Deserialize<List<Dictionary<string, object>>>(json);
+                        var data = JsonHelper.Deserialize<List<DownloadHistoryRecord>>(json);
                         if (data != null) return data;
                     }
                 }
                 catch { }
             }
-            return new List<Dictionary<string, object>>();
+            return new List<DownloadHistoryRecord>();
         }
     }
 
-    private void SaveToDisk(List<Dictionary<string, object>> entries)
+    private void SaveToDiskInternal(List<DownloadHistoryRecord> records)
     {
         lock (_fileLock)
         {
@@ -62,7 +82,7 @@ public class HistoryManager
                     Directory.CreateDirectory(dir);
                 }
 
-                var json = JsonHelper.Serialize(entries);
+                var json = JsonHelper.Serialize(records);
                 File.WriteAllText(tmpPath, json);
                 File.Move(tmpPath, _path, overwrite: true);
             }
@@ -74,6 +94,54 @@ public class HistoryManager
                 }
             }
         }
+    }
+
+    private void ScheduleFlush()
+    {
+        lock (_stateLock)
+        {
+            _hasPendingChanges = true;
+            if (_debounceMilliseconds <= 0)
+            {
+                FlushInternal();
+                return;
+            }
+
+            if (_debounceTimer == null)
+            {
+                _debounceTimer = new Timer(_ => FlushInternal(), null, _debounceMilliseconds, Timeout.Infinite);
+            }
+            else
+            {
+                _debounceTimer.Change(_debounceMilliseconds, Timeout.Infinite);
+            }
+        }
+    }
+
+    private void FlushInternal()
+    {
+        List<DownloadHistoryRecord>? toWrite = null;
+        lock (_stateLock)
+        {
+            if (!_hasPendingChanges || _cachedRecords == null) return;
+            toWrite = new List<DownloadHistoryRecord>(_cachedRecords);
+            _hasPendingChanges = false;
+        }
+
+        if (toWrite != null)
+        {
+            SaveToDiskInternal(toWrite);
+        }
+    }
+
+    public void Flush()
+    {
+        lock (_stateLock)
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+        }
+        FlushInternal();
     }
 
     public void Add(string title, string url, string fmt, string status, bool batchMode = false)
@@ -90,30 +158,25 @@ public class HistoryManager
 
     public void AddEntry(DownloadEntry entry, bool batchMode = false)
     {
-        var entries = LoadFromDisk();
-
-        // Avoid exact duplicate entries
-        entries.RemoveAll(d =>
-            (entry.FilePath != null && d.TryGetValue("file_path", out var fp) && fp?.ToString() == entry.FilePath) ||
-            (entry.Title != null && d.TryGetValue("title", out var t) && t?.ToString() == entry.Title &&
-             entry.Url != null && d.TryGetValue("url", out var u) && u?.ToString() == entry.Url));
-
-        entries.Add(new Dictionary<string, object>
+        lock (_stateLock)
         {
-            ["title"] = entry.Title ?? "",
-            ["url"] = entry.Url ?? "",
-            ["format"] = entry.Format ?? "mp3",
-            ["status"] = entry.Status ?? "OK",
-            ["file_path"] = entry.FilePath ?? "",
-            ["date"] = (entry.Timestamp ?? DateTime.Now).ToString("yyyy-MM-dd HH:mm:ss")
-        });
+            var records = EnsureLoaded();
 
-        if (entries.Count > 500)
-        {
-            entries = entries.GetRange(entries.Count - 500, 500);
+            // Avoid exact duplicate entries
+            records.RemoveAll(d =>
+                (!string.IsNullOrEmpty(entry.FilePath) && d.FilePath == entry.FilePath) ||
+                (!string.IsNullOrEmpty(entry.Title) && d.Title == entry.Title &&
+                 !string.IsNullOrEmpty(entry.Url) && d.Url == entry.Url));
+
+            records.Add(DownloadHistoryRecord.FromDownloadEntry(entry));
+
+            if (records.Count > 500)
+            {
+                _cachedRecords = records.GetRange(records.Count - 500, 500);
+            }
+
+            ScheduleFlush();
         }
-
-        SaveToDisk(entries);
 
         if (!batchMode)
         {
@@ -123,62 +186,59 @@ public class HistoryManager
 
     public List<DownloadEntry> GetEntries()
     {
-        var entries = LoadFromDisk();
-        var list = new List<DownloadEntry>();
-
-        foreach (var dict in entries)
+        List<DownloadHistoryRecord> snapshot;
+        lock (_stateLock)
         {
-            var entry = new DownloadEntry
-            {
-                Title = dict.TryGetValue("title", out var t) ? t?.ToString() : null,
-                Url = dict.TryGetValue("url", out var u) ? u?.ToString() : null,
-                Format = dict.TryGetValue("format", out var f) ? f?.ToString() : null,
-                Status = dict.TryGetValue("status", out var s) ? s?.ToString() : null,
-                FilePath = dict.TryGetValue("file_path", out var fp) ? fp?.ToString() : null
-            };
-
-            if (dict.TryGetValue("date", out var d) && DateTime.TryParse(d?.ToString(), out var dt))
-            {
-                entry.Timestamp = dt;
-            }
-
-            list.Add(entry);
+            snapshot = new List<DownloadHistoryRecord>(EnsureLoaded());
         }
 
+        var list = snapshot.Select(r => r.ToDownloadEntry()).ToList();
         list.Reverse(); // Most recent first
         return list;
     }
 
     public void RemoveEntry(DownloadEntry entry)
     {
-        var entries = LoadFromDisk();
+        lock (_stateLock)
+        {
+            var records = EnsureLoaded();
 
-        entries.RemoveAll(d =>
-            (entry.Title != null && d.TryGetValue("title", out var t) && t?.ToString() == entry.Title) ||
-            (entry.FilePath != null && d.TryGetValue("file_path", out var fp) && fp?.ToString() == entry.FilePath) ||
-            (entry.Url != null && d.TryGetValue("url", out var u) && u?.ToString() == entry.Url));
+            records.RemoveAll(d =>
+                (!string.IsNullOrEmpty(entry.Title) && d.Title == entry.Title) ||
+                (!string.IsNullOrEmpty(entry.FilePath) && d.FilePath == entry.FilePath) ||
+                (!string.IsNullOrEmpty(entry.Url) && d.Url == entry.Url));
 
-        SaveToDisk(entries);
+            ScheduleFlush();
+        }
+
         GlobalHistoryChanged?.Invoke();
     }
 
     public int RemoveEntries(IEnumerable<DownloadEntry> toRemove)
     {
-        var entries = LoadFromDisk();
-        var toRemoveList = toRemove.ToList();
-        if (toRemoveList.Count == 0) return 0;
+        int removed;
+        lock (_stateLock)
+        {
+            var records = EnsureLoaded();
+            var toRemoveList = toRemove.ToList();
+            if (toRemoveList.Count == 0) return 0;
 
-        var initialCount = entries.Count;
-        entries.RemoveAll(d =>
-            toRemoveList.Any(entry =>
-                (entry.Title != null && d.TryGetValue("title", out var t) && t?.ToString() == entry.Title) ||
-                (entry.FilePath != null && d.TryGetValue("file_path", out var fp) && fp?.ToString() == entry.FilePath) ||
-                (entry.Url != null && d.TryGetValue("url", out var u) && u?.ToString() == entry.Url)));
+            var initialCount = records.Count;
+            records.RemoveAll(d =>
+                toRemoveList.Any(entry =>
+                    (!string.IsNullOrEmpty(entry.Title) && d.Title == entry.Title) ||
+                    (!string.IsNullOrEmpty(entry.FilePath) && d.FilePath == entry.FilePath) ||
+                    (!string.IsNullOrEmpty(entry.Url) && d.Url == entry.Url)));
 
-        var removed = initialCount - entries.Count;
+            removed = initialCount - records.Count;
+            if (removed > 0)
+            {
+                ScheduleFlush();
+            }
+        }
+
         if (removed > 0)
         {
-            SaveToDisk(entries);
             GlobalHistoryChanged?.Invoke();
         }
         return removed;
@@ -186,9 +246,20 @@ public class HistoryManager
 
     public void Clear()
     {
-        SaveToDisk(new List<Dictionary<string, object>>());
+        lock (_stateLock)
+        {
+            _cachedRecords = new List<DownloadHistoryRecord>();
+            ScheduleFlush();
+        }
+
         GlobalHistoryChanged?.Invoke();
     }
 
-    public List<Dictionary<string, object>> GetAll() => LoadFromDisk();
+    public List<DownloadHistoryRecord> GetAllRecords()
+    {
+        lock (_stateLock)
+        {
+            return new List<DownloadHistoryRecord>(EnsureLoaded());
+        }
+    }
 }

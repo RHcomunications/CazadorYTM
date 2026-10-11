@@ -424,4 +424,93 @@ public static class MetadataService
 
         return null;
     }
+
+    /// <summary>
+    /// Processes a list of raw song titles or URLs concurrently using a bounded Channel pipeline,
+    /// yielding resolved DownloadEntry results in real time as they complete.
+    /// </summary>
+    public static async IAsyncEnumerable<DownloadEntry> ResolveBatchEntriesChannelAsync(
+        IEnumerable<string> rawItems,
+        string searchSource = "YouTube Music",
+        string? cookiesBrowser = null,
+        string? proxy = null,
+        int maxParallelism = 3,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var channel = System.Threading.Channels.Channel.CreateBounded<DownloadEntry>(new System.Threading.Channels.BoundedChannelOptions(50)
+        {
+            FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait,
+            SingleReader = true,
+            SingleWriter = false
+        });
+
+        var throttler = new SemaphoreSlim(Math.Max(1, maxParallelism));
+        var rawList = rawItems.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
+        var producerTask = Task.Run(async () =>
+        {
+            try
+            {
+                var tasks = rawList.Select(async item =>
+                {
+                    await throttler.WaitAsync(cancellationToken);
+                    try
+                    {
+                        if (cancellationToken.IsCancellationRequested) return;
+
+                        var trimmed = item.Trim();
+                        var isUrl = Helpers.IsUrl(trimmed);
+                        var entry = new DownloadEntry
+                        {
+                            Title = trimmed,
+                            Url = isUrl ? trimmed : null
+                        };
+
+                        if (!isUrl)
+                        {
+                            try
+                            {
+                                var meta = await GetMetadataAsync(
+                                    trimmed,
+                                    isSearch: true,
+                                    limit: 1,
+                                    cookiesBrowser: cookiesBrowser,
+                                    proxy: proxy,
+                                    searchSource: searchSource);
+
+                                if (meta.Entries.Count > 0)
+                                {
+                                    entry = meta.Entries[0];
+                                }
+                            }
+                            catch { }
+                        }
+
+                        await channel.Writer.WriteAsync(entry, cancellationToken);
+                    }
+                    catch (OperationCanceledException) { }
+                    finally
+                    {
+                        throttler.Release();
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+            }
+            finally
+            {
+                channel.Writer.Complete();
+            }
+        }, cancellationToken);
+
+        while (await channel.Reader.WaitToReadAsync(cancellationToken))
+        {
+            while (channel.Reader.TryRead(out var resolvedEntry))
+            {
+                yield return resolvedEntry;
+            }
+        }
+
+        await producerTask;
+    }
 }

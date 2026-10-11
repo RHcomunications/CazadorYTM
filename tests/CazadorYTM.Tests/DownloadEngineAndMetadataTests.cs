@@ -61,4 +61,24 @@ public class DownloadEngineAndMetadataTests
         Assert.Equal(expectedTitle, title);
         Assert.Equal(expectedArtist, artist);
     }
+
+    [Fact]
+    public async System.Threading.Tasks.Task ResolveBatchEntriesChannelAsync_ProcessesItemsCorrectly()
+    {
+        var rawList = new[]
+        {
+            "https://music.youtube.com/watch?v=mock1",
+            "https://music.youtube.com/watch?v=mock2"
+        };
+
+        var results = new System.Collections.Generic.List<DownloadEntry>();
+        await foreach (var item in MetadataService.ResolveBatchEntriesChannelAsync(rawList, maxParallelism: 2))
+        {
+            results.Add(item);
+        }
+
+        Assert.Equal(2, results.Count);
+        Assert.Equal("https://music.youtube.com/watch?v=mock1", results[0].Url);
+        Assert.Equal("https://music.youtube.com/watch?v=mock2", results[1].Url);
+    }
 }

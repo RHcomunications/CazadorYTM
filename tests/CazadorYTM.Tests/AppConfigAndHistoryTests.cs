@@ -133,4 +133,21 @@ public class HistoryManagerTests : IDisposable
         Assert.Single(remaining);
         Assert.Equal("Song 2", remaining[0].Title);
     }
+
+    [Fact]
+    public void HistoryManager_Flush_PersistsToDiskImmediately()
+    {
+        var history = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 5000);
+        history.Add("Debounced Song", "https://youtube.com/watch?v=debounce", "mp3", "OK");
+
+        // Before explicit flush, disk might not have it yet if debounce hasn't elapsed
+        history.Flush();
+
+        // New instance directly loading from disk
+        var reloaded = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 0);
+        var entries = reloaded.GetEntries();
+        Assert.Single(entries);
+        Assert.Equal("Debounced Song", entries[0].Title);
+    }
 }
+
