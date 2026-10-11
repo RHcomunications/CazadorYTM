@@ -2,7 +2,7 @@
 
 public static class Constants
 {
-    public const string AppVersion = "1.2.1";
+    public const string AppVersion = "1.2.2";
     public const string AppName = "Cazador YTM";
     public const string AppTitle = $"{AppName} v{AppVersion}";
     public const string AppWindowTitle = $"{AppName} v{AppVersion}";
