@@ -31,6 +31,7 @@ public static class Constants
     public static readonly string[] ThemeOptions = { "Automático", "Oscuro", "Claro" };
     public static readonly string[] LanguageOptions = { "Español", "English" };
     public static readonly string[] FontSizeOptions = { "Normal", "Grande", "Muy Grande" };
+    public static readonly string[] StartupTabOptions = { "Descarga", "Reproductor", "Radar YTM" };
 
     public const string ConfigFilename = "cazador_config.json";
     public const string HistoryFilename = "downloads_history.json";

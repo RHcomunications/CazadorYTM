@@ -17,9 +17,12 @@ public partial class ShortcutsDialog : Window
         {
             // Globales
             new("Ctrl + L", "Abrir esta tabla de atajos de teclado"),
-            new("Ctrl + 1", "Ir a la pestaña de Descargas"),
-            new("Ctrl + 2", "Ir a la pestaña de Biblioteca / Historial"),
-            new("Ctrl + 3", "Ir a la pestaña del Reproductor"),
+            new("Ctrl + 1", "Abrir o enfocar pestaña de Descargas"),
+            new("Ctrl + 2", "Abrir o enfocar pestaña de Biblioteca / Historial"),
+            new("Ctrl + 3", "Abrir o enfocar pestaña del Reproductor"),
+            new("Ctrl + R o Ctrl + 4", "Abrir o enfocar pestaña Radar YTM"),
+            new("Ctrl + W", "Cerrar la pestaña activa actual"),
+            new("Shift + F10 o Tecla Apps", "Abrir menú contextual y acciones de Radar YTM"),
             new("Ctrl + ,", "Abrir ventana de Preferencias y Configuración"),
             new("Ctrl + S", "Abrir la carpeta de descargas en el explorador"),
             new("Alt o F10", "Activar y navegar por la barra de menús"),

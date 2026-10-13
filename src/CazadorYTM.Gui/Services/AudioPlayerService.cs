@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Threading;
+using CazadorYTM.Core;
 using CazadorYTM.Core.Services;
 
 public enum PlaybackRepeatMode
@@ -183,7 +184,8 @@ public class AudioPlayerService : IAudioPlayerService
 
     public void Play(string filePath)
     {
-        if (!File.Exists(filePath))
+        var isRemote = Helpers.IsUrl(filePath);
+        if (!isRemote && !File.Exists(filePath))
         {
             LogService.Instance.Error($"Archivo de audio no encontrado: {filePath}");
             return;
@@ -222,11 +224,12 @@ public class AudioPlayerService : IAudioPlayerService
             _mediaPlayer.Close();
             CurrentFilePath = filePath;
 
-            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            var isRemote = Helpers.IsUrl(filePath);
+            var ext = isRemote ? string.Empty : Path.GetExtension(filePath).ToLowerInvariant();
             var targetUri = filePath;
 
             // Direct transcode for formats notoriously unsupported by default Windows Media Foundation (.opus, .ogg, .webm)
-            if (ext == ".opus" || ext == ".ogg" || ext == ".webm")
+            if (!isRemote && (ext == ".opus" || ext == ".ogg" || ext == ".webm"))
             {
                 var transcoded = TryTranscodeToTempWav(filePath);
                 if (transcoded != null)

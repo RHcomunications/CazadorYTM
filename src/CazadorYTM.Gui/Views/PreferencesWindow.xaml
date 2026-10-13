@@ -72,6 +72,11 @@
                         <ComboBox x:Name="CmbPrefTheme" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
                                   AutomationProperties.LabeledBy="{Binding ElementName=LblPrefTheme}"/>
 
+                        <!-- Startup Tab -->
+                        <Label x:Name="LblPrefStartupTab" Target="{Binding ElementName=CmbPrefStartupTab}" Content="{loc:Loc PrefStartupTab}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbPrefStartupTab" ItemsSource="{Binding StartupTabOptions}" SelectedItem="{Binding SelectedStartupTab}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefStartupTab}"/>
+
                         <!-- Browser Cookies -->
                         <Label x:Name="LblPrefBrowser" Target="{Binding ElementName=CmbPrefBrowser}" Content="{loc:Loc PrefBrowser}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                         <ComboBox x:Name="CmbPrefBrowser" ItemsSource="{Binding Browsers}" SelectedItem="{Binding SelectedBrowser}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"

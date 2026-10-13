@@ -37,11 +37,46 @@ public class AppConfigTests : IDisposable
     }
 
     [Fact]
+    public void AppConfig_StartupTab_PersistsAndLoadsCorrectly()
+    {
+        var config = new AppConfig(_tempConfigPath);
+        config.Set("startup_tab", "Radar YTM");
+        config.Save();
+
+        var loaded = new AppConfig(_tempConfigPath);
+        Assert.Equal("Radar YTM", loaded.Get("startup_tab", "Descarga"));
+    }
+
+    [Fact]
     public void AppConfig_GetDefault_WhenKeyMissing()
     {
         var config = new AppConfig(_tempConfigPath);
         Assert.Equal("default_val", config.Get("non_existent", "default_val"));
         Assert.Equal(42, config.Get("missing_int", 42));
+    }
+}
+
+public class RadarItemTests
+{
+    [Fact]
+    public void RadarItem_ToDownloadEntry_MapsPropertiesCorrectly()
+    {
+        var item = new CazadorYTM.Core.Services.RadarItem
+        {
+            Id = "test12345",
+            Title = "Canción de Prueba",
+            Artist = "Artista de Prueba",
+            Duration = 215,
+            Url = "https://music.youtube.com/watch?v=test12345"
+        };
+
+        var entry = item.ToDownloadEntry();
+
+        Assert.Equal("test12345", entry.Id);
+        Assert.Equal("Canción de Prueba", entry.Title);
+        Assert.Equal("Artista de Prueba", entry.Uploader);
+        Assert.Equal(215, entry.Duration);
+        Assert.Equal("https://music.youtube.com/watch?v=test12345", entry.Url);
     }
 }
 

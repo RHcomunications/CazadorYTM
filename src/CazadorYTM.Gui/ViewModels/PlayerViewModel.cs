@@ -288,6 +288,13 @@ public partial class PlayerViewModel : ObservableObject
         _player.Play(filePath);
     }
 
+    public void PlayRemoteTrack(string streamUrl, string title, string? artist = null)
+    {
+        TrackTitle = title;
+        TrackArtist = artist ?? string.Empty;
+        _player.Play(streamUrl);
+    }
+
     public void SetQueue(IEnumerable<string> tracks, int startIndex = 0)
     {
         _player.SetQueue(tracks, startIndex);

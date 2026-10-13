@@ -28,7 +28,7 @@ public partial class MainWindow : Window
         {
             Dispatcher.InvokeAsync(() =>
             {
-                ViewDescarga.TxtInput.Focus();
+                MainTabs.Focus();
             }, DispatcherPriority.Input);
         };
     }
@@ -43,12 +43,23 @@ public partial class MainWindow : Window
             return;
         }
 
-        // F10 immediately toggles accessibility menu
-        if (e.Key == Key.F10)
+        // F10 immediately toggles main menu
+        if (e.Key == Key.F10 && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
         {
             ToggleMenu();
             e.Handled = true;
             return;
+        }
+
+        // Shift+F10 or Apps key: Open/Focus Radar YTM accessible context
+        if ((e.Key == Key.F10 && (Keyboard.Modifiers & ModifierKeys.Shift) != 0) || e.Key == Key.Apps)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.OpenOrFocusTab(MainTabType.Radar);
+                e.Handled = true;
+                return;
+            }
         }
 
         // Track bare Alt key press

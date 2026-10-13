@@ -75,6 +75,10 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     public ObservableCollection<string> Browsers { get; } = new(Constants.Browsers);
     public ObservableCollection<string> ThemeOptions { get; } = new(Constants.ThemeOptions);
     public ObservableCollection<string> LanguageOptions { get; } = new(Constants.LanguageOptions);
+    public ObservableCollection<string> StartupTabOptions { get; } = new(Constants.StartupTabOptions);
+
+    [ObservableProperty]
+    private string _selectedStartupTab = "Descarga";
 
     public event Action? RequestClose;
 
@@ -100,6 +104,10 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
         _destinationFolder = string.IsNullOrWhiteSpace(savedDest) || !Directory.Exists(savedDest)
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), Constants.MultiDownloadFolder)
             : savedDest;
+
+        _selectedStartupTab = _config.Get("startup_tab", "Descarga");
+        if (!Constants.StartupTabOptions.Contains(_selectedStartupTab))
+            _selectedStartupTab = "Descarga";
     }
 
     [RelayCommand]
@@ -292,6 +300,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
         _config.Set("destination_folder", DestinationFolder);
         _config.Set("proxy", ProxyUrl);
         _config.Set("theme", SelectedTheme);
+        _config.Set("startup_tab", SelectedStartupTab);
 
         var prevLang = _config.Get("language", "es");
         var langCode = SelectedLanguage.Equals("English", StringComparison.OrdinalIgnoreCase) ? "en" : "es";

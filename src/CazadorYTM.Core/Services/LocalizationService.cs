@@ -88,6 +88,9 @@ public class LocalizationService
             SetDefault("TabDownloads", "Downloads");
             SetDefault("TabLibrary", "Library");
             SetDefault("TabPlayer", "Player");
+            SetDefault("TabRadar", "Radar YTM");
+            SetDefault("PrefStartupTab", "Initial tab on startup:");
+            SetDefault("MenuCloseTab", "Close Current Tab");
 
             // Main Menu
             SetDefault("MenuFile", "_File");
@@ -197,6 +200,9 @@ public class LocalizationService
             SetDefault("TabDownloads", "Descarga");
             SetDefault("TabLibrary", "Biblioteca");
             SetDefault("TabPlayer", "Reproductor");
+            SetDefault("TabRadar", "Radar YTM");
+            SetDefault("PrefStartupTab", "Pestaña inicial al abrir:");
+            SetDefault("MenuCloseTab", "Cerrar Pestaña Actual");
 
             // Main Menu
             SetDefault("MenuFile", "_Archivo");

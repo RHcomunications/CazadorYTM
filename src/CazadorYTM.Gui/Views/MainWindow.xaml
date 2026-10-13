@@ -5,16 +5,17 @@
         xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
         xmlns:views="clr-namespace:CazadorYTM.Gui.Views"
         xmlns:vm="clr-namespace:CazadorYTM.Gui.ViewModels"
-        Title="{Binding AppTitle}"
-        Width="1080" Height="760"
-        MinWidth="860" MinHeight="580"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="{Binding AppTitle}" 
+        Height="780" Width="1080" MinHeight="620" MinWidth="850"
         WindowStartupLocation="CenterScreen"
+        AutomationProperties.Name="{Binding AppTitle}"
+        AutomationProperties.HelpText="{loc:Loc MainWindowHelpText}"
         AllowDrop="True"
-        Drop="MainWindow_Drop"
         DragOver="MainWindow_DragOver"
-        FocusVisualStyle="{DynamicResource {x:Static SystemParameters.FocusVisualStyleKey}}"
-        AutomationProperties.Name="{loc:Loc AppName}"
-        AutomationProperties.HelpText="{loc:Loc MainWindowHelpText}">
+        Drop="MainWindow_Drop">
 
     <Window.TaskbarItemInfo>
         <TaskbarItemInfo ProgressState="{Binding TaskbarProgressState}"
@@ -25,6 +26,9 @@
         <KeyBinding Modifiers="Ctrl" Key="D1" Command="{Binding NavigateToTabCommand}" CommandParameter="0"/>
         <KeyBinding Modifiers="Ctrl" Key="D2" Command="{Binding NavigateToTabCommand}" CommandParameter="1"/>
         <KeyBinding Modifiers="Ctrl" Key="D3" Command="{Binding NavigateToTabCommand}" CommandParameter="2"/>
+        <KeyBinding Modifiers="Ctrl" Key="D4" Command="{Binding NavigateToTabCommand}" CommandParameter="3"/>
+        <KeyBinding Modifiers="Ctrl" Key="R" Command="{Binding NavigateToTabCommand}" CommandParameter="3"/>
+        <KeyBinding Modifiers="Ctrl" Key="W" Command="{Binding CloseCurrentTabCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="L" Command="{Binding ShowShortcutsCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="OemComma" Command="{Binding OpenPreferencesCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding DownloadVM.LoadListFileCommand}"/>
@@ -58,6 +62,8 @@
                           Command="{Binding DownloadVM.LoadListFileCommand}"/>
                 <MenuItem Header="{loc:Loc MenuOpenFolder}" InputGestureText="Ctrl+S" 
                           Command="{Binding OpenDownloadsFolderCommand}"/>
+                <MenuItem Header="{loc:Loc MenuCloseTab}" InputGestureText="Ctrl+W" 
+                          Command="{Binding CloseCurrentTabCommand}"/>
                 <Separator/>
                 <MenuItem Header="{loc:Loc MenuPreferences}" InputGestureText="Ctrl+," 
                           Command="{Binding OpenPreferencesCommand}"/>
@@ -72,6 +78,8 @@
                           Command="{Binding NavigateToTabCommand}" CommandParameter="1"/>
                 <MenuItem Header="{loc:Loc TabPlayer}" InputGestureText="Ctrl+3" 
                           Command="{Binding NavigateToTabCommand}" CommandParameter="2"/>
+                <MenuItem Header="{loc:Loc TabRadar}" InputGestureText="Ctrl+R" 
+                          Command="{Binding NavigateToTabCommand}" CommandParameter="3"/>
             </MenuItem>
 
             <MenuItem x:Name="MenuHerramientas" Header="{loc:Loc MenuTools}">
@@ -103,20 +111,53 @@
             </StatusBarItem>
         </StatusBar>
 
-        <!-- Main Tab Control -->
-        <TabControl x:Name="MainTabs" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" 
+        <!-- Dynamic Main Tab Control -->
+        <TabControl x:Name="MainTabs" 
+                    ItemsSource="{Binding OpenTabs}" 
+                    SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
+                    SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" 
                     Margin="0"
                     Focusable="False"
                     KeyboardNavigation.TabNavigation="Cycle">
-            <TabItem Header="{loc:Loc TabDownloads}">
-                <views:DownloadView x:Name="ViewDescarga" DataContext="{Binding DownloadVM}" />
-            </TabItem>
-            <TabItem Header="{loc:Loc TabLibrary}">
-                <views:HistoryView DataContext="{Binding HistoryVM}" />
-            </TabItem>
-            <TabItem Header="{loc:Loc TabPlayer}">
-                <views:PlayerView DataContext="{Binding PlayerVM}" />
-            </TabItem>
+            <TabControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Header}" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                        <Button Content="✕" 
+                                FontSize="10" 
+                                Width="18" Height="18" 
+                                Padding="0" 
+                                Margin="2,0,0,0"
+                                Background="Transparent" 
+                                BorderThickness="0"
+                                Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                CommandParameter="{Binding}"
+                                ToolTip="{loc:Loc MenuCloseTab}"
+                                AutomationProperties.Name="{loc:Loc MenuCloseTab}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TabControl.ItemTemplate>
+
+            <TabControl.ContentTemplate>
+                <DataTemplate>
+                    <ContentControl Content="{Binding Content}">
+                        <ContentControl.Resources>
+                            <DataTemplate DataType="{x:Type vm:DownloadViewModel}">
+                                <views:DownloadView DataContext="{Binding}" />
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
+                                <views:HistoryView DataContext="{Binding}" />
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type vm:PlayerViewModel}">
+                                <views:PlayerView DataContext="{Binding}" />
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type vm:RadarViewModel}">
+                                <views:RadarView DataContext="{Binding}" />
+                            </DataTemplate>
+                        </ContentControl.Resources>
+                    </ContentControl>
+                </DataTemplate>
+            </TabControl.ContentTemplate>
         </TabControl>
     </DockPanel>
 </Window>

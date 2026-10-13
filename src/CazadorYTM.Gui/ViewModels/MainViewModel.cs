@@ -1,21 +1,32 @@
 namespace CazadorYTM.Gui.ViewModels;
 
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CazadorYTM.Core;
+using CazadorYTM.Core.Models;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
 public partial class MainViewModel : ObservableObject
 {
+    private readonly AppConfig _config;
+
     public DownloadViewModel DownloadVM { get; }
     public PlayerViewModel PlayerVM { get; }
     public HistoryViewModel HistoryVM { get; }
+    public RadarViewModel RadarVM { get; }
     public LogsViewModel LogsVM { get; }
+
+    public ObservableCollection<MainTabItem> OpenTabs { get; } = new();
+
+    [ObservableProperty]
+    private MainTabItem? _selectedTab;
 
     [ObservableProperty]
     private int _selectedTabIndex = 0;
@@ -33,9 +44,12 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel()
     {
+        _config = new AppConfig();
+
         DownloadVM = new DownloadViewModel();
         PlayerVM = new PlayerViewModel();
         HistoryVM = new HistoryViewModel();
+        RadarVM = new RadarViewModel();
         LogsVM = new LogsViewModel();
 
         DownloadVM.PropertyChanged += (s, e) =>
@@ -50,15 +64,139 @@ public partial class MainViewModel : ObservableObject
 
         HistoryVM.RetryRequested += (entry) =>
         {
-            SelectedTabIndex = 0;
+            OpenOrFocusTab(MainTabType.Downloads);
             var target = !string.IsNullOrWhiteSpace(entry.Url) ? entry.Url : entry.Title ?? "";
             DownloadVM.InputText = target;
             NotificationService.Instance.Notify("Reintentar Descarga", $"Canción cargada en el panel de descargas: {target}", NotificationType.Info);
         };
 
-        LogService.Instance.Info($"{Constants.AppTitle} iniciado correctamente.");
+        RadarVM.SendToDownloadRequested += (entry) =>
+        {
+            OpenOrFocusTab(MainTabType.Downloads);
+            var target = !string.IsNullOrWhiteSpace(entry.Url) ? entry.Url : entry.Title ?? "";
+            DownloadVM.InputText = target;
+        };
 
+        RadarVM.PlayTrackRequested += (streamUrl, title, artist) =>
+        {
+            OpenOrFocusTab(MainTabType.Player);
+            PlayerVM.PlayRemoteTrack(streamUrl, title, artist);
+        };
+
+        // Inicializar con la pestaña inicial configurada por el usuario
+        InitializeStartupTab();
+
+        LogService.Instance.Info($"{Constants.AppTitle} iniciado correctamente.");
         _ = CheckForUpdatesSilentlyAsync();
+    }
+
+    private void InitializeStartupTab()
+    {
+        var startup = _config.Get("startup_tab", "Descarga");
+        if (startup.Equals("Reproductor", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenOrFocusTab(MainTabType.Player);
+        }
+        else if (startup.Equals("Radar YTM", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenOrFocusTab(MainTabType.Radar);
+        }
+        else
+        {
+            OpenOrFocusTab(MainTabType.Downloads);
+        }
+    }
+
+    public void OpenOrFocusTab(MainTabType tabType)
+    {
+        var existing = OpenTabs.FirstOrDefault(t => t.TabType == tabType);
+        if (existing != null)
+        {
+            SelectedTab = existing;
+            SelectedTabIndex = OpenTabs.IndexOf(existing);
+            return;
+        }
+
+        var loc = LocalizationService.Instance;
+        MainTabItem newTab = tabType switch
+        {
+            MainTabType.Downloads => new MainTabItem(MainTabType.Downloads, loc.Get("TabDownloads", "Descarga"), DownloadVM),
+            MainTabType.History => new MainTabItem(MainTabType.History, loc.Get("TabLibrary", "Biblioteca"), HistoryVM),
+            MainTabType.Player => new MainTabItem(MainTabType.Player, loc.Get("TabPlayer", "Reproductor"), PlayerVM),
+            MainTabType.Radar => new MainTabItem(MainTabType.Radar, loc.Get("TabRadar", "Radar YTM"), RadarVM),
+            _ => new MainTabItem(MainTabType.Downloads, loc.Get("TabDownloads", "Descarga"), DownloadVM)
+        };
+
+        OpenTabs.Add(newTab);
+        SelectedTab = newTab;
+        SelectedTabIndex = OpenTabs.IndexOf(newTab);
+
+        if (tabType == MainTabType.History)
+        {
+            HistoryVM.RefreshHistory();
+        }
+        else if (tabType == MainTabType.Radar && RadarVM.AllItems.Count == 0)
+        {
+            _ = RadarVM.RefreshCurrentSection();
+        }
+    }
+
+    [RelayCommand]
+    public void CloseCurrentTab()
+    {
+        if (SelectedTab == null || OpenTabs.Count <= 1)
+        {
+            // Si solo queda una pestaña, no permitir cerrar para evitar vista en blanco
+            return;
+        }
+
+        var tabToClose = SelectedTab;
+        var curIdx = OpenTabs.IndexOf(tabToClose);
+
+        OpenTabs.Remove(tabToClose);
+
+        var newIdx = Math.Clamp(curIdx, 0, OpenTabs.Count - 1);
+        SelectedTab = OpenTabs[newIdx];
+        SelectedTabIndex = newIdx;
+    }
+
+    [RelayCommand]
+    public void CloseTab(MainTabItem? tab)
+    {
+        if (tab == null || OpenTabs.Count <= 1) return;
+
+        var isSelected = tab == SelectedTab;
+        var curIdx = OpenTabs.IndexOf(tab);
+
+        OpenTabs.Remove(tab);
+
+        if (isSelected)
+        {
+            var newIdx = Math.Clamp(curIdx, 0, OpenTabs.Count - 1);
+            SelectedTab = OpenTabs[newIdx];
+            SelectedTabIndex = newIdx;
+        }
+    }
+
+    [RelayCommand]
+    private void NavigateToTab(string tabIdentifier)
+    {
+        if (tabIdentifier == "0" || tabIdentifier.Equals("downloads", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenOrFocusTab(MainTabType.Downloads);
+        }
+        else if (tabIdentifier == "1" || tabIdentifier.Equals("library", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenOrFocusTab(MainTabType.History);
+        }
+        else if (tabIdentifier == "2" || tabIdentifier.Equals("player", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenOrFocusTab(MainTabType.Player);
+        }
+        else if (tabIdentifier == "3" || tabIdentifier.Equals("radar", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenOrFocusTab(MainTabType.Radar);
+        }
     }
 
     public void UpdateTaskbarProgress()
@@ -173,19 +311,6 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             DialogService.Instance.ShowMessage($"Error al actualizar componentes: {ex.Message}", "Error", MessageBoxImage.Error);
-        }
-    }
-
-    [RelayCommand]
-    private void NavigateToTab(string tabIndexStr)
-    {
-        if (int.TryParse(tabIndexStr, out var idx) && idx >= 0 && idx <= 2)
-        {
-            SelectedTabIndex = idx;
-            if (idx == 1)
-            {
-                HistoryVM.RefreshHistory();
-            }
         }
     }
 

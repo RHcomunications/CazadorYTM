@@ -1,0 +1,94 @@
+<UserControl x:Class="CazadorYTM.Gui.Views.RadarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019"
+             xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+             xmlns:models="clr-namespace:CazadorYTM.Core.Services;assembly=CazadorYTM.Core"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             AutomationProperties.Name="Panel Radar YTM"
+             KeyboardNavigation.TabNavigation="Cycle">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Actions / Section Buttons -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <WrapPanel Grid.Column="0">
+                <RadioButton Content="Historial de YouTube" IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.History}}"
+                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"/>
+                <RadioButton Content="Canciones que te gustan (Liked Music)" IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.LikedSongs}}"
+                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"/>
+                <RadioButton Content="Mis Listas de Reproducción" IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.Playlists}}"
+                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"/>
+            </WrapPanel>
+
+            <Button Grid.Column="1" Content="Actualizar Sección" Command="{Binding RefreshCurrentSectionCommand}" Height="32" Padding="14,0"/>
+        </Grid>
+
+        <!-- Search / Filter Box -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="TxtRadarFilter" Text="{Binding FilterQuery, UpdateSourceTrigger=PropertyChanged}" 
+                     Height="36" VerticalContentAlignment="Center"
+                     ui:ControlHelper.PlaceholderText="Filtrar por título, artista o canal..."
+                     AutomationProperties.Name="Filtrar contenido en Radar"/>
+        </Grid>
+
+        <!-- Items DataGrid -->
+        <DataGrid Grid.Row="2" x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
+                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                  BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                  Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                  AutomationProperties.Name="Lista de pistas de Radar YTM"
+                  MouseDoubleClick="GridRadar_MouseDoubleClick"
+                  PreviewKeyDown="GridRadar_PreviewKeyDown">
+
+            <!-- Accessible Context Menu -->
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Reproducir en directo" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
+                    <MenuItem Header="Enviar a Descargas" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Actualizar lista" Command="{Binding RefreshCurrentSectionCommand}"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Título" Binding="{Binding Title}" Width="*" MinWidth="250"/>
+                <DataGridTextColumn Header="Artista / Canal" Binding="{Binding Artist}" Width="200"/>
+                <DataGridTextColumn Header="Duración" Binding="{Binding DisplayDuration}" Width="90"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Bottom Action Bar / Status -->
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12"
+                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                       AutomationProperties.LiveSetting="Polite"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="Reproducir" Command="{Binding PlayItemCommand}" Height="34" Margin="0,0,8,0" Padding="16,0"/>
+                <Button Content="Descargar Pista" Command="{Binding SendToDownloadCommand}" Height="34" Padding="16,0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>
