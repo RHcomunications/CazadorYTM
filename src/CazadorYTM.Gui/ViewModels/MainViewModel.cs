@@ -345,6 +345,46 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ExportLogs()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Exportar Registro de Errores de Cazador YTM",
+            Filter = "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*",
+            FileName = $"cazador_registro_{DateTime.Now:yyyyMMdd_HHmmss}.log"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            if (LogService.Instance.ExportLogs(dialog.FileName))
+            {
+                NotificationService.Instance.Notify("Registro Exportado", $"Registro guardado exitosamente en:\n{dialog.FileName}", NotificationType.Success);
+            }
+            else
+            {
+                NotificationService.Instance.NotifyError("Exportar Registro", "No se pudo escribir el archivo de registro.");
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ContactSupport()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = Constants.SupportTelegramUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Instance.NotifyError("Soporte Técnico", $"No se pudo abrir el enlace de soporte: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
     private void ShowAbout()
     {
         var msg = $"{Constants.AppTitle}\n\n" +

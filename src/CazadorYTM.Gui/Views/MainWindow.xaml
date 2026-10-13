@@ -96,6 +96,9 @@
             <MenuItem x:Name="MenuAyuda" Header="{loc:Loc MenuHelp}">
                 <MenuItem Header="{loc:Loc MenuShortcuts}" Command="{Binding ShowShortcutsCommand}"/>
                 <Separator/>
+                <MenuItem Header="{loc:Loc MenuExportLogs}" Command="{Binding ExportLogsCommand}"/>
+                <MenuItem Header="{loc:Loc MenuContactSupport}" Command="{Binding ContactSupportCommand}"/>
+                <Separator/>
                 <MenuItem Header="{loc:Loc MenuAbout}" Command="{Binding ShowAboutCommand}"/>
             </MenuItem>
         </Menu>

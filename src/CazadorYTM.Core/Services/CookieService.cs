@@ -130,33 +130,19 @@ public static class CookieService
 
                 logger?.Invoke($"[COOKIES] Extrayendo cookies desde {browser}...");
 
-                var psi = new ProcessStartInfo
+                var args = new List<string>
                 {
-                    FileName = exe,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
+                    "--cookies-from-browser",
+                    browser.ToLower(),
+                    "--cookies",
+                    tempCookiesTxt,
+                    "--skip-download",
+                    "--no-warnings",
+                    "https://www.youtube.com/robots.txt"
                 };
 
-                psi.ArgumentList.Add("--cookies-from-browser");
-                psi.ArgumentList.Add(browser.ToLower());
-                psi.ArgumentList.Add("--cookies");
-                psi.ArgumentList.Add(tempCookiesTxt);
-                psi.ArgumentList.Add("--skip-download");
-                psi.ArgumentList.Add("--no-warnings");
-                psi.ArgumentList.Add("https://www.youtube.com/robots.txt");
-
-                using var proc = Process.Start(psi);
-                if (proc == null) return (false, "No se pudo iniciar el proceso de extracción.");
-
-                var output = proc.StandardOutput.ReadToEnd();
-                var error = proc.StandardError.ReadToEnd();
-                proc.WaitForExit(45000);
-
-                var combinedErr = $"{output}\n{error}";
+                var runResult = ProcessRunner.RunAsync(exe, args, timeoutMs: 45000).GetAwaiter().GetResult();
+                var combinedErr = $"{runResult.StandardOutput}\n{runResult.StandardError}";
 
                 if (combinedErr.Contains("DPAPI", StringComparison.OrdinalIgnoreCase) ||
                     combinedErr.Contains("Failed to decrypt", StringComparison.OrdinalIgnoreCase))

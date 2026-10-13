@@ -60,4 +60,41 @@ public class LogService : ILogService
     public void Info(string message) => Log(message, "INFO");
     public void Warn(string message) => Log(message, "WARN");
     public void Error(string message) => Log(message, "ERROR");
+
+    public string GetLogFilePath() => _logFilePath;
+
+    public string GetAllLogsText()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                if (File.Exists(_logFilePath))
+                {
+                    return File.ReadAllText(_logFilePath, Encoding.UTF8);
+                }
+            }
+            catch { }
+            return string.Empty;
+        }
+    }
+
+    public bool ExportLogs(string destinationPath)
+    {
+        try
+        {
+            var content = GetAllLogsText();
+            var dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            File.WriteAllText(destinationPath, content, Encoding.UTF8);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

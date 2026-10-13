@@ -68,7 +68,8 @@
         </Grid>
 
         <!-- Search / Filter Box -->
-        <Grid Grid.Row="1" Margin="0,0,0,12">
+        <Grid Grid.Row="1" Margin="0,0,0,12"
+              Visibility="{Binding HasSessionConnected, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
@@ -78,37 +79,102 @@
                      AutomationProperties.Name="Filtrar contenido en Radar"/>
         </Grid>
 
-        <!-- Items DataGrid -->
-        <DataGrid Grid.Row="2" x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
-                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
-                  BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
-                  Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                  AutomationProperties.Name="Lista de elementos de Radar YTM. Usa Enter para reproducir y Flecha Derecha para explorar listas."
-                  MouseDoubleClick="GridRadar_MouseDoubleClick"
-                  PreviewKeyDown="GridRadar_PreviewKeyDown">
+        <!-- Center Content Area: DataGrid vs Session Prompt vs Error State -->
+        <Grid Grid.Row="2">
 
-            <!-- Accessible Context Menu -->
-            <DataGrid.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Reproducir (Enter)" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
-                    <MenuItem Header="Explorar contenido de la lista (Flecha Derecha)" InputGestureText="Derecha"
-                              Command="{Binding OpenPlaylistCommand}"/>
-                    <MenuItem Header="Enviar a Descargas (Ctrl+D)" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
-                    <Separator/>
-                    <MenuItem Header="Volver a listas (Flecha Izquierda)" InputGestureText="Izquierda / Backspace"
-                              Command="{Binding BackToPlaylistsCommand}"/>
-                    <MenuItem Header="Actualizar lista" Command="{Binding RefreshCurrentSectionCommand}"/>
-                    <Separator/>
-                    <MenuItem Header="Gestionar Cookies de YouTube..." Command="{Binding OpenCookiesManagerCommand}"/>
-                </ContextMenu>
-            </DataGrid.ContextMenu>
+            <!-- 1. Prompt when session is not connected -->
+            <Border Visibility="{Binding HasSessionConnected, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
+                    Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
+                    BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="28" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="Sesión de YouTube no conectada" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock Text="Radar YTM te permite acceder a tu Historial reciente, a tus Canciones que te gustan (Liked Music) y a tus Listas de Reproducción privadas. Para consultar estos datos es necesario conectar tus cookies de sesión."
+                               TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,20"/>
+                    <WrapPanel HorizontalAlignment="Center">
+                        <Button Content="Conectar Sesión de YouTube..." Command="{Binding OpenCookiesManagerCommand}"
+                                Style="{DynamicResource AccentButtonStyle}" Height="38" Padding="20,0" Margin="0,0,10,8"
+                                AutomationProperties.Name="Abrir gestor para conectar cookies de sesión"/>
+                        <Button Content="Soporte (Telegram)" Command="{Binding ContactSupportCommand}"
+                                Height="38" Padding="16,0" Margin="0,0,0,8"
+                                AutomationProperties.Name="Contactar soporte técnico en Telegram"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
 
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Título" Binding="{Binding Title}" Width="*" MinWidth="250"/>
-                <DataGridTextColumn Header="Artista / Canal" Binding="{Binding Artist}" Width="200"/>
-                <DataGridTextColumn Header="Duración" Binding="{Binding DisplayDuration}" Width="90"/>
-            </DataGrid.Columns>
-        </DataGrid>
+            <!-- 2. Error Banner / Card when an error occurs -->
+            <Border Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
+                    BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="600">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="No se pudo cargar el contenido de Radar" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"/>
+                    <WrapPanel HorizontalAlignment="Center">
+                        <Button Content="Reintentar" Command="{Binding RefreshCurrentSectionCommand}"
+                                Style="{DynamicResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6"/>
+                        <Button Content="Gestionar Cookies..." Command="{Binding OpenCookiesManagerCommand}"
+                                Height="34" Padding="14,0" Margin="0,0,8,6"/>
+                        <Button Content="Exportar Registro..." Command="{Binding ExportLogsCommand}"
+                                Height="34" Padding="14,0" Margin="0,0,8,6"
+                                AutomationProperties.Name="Exportar archivo de registro de errores a disco"/>
+                        <Button Content="Enviar a Soporte (Telegram)" Command="{Binding ContactSupportCommand}"
+                                Height="34" Padding="14,0" Margin="0,0,0,6"
+                                AutomationProperties.Name="Abrir chat de soporte técnico en Telegram"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. Active Items DataGrid -->
+            <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
+                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                      BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                      Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                      AutomationProperties.Name="Lista de elementos de Radar YTM. Usa Enter para reproducir y Flecha Derecha para explorar listas."
+                      MouseDoubleClick="GridRadar_MouseDoubleClick"
+                      PreviewKeyDown="GridRadar_PreviewKeyDown">
+
+                <!-- Visibility only when connected and no blocking error -->
+                <DataGrid.Style>
+                    <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasSessionConnected}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Style>
+
+                <!-- Accessible Context Menu -->
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Reproducir (Enter)" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
+                        <MenuItem Header="Explorar contenido de la lista (Flecha Derecha)" InputGestureText="Derecha"
+                                  Command="{Binding OpenPlaylistCommand}"/>
+                        <MenuItem Header="Enviar a Descargas (Ctrl+D)" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="Volver a listas (Flecha Izquierda)" InputGestureText="Izquierda / Backspace"
+                                  Command="{Binding BackToPlaylistsCommand}"/>
+                        <MenuItem Header="Actualizar lista" Command="{Binding RefreshCurrentSectionCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="Gestionar Cookies de YouTube..." Command="{Binding OpenCookiesManagerCommand}"/>
+                        <MenuItem Header="Exportar Registro de Errores..." Command="{Binding ExportLogsCommand}"/>
+                        <MenuItem Header="Contactar Soporte Técnico (Telegram)..." Command="{Binding ContactSupportCommand}"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Título" Binding="{Binding Title}" Width="*" MinWidth="250"/>
+                    <DataGridTextColumn Header="Artista / Canal" Binding="{Binding Artist}" Width="200"/>
+                    <DataGridTextColumn Header="Duración" Binding="{Binding DisplayDuration}" Width="90"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
 
         <!-- Bottom Action Bar / Status -->
         <Grid Grid.Row="3" Margin="0,12,0,0">
@@ -121,7 +187,8 @@
                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                        AutomationProperties.LiveSetting="Polite"/>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
+            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                        Visibility="{Binding HasSessionConnected, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Button Content="Explorar Lista" Command="{Binding OpenPlaylistCommand}"
                         Height="34" Margin="0,0,8,0" Padding="14,0"
                         AutomationProperties.Name="Explorar contenido de la lista seleccionada (Flecha Derecha)"/>

@@ -3,11 +3,14 @@ namespace CazadorYTM.Gui.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using CazadorYTM.Core;
 using CazadorYTM.Core.Models;
 using CazadorYTM.Core.Services;
@@ -46,12 +49,47 @@ public partial class RadarViewModel : ObservableObject
     [ObservableProperty]
     private RadarItem? _currentPlaylist;
 
+    [ObservableProperty]
+    private bool _hasSessionConnected = false;
+
+    [ObservableProperty]
+    private bool _hasError = false;
+
+    [ObservableProperty]
+    private string _errorMessage = string.Empty;
+
     public ObservableCollection<RadarItem> AllItems { get; } = new();
     public ObservableCollection<RadarItem> FilteredItems { get; } = new();
 
     public RadarViewModel()
     {
         _config = new AppConfig();
+        HasSessionConnected = CheckSessionConnected();
+    }
+
+    public bool CheckSessionConnected()
+    {
+        try
+        {
+            var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
+            if (File.Exists(cookiesPath))
+            {
+                var fi = new FileInfo(cookiesPath);
+                if (fi.Length > 0)
+                {
+                    return true;
+                }
+            }
+
+            var browser = _config.Get("cookies_browser", "Ninguno");
+            if (!string.IsNullOrWhiteSpace(browser) && !browser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        catch { }
+
+        return false;
     }
 
     partial void OnFilterQueryChanged(string value)
@@ -70,6 +108,9 @@ public partial class RadarViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshCurrentSection()
     {
+        if (IsLoading) return;
+
+        HasSessionConnected = CheckSessionConnected();
         if (IsViewingPlaylistDetails && CurrentPlaylist != null)
         {
             await OpenPlaylist(CurrentPlaylist);
@@ -82,10 +123,25 @@ public partial class RadarViewModel : ObservableObject
 
     public async Task LoadSectionAsync(RadarSection section)
     {
+        if (IsLoading) return;
+
         IsLoading = true;
+        HasError = false;
+        ErrorMessage = string.Empty;
         IsViewingPlaylistDetails = false;
         CurrentPlaylist = null;
         CurrentPlaylistTitle = string.Empty;
+
+        // Comprobación defensiva previa de sesión
+        HasSessionConnected = CheckSessionConnected();
+        if (!HasSessionConnected)
+        {
+            AllItems.Clear();
+            FilteredItems.Clear();
+            StatusText = "Sesión de YouTube no conectada. Conecta tus cookies para acceder a tu historial y biblioteca.";
+            IsLoading = false;
+            return;
+        }
 
         StatusText = section switch
         {
@@ -120,9 +176,12 @@ public partial class RadarViewModel : ObservableObject
 
             ApplyFilter();
             StatusText = $"{AllItems.Count} elementos cargados en {section}.";
+            HasError = false;
         }
         catch (Exception ex)
         {
+            HasError = true;
+            ErrorMessage = ex.Message;
             StatusText = $"Error al consultar Radar: {ex.Message}";
             LogService.Instance.Error($"Error en Radar YTM: {ex.Message}");
         }
@@ -135,6 +194,8 @@ public partial class RadarViewModel : ObservableObject
     [RelayCommand]
     public async Task OpenPlaylist(RadarItem? playlistItem)
     {
+        if (IsLoading) return;
+
         playlistItem ??= SelectedItem;
         if (playlistItem == null || !playlistItem.IsPlaylist) return;
 
@@ -148,6 +209,8 @@ public partial class RadarViewModel : ObservableObject
         CurrentPlaylistTitle = playlistItem.Title;
         IsViewingPlaylistDetails = true;
         IsLoading = true;
+        HasError = false;
+        ErrorMessage = string.Empty;
         StatusText = $"Abriendo y cargando pistas de '{playlistItem.Title}'...";
 
         try
@@ -169,9 +232,12 @@ public partial class RadarViewModel : ObservableObject
 
             ApplyFilter();
             StatusText = $"Lista '{playlistItem.Title}' abierta con {AllItems.Count} pistas. Pulsa Enter para reproducir o Flecha Izquierda para volver.";
+            HasError = false;
         }
         catch (Exception ex)
         {
+            HasError = true;
+            ErrorMessage = ex.Message;
             StatusText = $"Error al cargar pistas de la lista: {ex.Message}";
             LogService.Instance.Error($"Error al abrir lista en Radar: {ex.Message}");
         }
@@ -190,6 +256,7 @@ public partial class RadarViewModel : ObservableObject
         var prevId = CurrentPlaylist?.Id;
         CurrentPlaylist = null;
         CurrentPlaylistTitle = string.Empty;
+        HasError = false;
 
         AllItems.Clear();
         foreach (var pl in _cachedPlaylists)
@@ -225,22 +292,31 @@ public partial class RadarViewModel : ObservableObject
         var browser = _config.Get("cookies_browser", "Ninguno");
         var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
 
-        var tracks = await RadarService.FetchPlaylistTracksAsync(
-            playlistItem.Url ?? playlistItem.Id,
-            cookiesBrowser: browser,
-            cookiesPath: cookiesPath,
-            logger: msg => LogService.Instance.Info(msg));
+        try
+        {
+            var tracks = await RadarService.FetchPlaylistTracksAsync(
+                playlistItem.Url ?? playlistItem.Id,
+                cookiesBrowser: browser,
+                cookiesPath: cookiesPath,
+                logger: msg => LogService.Instance.Info(msg));
 
-        if (tracks.Count > 0)
-        {
-            var first = tracks[0];
-            await PlayItem(first);
-            StatusText = $"Reproduciendo primer tema de '{playlistItem.Title}': {first.Title}";
+            if (tracks.Count > 0)
+            {
+                var first = tracks[0];
+                await PlayItem(first);
+                StatusText = $"Reproduciendo primer tema de '{playlistItem.Title}': {first.Title}";
+            }
+            else
+            {
+                StatusText = $"No se encontraron canciones en la lista '{playlistItem.Title}'.";
+                NotificationService.Instance.NotifyError("Radar YTM", $"No se pudo reproducir la lista: {playlistItem.Title}");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            StatusText = $"No se encontraron canciones en la lista '{playlistItem.Title}'.";
-            NotificationService.Instance.NotifyError("Radar YTM", $"No se pudo reproducir la lista: {playlistItem.Title}");
+            HasError = true;
+            ErrorMessage = ex.Message;
+            StatusText = $"Error al reproducir lista: {ex.Message}";
         }
     }
 
@@ -280,16 +356,24 @@ public partial class RadarViewModel : ObservableObject
         var browser = _config.Get("cookies_browser", "Ninguno");
         var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
 
-        var streamUrl = await RadarService.GetStreamUrlAsync(item.Url ?? item.Id, browser, cookiesPath);
-        if (!string.IsNullOrEmpty(streamUrl))
+        try
         {
-            PlayTrackRequested?.Invoke(streamUrl, item.Title, item.Artist);
-            StatusText = $"Reproduciendo: {item.Title}";
+            var streamUrl = await RadarService.GetStreamUrlAsync(item.Url ?? item.Id, browser, cookiesPath);
+            if (!string.IsNullOrEmpty(streamUrl))
+            {
+                PlayTrackRequested?.Invoke(streamUrl, item.Title, item.Artist);
+                StatusText = $"Reproduciendo: {item.Title}";
+            }
+            else
+            {
+                StatusText = $"No se pudo obtener el stream para {item.Title}.";
+                NotificationService.Instance.NotifyError("Radar YTM", $"No se pudo reproducir en directo: {item.Title}");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            StatusText = $"No se pudo obtener el stream para {item.Title}.";
-            NotificationService.Instance.NotifyError("Radar YTM", $"No se pudo reproducir en directo: {item.Title}");
+            StatusText = $"Error al obtener stream: {ex.Message}";
+            NotificationService.Instance.NotifyError("Error de Stream", ex.Message);
         }
     }
 
@@ -308,5 +392,51 @@ public partial class RadarViewModel : ObservableObject
     public void OpenCookiesManager()
     {
         RequestOpenCookiesManager?.Invoke();
+        // Verificar si la sesión se conectó después de cerrar el diálogo
+        if (CheckSessionConnected())
+        {
+            HasSessionConnected = true;
+            _ = LoadSectionAsync(SelectedSection);
+        }
+    }
+
+    [RelayCommand]
+    public void ExportLogs()
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Exportar Registro de Errores de Cazador YTM",
+            Filter = "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*",
+            FileName = $"cazador_registro_error_{DateTime.Now:yyyyMMdd_HHmmss}.log"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            if (LogService.Instance.ExportLogs(dialog.FileName))
+            {
+                NotificationService.Instance.Notify("Registro Exportado", $"Registro guardado exitosamente en:\n{dialog.FileName}", NotificationType.Success);
+            }
+            else
+            {
+                NotificationService.Instance.NotifyError("Exportar Registro", "No se pudo escribir el archivo de registro en el destino seleccionado.");
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void ContactSupport()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = Constants.SupportTelegramUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Instance.NotifyError("Soporte Técnico", $"No se pudo abrir el enlace de soporte: {ex.Message}");
+        }
     }
 }

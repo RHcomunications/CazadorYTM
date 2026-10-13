@@ -10,6 +10,7 @@ public static class Constants
     public const string Author = "narayan project's";
     public const string Copyright = "Copyright © 2026 narayan project's";
     public const string GitHubRepo = "RHcomunications/CazadorYTM";
+    public const string SupportTelegramUrl = "https://t.me/narayanpg";
 
     public static readonly string[] FormatsRaw = { "mp3", "flac", "m4a", "wav", "opus", "mp4" };
     public static readonly string[] FormatsDisplay = { "mp3", "flac", "m4a", "wav", "opus", "mp4" };

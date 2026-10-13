@@ -2,10 +2,7 @@ namespace CazadorYTM.Core.Services;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CazadorYTM.Core;
@@ -52,107 +49,103 @@ public static class RadarService
         string? cookiesPath = null,
         Action<string>? logger = null)
     {
-        return await Task.Run(() =>
+        var results = new List<RadarItem>();
+        try
         {
-            var results = new List<RadarItem>();
-            try
+            var exe = BinaryManager.GetYtDlpPath();
+            if (!File.Exists(exe))
             {
-                var exe = BinaryManager.GetYtDlpPath();
-                if (!File.Exists(exe))
+                logger?.Invoke("[RADAR] yt-dlp no encontrado para consultar Radar.");
+                return results;
+            }
+
+            var args = new List<string> { "-J", "--flat-playlist", "--no-warnings" };
+
+            // Configurar cookies para acceder a la cuenta autenticada
+            if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
+            {
+                args.Add("--cookies");
+                args.Add(cookiesPath);
+            }
+            else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
+            {
+                args.Add("--cookies-from-browser");
+                args.Add(cookiesBrowser.ToLower());
+            }
+
+            // Identificador especial de YouTube / YTM según la sección
+            string targetUrl = section switch
+            {
+                RadarSection.History => ":ythistory",
+                RadarSection.LikedSongs => "https://music.youtube.com/playlist?list=LM", // Liked Music playlist
+                RadarSection.Playlists => ":ytsubscriptions",
+                _ => ":ythistory"
+            };
+
+            args.Add(targetUrl);
+
+            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000);
+
+            if (!runResult.Success)
+            {
+                var err = runResult.StandardError;
+                if (err.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
+                    err.Contains("bot", StringComparison.OrdinalIgnoreCase) ||
+                    err.Contains("login", StringComparison.OrdinalIgnoreCase) ||
+                    err.Contains("authentication", StringComparison.OrdinalIgnoreCase))
                 {
-                    logger?.Invoke("[RADAR] yt-dlp no encontrado para consultar Radar.");
-                    return results;
+                    throw new InvalidOperationException("Se requiere iniciar sesión en YouTube con cookies activas para acceder a esta sección.");
                 }
 
-                var psi = new ProcessStartInfo
+                logger?.Invoke($"[RADAR] Error al consultar sección {section}: {err}");
+                return results;
+            }
+
+            var output = runResult.StandardOutput;
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                using var doc = JsonDocument.Parse(output);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("entries", out var entriesProp) && entriesProp.ValueKind == JsonValueKind.Array)
                 {
-                    FileName = exe,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
-                };
-
-                psi.ArgumentList.Add("-J");
-                psi.ArgumentList.Add("--flat-playlist");
-                psi.ArgumentList.Add("--no-warnings");
-
-                // Configurar cookies para acceder a la cuenta autenticada
-                if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-                {
-                    psi.ArgumentList.Add("--cookies");
-                    psi.ArgumentList.Add(cookiesPath);
-                }
-                else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
-                {
-                    psi.ArgumentList.Add("--cookies-from-browser");
-                    psi.ArgumentList.Add(cookiesBrowser.ToLower());
-                }
-
-                // Identificador especial de YouTube / YTM según la sección
-                string targetUrl = section switch
-                {
-                    RadarSection.History => ":ythistory",
-                    RadarSection.LikedSongs => "https://music.youtube.com/playlist?list=LM", // Liked Music playlist
-                    RadarSection.Playlists => ":ytsubscriptions",
-                    _ => ":ythistory"
-                };
-
-                psi.ArgumentList.Add(targetUrl);
-
-                using var process = Process.Start(psi);
-                if (process == null) return results;
-
-                var output = process.StandardOutput.ReadToEnd();
-                var err = process.StandardError.ReadToEnd();
-                process.WaitForExit(30000);
-
-                if (!string.IsNullOrWhiteSpace(output))
-                {
-                    using var doc = JsonDocument.Parse(output);
-                    var root = doc.RootElement;
-
-                    if (root.TryGetProperty("entries", out var entriesProp) && entriesProp.ValueKind == JsonValueKind.Array)
+                    foreach (var el in entriesProp.EnumerateArray())
                     {
-                        foreach (var el in entriesProp.EnumerateArray())
+                        var title = el.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? "" : "";
+                        var id = el.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
+                        var uploader = el.TryGetProperty("uploader", out var uProp) ? uProp.GetString() : null;
+                        var url = el.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
+                        var dur = el.TryGetProperty("duration", out var dProp) && dProp.TryGetInt32(out var dVal) ? (int?)dVal : null;
+
+                        if (string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(id))
                         {
-                            var title = el.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? "" : "";
-                            var id = el.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
-                            var uploader = el.TryGetProperty("uploader", out var uProp) ? uProp.GetString() : null;
-                            var url = el.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                            var dur = el.TryGetProperty("duration", out var dProp) && dProp.TryGetInt32(out var dVal) ? (int?)dVal : null;
+                            url = $"https://music.youtube.com/watch?v={id}";
+                        }
 
-                            if (string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(id))
+                        if (!string.IsNullOrWhiteSpace(title))
+                        {
+                            results.Add(new RadarItem
                             {
-                                url = $"https://music.youtube.com/watch?v={id}";
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(title))
-                            {
-                                results.Add(new RadarItem
-                                {
-                                    Id = id,
-                                    Title = title,
-                                    Artist = uploader,
-                                    Url = url,
-                                    Duration = dur,
-                                    Section = section,
-                                    IsPlaylist = section == RadarSection.Playlists
-                                });
-                            }
+                                Id = id,
+                                Title = title,
+                                Artist = uploader,
+                                Url = url,
+                                Duration = dur,
+                                Section = section,
+                                IsPlaylist = section == RadarSection.Playlists
+                            });
                         }
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                logger?.Invoke($"[RADAR] Error al consultar sección {section}: {ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[RADAR] Error al consultar sección {section}: {ex.Message}");
+            throw;
+        }
 
-            return results;
-        });
+        return results;
     }
 
     public static async Task<List<RadarItem>> FetchPlaylistTracksAsync(
@@ -161,155 +154,138 @@ public static class RadarService
         string? cookiesPath = null,
         Action<string>? logger = null)
     {
-        return await Task.Run(() =>
+        var results = new List<RadarItem>();
+        try
         {
-            var results = new List<RadarItem>();
-            try
+            var exe = BinaryManager.GetYtDlpPath();
+            if (!File.Exists(exe))
             {
-                var exe = BinaryManager.GetYtDlpPath();
-                if (!File.Exists(exe))
+                logger?.Invoke("[RADAR] yt-dlp no encontrado.");
+                return results;
+            }
+
+            var args = new List<string> { "-J", "--flat-playlist", "--no-warnings" };
+
+            if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
+            {
+                args.Add("--cookies");
+                args.Add(cookiesPath);
+            }
+            else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
+            {
+                args.Add("--cookies-from-browser");
+                args.Add(cookiesBrowser.ToLower());
+            }
+
+            string targetUrl = playlistUrlOrId;
+            if (!Helpers.IsUrl(targetUrl))
+            {
+                targetUrl = $"https://music.youtube.com/playlist?list={playlistUrlOrId}";
+            }
+
+            args.Add(targetUrl);
+
+            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000);
+
+            if (!runResult.Success)
+            {
+                var err = runResult.StandardError;
+                if (err.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
+                    err.Contains("Private playlist", StringComparison.OrdinalIgnoreCase))
                 {
-                    logger?.Invoke("[RADAR] yt-dlp no encontrado.");
-                    return results;
+                    throw new InvalidOperationException("Esta lista de reproducción requiere sesión de YouTube iniciada para acceder a sus pistas.");
                 }
 
-                var psi = new ProcessStartInfo
+                logger?.Invoke($"[RADAR] Error al obtener pistas de la lista: {err}");
+                return results;
+            }
+
+            var output = runResult.StandardOutput;
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                using var doc = JsonDocument.Parse(output);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("entries", out var entriesProp) && entriesProp.ValueKind == JsonValueKind.Array)
                 {
-                    FileName = exe,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
-                };
-
-                psi.ArgumentList.Add("-J");
-                psi.ArgumentList.Add("--flat-playlist");
-                psi.ArgumentList.Add("--no-warnings");
-
-                if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-                {
-                    psi.ArgumentList.Add("--cookies");
-                    psi.ArgumentList.Add(cookiesPath);
-                }
-                else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
-                {
-                    psi.ArgumentList.Add("--cookies-from-browser");
-                    psi.ArgumentList.Add(cookiesBrowser.ToLower());
-                }
-
-                string targetUrl = playlistUrlOrId;
-                if (!Helpers.IsUrl(targetUrl))
-                {
-                    targetUrl = $"https://music.youtube.com/playlist?list={playlistUrlOrId}";
-                }
-
-                psi.ArgumentList.Add(targetUrl);
-
-                using var process = Process.Start(psi);
-                if (process == null) return results;
-
-                var output = process.StandardOutput.ReadToEnd();
-                process.WaitForExit(30000);
-
-                if (!string.IsNullOrWhiteSpace(output))
-                {
-                    using var doc = JsonDocument.Parse(output);
-                    var root = doc.RootElement;
-
-                    if (root.TryGetProperty("entries", out var entriesProp) && entriesProp.ValueKind == JsonValueKind.Array)
+                    foreach (var el in entriesProp.EnumerateArray())
                     {
-                        foreach (var el in entriesProp.EnumerateArray())
+                        var title = el.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? "" : "";
+                        var id = el.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
+                        var uploader = el.TryGetProperty("uploader", out var uProp) ? uProp.GetString() :
+                                      (el.TryGetProperty("channel", out var cProp) ? cProp.GetString() : null);
+                        var url = el.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
+                        var dur = el.TryGetProperty("duration", out var dProp) && dProp.TryGetInt32(out var dVal) ? (int?)dVal : null;
+
+                        if (string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(id))
                         {
-                            var title = el.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? "" : "";
-                            var id = el.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
-                            var uploader = el.TryGetProperty("uploader", out var uProp) ? uProp.GetString() :
-                                          (el.TryGetProperty("channel", out var cProp) ? cProp.GetString() : null);
-                            var url = el.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                            var dur = el.TryGetProperty("duration", out var dProp) && dProp.TryGetInt32(out var dVal) ? (int?)dVal : null;
+                            url = $"https://music.youtube.com/watch?v={id}";
+                        }
 
-                            if (string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(id))
+                        if (!string.IsNullOrWhiteSpace(title))
+                        {
+                            results.Add(new RadarItem
                             {
-                                url = $"https://music.youtube.com/watch?v={id}";
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(title))
-                            {
-                                results.Add(new RadarItem
-                                {
-                                    Id = id,
-                                    Title = title,
-                                    Artist = uploader,
-                                    Url = url,
-                                    Duration = dur,
-                                    Section = RadarSection.Playlists,
-                                    IsPlaylist = false
-                                });
-                            }
+                                Id = id,
+                                Title = title,
+                                Artist = uploader,
+                                Url = url,
+                                Duration = dur,
+                                Section = RadarSection.Playlists,
+                                IsPlaylist = false
+                            });
                         }
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                logger?.Invoke($"[RADAR] Error al obtener pistas de la lista: {ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[RADAR] Error al obtener pistas de la lista: {ex.Message}");
+            throw;
+        }
 
-            return results;
-        });
+        return results;
     }
 
     public static async Task<string?> GetStreamUrlAsync(string videoUrlOrId, string? cookiesBrowser = null, string? cookiesPath = null)
     {
-        return await Task.Run(() =>
+        try
         {
-            try
+            var exe = BinaryManager.GetYtDlpPath();
+            if (!File.Exists(exe)) return null;
+
+            var args = new List<string> { "-g", "-f", "bestaudio/best", "--no-warnings" };
+
+            if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
             {
-                var exe = BinaryManager.GetYtDlpPath();
-                if (!File.Exists(exe)) return null;
+                args.Add("--cookies");
+                args.Add(cookiesPath);
+            }
+            else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
+            {
+                args.Add("--cookies-from-browser");
+                args.Add(cookiesBrowser.ToLower());
+            }
 
-                var psi = new ProcessStartInfo
+            args.Add(videoUrlOrId);
+
+            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 15000);
+
+            if (runResult.Success && !string.IsNullOrWhiteSpace(runResult.StandardOutput))
+            {
+                var lines = runResult.StandardOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
                 {
-                    FileName = exe,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = Encoding.UTF8
-                };
-
-                psi.ArgumentList.Add("-g");
-                psi.ArgumentList.Add("-f");
-                psi.ArgumentList.Add("bestaudio/best");
-                psi.ArgumentList.Add("--no-warnings");
-
-                if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-                {
-                    psi.ArgumentList.Add("--cookies");
-                    psi.ArgumentList.Add(cookiesPath);
-                }
-                else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
-                {
-                    psi.ArgumentList.Add("--cookies-from-browser");
-                    psi.ArgumentList.Add(cookiesBrowser.ToLower());
-                }
-
-                psi.ArgumentList.Add(videoUrlOrId);
-
-                using var process = Process.Start(psi);
-                if (process == null) return null;
-
-                var streamUrl = process.StandardOutput.ReadLine();
-                process.WaitForExit(15000);
-
-                if (!string.IsNullOrWhiteSpace(streamUrl) && Helpers.IsUrl(streamUrl.Trim()))
-                {
-                    return streamUrl.Trim();
+                    var trimmed = line.Trim();
+                    if (Helpers.IsUrl(trimmed))
+                    {
+                        return trimmed;
+                    }
                 }
             }
-            catch { }
-            return null;
-        });
+        }
+        catch { }
+        return null;
     }
 }

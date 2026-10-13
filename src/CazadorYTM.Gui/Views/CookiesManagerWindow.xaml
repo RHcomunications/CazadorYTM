@@ -156,8 +156,16 @@
         </TabControl>
 
         <!-- Bottom Actions -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Cerrar" IsCancel="True" Command="{Binding CloseCommand}" Width="100" Height="36"/>
-        </StackPanel>
+        <Grid Grid.Row="2">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button Content="Exportar Registro..." Command="{Binding ExportLogsCommand}" Height="36" Padding="12,0" Margin="0,0,8,0"
+                        AutomationProperties.Name="Exportar registro de errores a archivo"/>
+                <Button Content="Soporte (Telegram)" Command="{Binding ContactSupportCommand}" Height="36" Padding="12,0"
+                        AutomationProperties.Name="Contactar soporte técnico en Telegram"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cerrar" IsCancel="True" Command="{Binding CloseCommand}" Width="100" Height="36"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

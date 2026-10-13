@@ -310,6 +310,46 @@ public partial class CookiesManagerViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void ExportLogs()
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Exportar registro de errores de Cazador YTM",
+            Filter = "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*",
+            FileName = $"cazador_registro_cookies_{DateTime.Now:yyyyMMdd_HHmmss}.log"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            if (LogService.Instance.ExportLogs(dialog.FileName))
+            {
+                NotificationService.Instance.Notify("Registro Exportado", $"Registro guardado en:\n{dialog.FileName}", NotificationType.Success);
+            }
+            else
+            {
+                NotificationService.Instance.NotifyError("Exportar Registro", "No se pudo guardar el archivo de registro.");
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void ContactSupport()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = Constants.SupportTelegramUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Instance.NotifyError("Soporte Técnico", $"No se pudo abrir el enlace de soporte: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
     public void Close()
     {
         RequestClose?.Invoke();

@@ -97,6 +97,8 @@
   "PrefClearLogs": "Clear",
   "PrefManageCookiesBtn": "Manage Cookies...",
   "MenuManageCookies": "Cookies & Session Manager...",
+  "MenuExportLogs": "Export Error Logs...",
+  "MenuContactSupport": "Contact Tech Support (Telegram)...",
   "Save": "Save",
   "Close": "Close"
 }

@@ -152,4 +152,26 @@ public class CookieAndRadarNavigationTests : IDisposable
         Assert.True(playlistItem.IsPlaylist);
         Assert.False(trackItem.IsPlaylist);
     }
+
+    [Fact]
+    public async Task ProcessRunner_NonExistentFile_ReturnsSafeError()
+    {
+        var result = await ProcessRunner.RunAsync("C:/archivo_que_no_existe_12345.exe", new[] { "--version" }, timeoutMs: 1000);
+        Assert.False(result.Success);
+        Assert.Contains("no existe", result.StandardError);
+    }
+
+    [Fact]
+    public async Task ProcessRunner_EmptyFileName_ReturnsSafeError()
+    {
+        var result = await ProcessRunner.RunAsync("", new[] { "--version" });
+        Assert.False(result.Success);
+        Assert.Contains("no válido", result.StandardError);
+    }
+
+    [Fact]
+    public void Constants_SupportTelegramUrl_MatchesNarayanPg()
+    {
+        Assert.Equal("https://t.me/narayanpg", CazadorYTM.Core.Constants.SupportTelegramUrl);
+    }
 }
