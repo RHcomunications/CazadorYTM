@@ -31,6 +31,7 @@
         <KeyBinding Modifiers="Ctrl" Key="W" Command="{Binding CloseCurrentTabCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="L" Command="{Binding ShowShortcutsCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="OemComma" Command="{Binding OpenPreferencesCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="K" Command="{Binding OpenCookiesManagerCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding DownloadVM.LoadListFileCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding OpenDownloadsFolderCommand}"/>
         
@@ -87,6 +88,9 @@
                           Command="{Binding CheckAppUpdateCommand}"/>
                 <MenuItem Header="{loc:Loc MenuCheckComponentsUpdate}" 
                           Command="{Binding CheckComponentsUpdateCommand}"/>
+                <Separator/>
+                <MenuItem Header="{loc:Loc MenuManageCookies}" InputGestureText="Ctrl+K"
+                          Command="{Binding OpenCookiesManagerCommand}"/>
             </MenuItem>
             
             <MenuItem x:Name="MenuAyuda" Header="{loc:Loc MenuHelp}">

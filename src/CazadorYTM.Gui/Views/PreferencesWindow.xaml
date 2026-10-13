@@ -79,8 +79,16 @@
 
                         <!-- Browser Cookies -->
                         <Label x:Name="LblPrefBrowser" Target="{Binding ElementName=CmbPrefBrowser}" Content="{loc:Loc PrefBrowser}" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="CmbPrefBrowser" ItemsSource="{Binding Browsers}" SelectedItem="{Binding SelectedBrowser}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
-                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefBrowser}"/>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="CmbPrefBrowser" Grid.Column="0" ItemsSource="{Binding Browsers}" SelectedItem="{Binding SelectedBrowser}" Height="36" Margin="0,0,8,0" HorizontalAlignment="Stretch"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=LblPrefBrowser}"/>
+                            <Button Grid.Column="1" Content="{loc:Loc PrefManageCookiesBtn}" Command="{Binding OpenCookiesManagerCommand}" Height="36" Padding="14,0"
+                                    AutomationProperties.Name="{loc:Loc PrefManageCookiesBtn}"/>
+                        </Grid>
 
                         <!-- Proxy -->
                         <Label x:Name="LblPrefProxy" Target="{Binding ElementName=TxtPrefProxy}" Content="{loc:Loc PrefProxy}" FontWeight="SemiBold" Margin="0,0,0,4"/>

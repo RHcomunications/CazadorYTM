@@ -166,6 +166,11 @@ public class NotificationService
         Notify(errorTitle, errorMessage, NotificationType.Error);
     }
 
+    public void NotifyWarning(string warningTitle, string warningMessage)
+    {
+        Notify(warningTitle, warningMessage, NotificationType.Warning);
+    }
+
     public void NotifyVerificationComplete(int total, int corrupt)
     {
         if (corrupt == 0)

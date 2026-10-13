@@ -95,6 +95,8 @@
   "PrefCopyLogs": "Copiar Registros",
   "PrefExportLogs": "Exportar a Archivo...",
   "PrefClearLogs": "Limpiar",
+  "PrefManageCookiesBtn": "Gestionar Cookies...",
+  "MenuManageCookies": "Administrador de Cookies y Sesión...",
   "Save": "Guardar",
   "Close": "Cerrar"
 }

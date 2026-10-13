@@ -325,6 +325,16 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenCookiesManager()
+    {
+        var win = new Views.CookiesManagerWindow
+        {
+            Owner = Application.Current.MainWindow
+        };
+        win.ShowDialog();
+    }
+
+    [RelayCommand]
     private void ShowShortcuts()
     {
         var dlg = new Views.ShortcutsDialog

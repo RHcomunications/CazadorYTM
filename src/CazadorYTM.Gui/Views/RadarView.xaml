@@ -18,23 +18,53 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Top Actions / Section Buttons -->
+        <!-- Top Actions / Breadcrumbs & Section Selector -->
         <Grid Grid.Row="0" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <WrapPanel Grid.Column="0">
-                <RadioButton Content="Historial de YouTube" IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.History}}"
-                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"/>
-                <RadioButton Content="Canciones que te gustan (Liked Music)" IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.LikedSongs}}"
-                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"/>
-                <RadioButton Content="Mis Listas de Reproducción" IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.Playlists}}"
-                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"/>
+            <!-- Standard Category Selector (when not inspecting playlist details) -->
+            <WrapPanel Grid.Column="0" VerticalAlignment="Center"
+                       Visibility="{Binding IsViewingPlaylistDetails, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                <RadioButton x:Name="RbHistory" Content="Historial de YouTube"
+                             IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.History}}"
+                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"
+                             PreviewKeyDown="Category_PreviewKeyDown"
+                             AutomationProperties.Name="Categoría Historial de YouTube. Pulsa Enter para cargar."/>
+                <RadioButton x:Name="RbLiked" Content="Canciones que te gustan (Liked Music)"
+                             IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.LikedSongs}}"
+                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"
+                             PreviewKeyDown="Category_PreviewKeyDown"
+                             AutomationProperties.Name="Categoría Canciones que te gustan. Pulsa Enter para cargar."/>
+                <RadioButton x:Name="RbPlaylists" Content="Mis Listas de Reproducción"
+                             IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.Playlists}}"
+                             GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"
+                             PreviewKeyDown="Category_PreviewKeyDown"
+                             AutomationProperties.Name="Categoría Mis Listas de Reproducción. Pulsa Enter para cargar."/>
             </WrapPanel>
 
-            <Button Grid.Column="1" Content="Actualizar Sección" Command="{Binding RefreshCurrentSectionCommand}" Height="32" Padding="14,0"/>
+            <!-- Breadcrumb Navigation Bar (when inspecting playlist tracks) -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                        Visibility="{Binding IsViewingPlaylistDetails, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Button Content="◀ Volver a Listas (Flecha Izq / Backspace)"
+                        Command="{Binding BackToPlaylistsCommand}"
+                        Height="32" Padding="12,0" Margin="0,0,12,0"
+                        AutomationProperties.Name="Volver a la lista de reproducción anterior"/>
+                <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                           Text="{Binding CurrentPlaylistTitle, StringFormat='Lista: {0}'}"/>
+            </StackPanel>
+
+            <!-- Top Right Action Buttons -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="Actualizar" Command="{Binding RefreshCurrentSectionCommand}"
+                        Height="32" Padding="12,0" Margin="0,0,8,0"
+                        AutomationProperties.Name="Actualizar la vista actual de Radar"/>
+                <Button Content="Sesión / Cookies..." Command="{Binding OpenCookiesManagerCommand}"
+                        Height="32" Padding="12,0"
+                        AutomationProperties.Name="Abrir administrador de sesión y cookies de YouTube"/>
+            </StackPanel>
         </Grid>
 
         <!-- Search / Filter Box -->
@@ -53,17 +83,23 @@
                   AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                   BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                   Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                  AutomationProperties.Name="Lista de pistas de Radar YTM"
+                  AutomationProperties.Name="Lista de elementos de Radar YTM. Usa Enter para reproducir y Flecha Derecha para explorar listas."
                   MouseDoubleClick="GridRadar_MouseDoubleClick"
                   PreviewKeyDown="GridRadar_PreviewKeyDown">
 
             <!-- Accessible Context Menu -->
             <DataGrid.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="Reproducir en directo" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
-                    <MenuItem Header="Enviar a Descargas" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
+                    <MenuItem Header="Reproducir (Enter)" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
+                    <MenuItem Header="Explorar contenido de la lista (Flecha Derecha)" InputGestureText="Derecha"
+                              Command="{Binding OpenPlaylistCommand}"/>
+                    <MenuItem Header="Enviar a Descargas (Ctrl+D)" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
                     <Separator/>
+                    <MenuItem Header="Volver a listas (Flecha Izquierda)" InputGestureText="Izquierda / Backspace"
+                              Command="{Binding BackToPlaylistsCommand}"/>
                     <MenuItem Header="Actualizar lista" Command="{Binding RefreshCurrentSectionCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Gestionar Cookies de YouTube..." Command="{Binding OpenCookiesManagerCommand}"/>
                 </ContextMenu>
             </DataGrid.ContextMenu>
 
@@ -86,8 +122,15 @@
                        AutomationProperties.LiveSetting="Polite"/>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button Content="Reproducir" Command="{Binding PlayItemCommand}" Height="34" Margin="0,0,8,0" Padding="16,0"/>
-                <Button Content="Descargar Pista" Command="{Binding SendToDownloadCommand}" Height="34" Padding="16,0"/>
+                <Button Content="Explorar Lista" Command="{Binding OpenPlaylistCommand}"
+                        Height="34" Margin="0,0,8,0" Padding="14,0"
+                        AutomationProperties.Name="Explorar contenido de la lista seleccionada (Flecha Derecha)"/>
+                <Button Content="Reproducir" Command="{Binding PlayItemCommand}"
+                        Height="34" Margin="0,0,8,0" Padding="16,0"
+                        AutomationProperties.Name="Reproducir elemento o lista seleccionada (Enter)"/>
+                <Button Content="Descargar Pista" Command="{Binding SendToDownloadCommand}"
+                        Height="34" Padding="16,0"
+                        AutomationProperties.Name="Enviar elemento seleccionado a descargas (Ctrl+D)"/>
             </StackPanel>
         </Grid>
     </Grid>

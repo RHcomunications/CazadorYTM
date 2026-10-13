@@ -287,6 +287,22 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void OpenCookiesManager()
+    {
+        var win = new Views.CookiesManagerWindow
+        {
+            Owner = Application.Current.Windows.OfType<Views.PreferencesWindow>().FirstOrDefault()
+        };
+        win.ShowDialog();
+
+        var savedBrowser = _config.Get("cookies_browser", "Ninguno");
+        if (Browsers.Contains(savedBrowser))
+        {
+            SelectedBrowser = savedBrowser;
+        }
+    }
+
+    [RelayCommand]
     private void Save()
     {
         _config.Set("bitrate", SelectedBitrate);
