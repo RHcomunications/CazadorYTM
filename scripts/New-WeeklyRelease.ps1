@@ -48,12 +48,39 @@ Write-Host "[1/6] Version actual detectada: v$currentVersion" -ForegroundColor Y
 
 # 2. Calcular version de destino
 if ([string]::IsNullOrWhiteSpace($TargetVersion)) {
-    $parts = $currentVersion.Split('.')
-    if ($parts.Length -ge 3) {
-        $patchNum = [int]$parts[2] + 1
-        $TargetVersion = "$($parts[0]).$($parts[1]).$patchNum"
+    # Comprobar si la version actual ya fue publicada como etiqueta Git
+    Push-Location $repoRoot
+    try {
+        $existingTag = git tag -l "v$currentVersion"
+    }
+    finally {
+        Pop-Location
+    }
+
+    if ([string]::IsNullOrWhiteSpace($existingTag)) {
+        # Si la version actual en codigo no tiene tag aun, se publica esa version directamente (ej. v1.3.0)
+        $defaultTarget = $currentVersion
     } else {
-        $TargetVersion = "$currentVersion.1"
+        # Si ya existe la etiqueta, se incrementa el parche para la siguiente release semanal (ej. 1.3.1, 1.3.2)
+        $parts = $currentVersion.Split('.')
+        if ($parts.Length -ge 3) {
+            $patchNum = [int]$parts[2] + 1
+            $defaultTarget = "$($parts[0]).$($parts[1]).$patchNum"
+        } else {
+            $defaultTarget = "$currentVersion.1"
+        }
+    }
+
+    if ([Environment]::UserInteractive -and -not $DryRun) {
+        Write-Host "Version sugerida para este lanzamiento: v$defaultTarget" -ForegroundColor Cyan
+        $customInput = Read-Host "Presiona Enter para confirmar v$defaultTarget o escribe una version diferente (ej. 1.3.0)"
+        if (-not [string]::IsNullOrWhiteSpace($customInput)) {
+            $TargetVersion = $customInput.Trim().TrimStart('v', 'V')
+        } else {
+            $TargetVersion = $defaultTarget
+        }
+    } else {
+        $TargetVersion = $defaultTarget
     }
 }
 
