@@ -1,4 +1,4 @@
-namespace CazadorYTM.Core;
+﻿namespace CazadorYTM.Core;
 
 public static class Constants
 {
