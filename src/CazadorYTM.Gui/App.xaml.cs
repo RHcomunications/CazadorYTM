@@ -78,6 +78,7 @@ public partial class App : Application
         };
 
         var config = new AppConfig();
+        CookieService.RepairBomIfNeeded(config.Get("cookies_path", Helpers.GetDefaultCookiesPath()));
         var lang = config.Get("language", "es");
         LocalizationService.Instance.SetLanguage(lang);
 

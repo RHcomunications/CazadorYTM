@@ -40,6 +40,31 @@ public static class CookieService
         "SID", "HSID", "SSID", "LOGIN_INFO", "SAPISID", "APISID", "__Secure-3PSID", "__Secure-1PSID"
     };
 
+    private static readonly UTF8Encoding Utf8NoBom = new(false);
+
+    public static bool RepairBomIfNeeded(string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var bytes = File.ReadAllBytes(path);
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                File.WriteAllBytes(path, bytes[3..]);
+                return true;
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
     public static CookiesStatusInfo GetCookiesStatus(string? path = null)
     {
         var targetPath = string.IsNullOrEmpty(path) ? Helpers.GetDefaultCookiesPath() : path;
@@ -164,10 +189,10 @@ public static class CookieService
                 {
                     var jsonContent = NetscapeToJson(rawNetscape);
                     var jsonPath = Path.ChangeExtension(targetPath, ".json");
-                    File.WriteAllText(jsonPath, jsonContent, Encoding.UTF8);
+                    File.WriteAllText(jsonPath, jsonContent, Utf8NoBom);
                 }
 
-                File.WriteAllText(targetPath, rawNetscape, Encoding.UTF8);
+                File.WriteAllText(targetPath, rawNetscape, Utf8NoBom);
 
                 try { File.Delete(tempCookiesTxt); } catch { }
 
@@ -221,13 +246,13 @@ public static class CookieService
                     Directory.CreateDirectory(dir);
                 }
 
-                File.WriteAllText(targetPath, netscapeContent, Encoding.UTF8);
+                File.WriteAllText(targetPath, netscapeContent, Utf8NoBom);
 
                 if (asJson)
                 {
                     var jsonPath = Path.ChangeExtension(targetPath, ".json");
                     var jsonContent = NetscapeToJson(netscapeContent);
-                    File.WriteAllText(jsonPath, jsonContent, Encoding.UTF8);
+                    File.WriteAllText(jsonPath, jsonContent, Utf8NoBom);
                 }
 
                 var status = GetCookiesStatus(targetPath);
@@ -273,11 +298,11 @@ public static class CookieService
                 if (asJson || destinationPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 {
                     var jsonContent = NetscapeToJson(content);
-                    File.WriteAllText(destinationPath, jsonContent, Encoding.UTF8);
+                    File.WriteAllText(destinationPath, jsonContent, Utf8NoBom);
                 }
                 else
                 {
-                    File.WriteAllText(destinationPath, content, Encoding.UTF8);
+                    File.WriteAllText(destinationPath, content, Utf8NoBom);
                 }
 
                 return (true, $"Archivo de cookies exportado con éxito a:\n{destinationPath}");
@@ -321,7 +346,7 @@ public static class CookieService
                     Directory.CreateDirectory(destDir);
                 }
 
-                File.WriteAllText(destinationPath, netscapeContent, Encoding.UTF8);
+                File.WriteAllText(destinationPath, netscapeContent, Utf8NoBom);
 
                 var status = GetCookiesStatus(destinationPath);
                 return (true, $"Cookies importadas correctamente: {status.EstimatedCookieCount} entradas registradas.");

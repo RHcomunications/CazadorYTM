@@ -78,7 +78,7 @@ public static class RadarService
             {
                 RadarSection.History => ":ythistory",
                 RadarSection.LikedSongs => "https://music.youtube.com/playlist?list=LM", // Liked Music playlist
-                RadarSection.Playlists => ":ytsubscriptions",
+                RadarSection.Playlists => "https://www.youtube.com/feed/playlists",
                 _ => ":ythistory"
             };
 
@@ -98,7 +98,8 @@ public static class RadarService
                 }
 
                 logger?.Invoke($"[RADAR] Error al consultar sección {section}: {err}");
-                return results;
+                throw new InvalidOperationException(
+                    $"No se pudo consultar la sección {section} de YouTube. Detalle: {FirstErrorLine(err)}");
             }
 
             var output = runResult.StandardOutput;
@@ -197,7 +198,8 @@ public static class RadarService
                 }
 
                 logger?.Invoke($"[RADAR] Error al obtener pistas de la lista: {err}");
-                return results;
+                throw new InvalidOperationException(
+                    $"No se pudieron cargar las pistas de la lista. Detalle: {FirstErrorLine(err)}");
             }
 
             var output = runResult.StandardOutput;
@@ -287,5 +289,19 @@ public static class RadarService
         }
         catch { }
         return null;
+    }
+
+    private static string FirstErrorLine(string stderr)
+    {
+        string? fallback = null;
+        foreach (var raw in stderr.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+            fallback ??= line;
+            if (line.Contains("ERROR", StringComparison.OrdinalIgnoreCase)) return line;
+        }
+
+        return fallback ?? "error desconocido de yt-dlp";
     }
 }

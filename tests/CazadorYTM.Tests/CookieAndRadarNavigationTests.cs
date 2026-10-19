@@ -2,6 +2,7 @@ namespace CazadorYTM.Tests;
 
 using System;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using CazadorYTM.Core.Services;
@@ -197,5 +198,64 @@ public class CookieAndRadarNavigationTests : IDisposable
     public void Constants_SupportTelegramUrl_MatchesNarayanPg()
     {
         Assert.Equal("https://t.me/narayanpg", CazadorYTM.Core.Constants.SupportTelegramUrl);
+    }
+
+    [Fact]
+    public async Task CookieService_SaveCookiesFromTextAsync_WritesUtf8WithoutBom()
+    {
+        var targetFile = Path.Combine(_tempDir, "cookies_no_bom.txt");
+        var rawNetscape = "# Netscape HTTP Cookie File\n" +
+                          ".youtube.com\tTRUE\t/\tTRUE\t1790000000\tSID\tabc123\n";
+
+        var result = await CookieService.SaveCookiesFromTextAsync(rawNetscape, targetFile);
+
+        Assert.True(result.Success);
+        var bytes = File.ReadAllBytes(targetFile);
+        Assert.False(
+            bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF,
+            "El archivo de cookies no debe empezar con BOM UTF-8; yt-dlp lo rechaza.");
+        Assert.Equal((byte)'#', bytes[0]);
+    }
+
+    [Fact]
+    public async Task CookieService_ImportCookiesAsync_WritesUtf8WithoutBom()
+    {
+        var sourceFile = Path.Combine(_tempDir, "cookies_source.txt");
+        var targetFile = Path.Combine(_tempDir, "cookies_imported.txt");
+        var rawNetscape = "# Netscape HTTP Cookie File\n" +
+                          ".youtube.com\tTRUE\t/\tTRUE\t1790000000\tSID\tabc123\n";
+        File.WriteAllText(sourceFile, rawNetscape, new UTF8Encoding(true));
+
+        var result = await CookieService.ImportCookiesAsync(sourceFile, targetFile);
+
+        Assert.True(result.Success);
+        var bytes = File.ReadAllBytes(targetFile);
+        Assert.False(
+            bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF,
+            "El archivo importado no debe empezar con BOM UTF-8; yt-dlp lo rechaza.");
+        Assert.Equal((byte)'#', bytes[0]);
+    }
+
+    [Fact]
+    public void CookieService_RepairBomIfNeeded_RemovesBomAndPreservesContent()
+    {
+        var targetFile = Path.Combine(_tempDir, "cookies_with_bom.txt");
+        var content = "# Netscape HTTP Cookie File\n" +
+                      ".youtube.com\tTRUE\t/\tTRUE\t1790000000\tSID\tabc123\n";
+        File.WriteAllText(targetFile, content, new UTF8Encoding(true));
+
+        Assert.True(CookieService.RepairBomIfNeeded(targetFile));
+
+        var bytes = File.ReadAllBytes(targetFile);
+        Assert.Equal((byte)'#', bytes[0]);
+        Assert.Equal(content, File.ReadAllText(targetFile, Encoding.UTF8));
+        Assert.False(CookieService.RepairBomIfNeeded(targetFile));
+    }
+
+    [Fact]
+    public void CookieService_RepairBomIfNeeded_MissingFile_ReturnsFalse()
+    {
+        Assert.False(CookieService.RepairBomIfNeeded(Path.Combine(_tempDir, "no_existe.txt")));
+        Assert.False(CookieService.RepairBomIfNeeded(null));
     }
 }
