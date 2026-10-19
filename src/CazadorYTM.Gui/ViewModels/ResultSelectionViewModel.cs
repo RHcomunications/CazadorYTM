@@ -134,7 +134,7 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
         var target = SelectedTrack ?? Tracks.FirstOrDefault(t => t.IsSelected) ?? Tracks.FirstOrDefault();
         if (target == null)
         {
-            DialogService.Instance.ShowMessage("Por favor seleccione una pista para previsualizar.", "Aviso", MessageBoxImage.Warning);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["SelectMsgPickToPreview"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
             return;
         }
 
@@ -151,7 +151,7 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
             if (string.IsNullOrEmpty(streamUrl))
             {
                 PreviewStatusText = "No se pudo obtener el audio de previsualización.";
-                DialogService.Instance.ShowMessage("No se pudo obtener el flujo de audio para previsualizar.", "Error", MessageBoxImage.Error);
+                DialogService.Instance.ShowMessage(LocalizationService.Instance["SelectMsgPreviewStreamFailed"], LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
                 StopPreview();
                 return;
             }
@@ -227,7 +227,7 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
         var selected = Tracks.Where(t => t.IsSelected).Select(t => t.Entry.Url ?? t.Entry.Title ?? "").ToList();
         if (selected.Count == 0)
         {
-            DialogService.Instance.ShowMessage("No hay pistas seleccionadas para exportar.", "Aviso", MessageBoxImage.Warning);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["SelectMsgNothingToExport"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
             return;
         }
 
@@ -237,11 +237,11 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
             try
             {
                 File.WriteAllLines(path, selected);
-                DialogService.Instance.ShowMessage($"{selected.Count} pistas exportadas correctamente.", "Éxito", MessageBoxImage.Information);
+                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["SelectMsgExportDone"], selected.Count), LocalizationService.Instance["TitleSuccess"], MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                DialogService.Instance.ShowMessage($"Error al exportar: {ex.Message}", "Error", MessageBoxImage.Error);
+                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["CommonMsgExportFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
             }
         }
     }
@@ -253,7 +253,7 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
         var selectedCount = Tracks.Count(t => t.IsSelected);
         if (selectedCount == 0)
         {
-            DialogService.Instance.ShowMessage("Por favor seleccione al menos una pista para descargar.", "Aviso", MessageBoxImage.Warning);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["SelectMsgPickToDownload"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
             return;
         }
 

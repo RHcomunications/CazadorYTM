@@ -154,6 +154,30 @@ public class CookieAndRadarNavigationTests : IDisposable
     }
 
     [Fact]
+    public void RadarItem_ToDownloadEntry_MapsFieldsAndBuildsFallbackUrl()
+    {
+        var withUrl = new RadarItem
+        {
+            Id = "trk1",
+            Title = "Canción",
+            Artist = "Artista",
+            Url = "https://music.youtube.com/watch?v=trk1",
+            Duration = 210
+        };
+
+        var entryWithUrl = withUrl.ToDownloadEntry();
+        Assert.Equal("trk1", entryWithUrl.Id);
+        Assert.Equal("Canción", entryWithUrl.Title);
+        Assert.Equal("Artista", entryWithUrl.Uploader);
+        Assert.Equal("https://music.youtube.com/watch?v=trk1", entryWithUrl.Url);
+        Assert.Equal(210, entryWithUrl.Duration);
+
+        var withoutUrl = new RadarItem { Id = "trk2", Title = "Otra" };
+        var entryWithoutUrl = withoutUrl.ToDownloadEntry();
+        Assert.Equal("https://music.youtube.com/watch?v=trk2", entryWithoutUrl.Url);
+    }
+
+    [Fact]
     public async Task ProcessRunner_NonExistentFile_ReturnsSafeError()
     {
         var result = await ProcessRunner.RunAsync("C:/archivo_que_no_existe_12345.exe", new[] { "--version" }, timeoutMs: 1000);

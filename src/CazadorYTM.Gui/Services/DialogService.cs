@@ -6,6 +6,7 @@ using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using CazadorYTM.Core.Models;
+using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Views;
 using CazadorYTM.Gui.ViewModels;
 
@@ -15,7 +16,7 @@ public interface IDialogService
     string? SelectFile(string filter, string? initialDirectory = null);
     string? SaveFile(string defaultFileName, string filter);
     void ShowMessage(string message, string title = "Cazador YTM", MessageBoxImage icon = MessageBoxImage.Information);
-    bool ShowConfirmation(string message, string title = "Confirmación");
+    bool ShowConfirmation(string message, string? title = null);
     List<DownloadEntry>? ShowTrackSelectionDialog(string title, string typeDescription, List<DownloadEntry> tracks);
 }
 
@@ -80,9 +81,9 @@ public class DialogService : IDialogService
         MessageBox.Show(message, title, MessageBoxButton.OK, icon);
     }
 
-    public bool ShowConfirmation(string message, string title = "Confirmación")
+    public bool ShowConfirmation(string message, string? title = null)
     {
-        return MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        return MessageBox.Show(message, title ?? LocalizationService.Instance["ConfirmTitle"], MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
     }
 
     public List<DownloadEntry>? ShowTrackSelectionDialog(string title, string typeDescription, List<DownloadEntry> tracks)

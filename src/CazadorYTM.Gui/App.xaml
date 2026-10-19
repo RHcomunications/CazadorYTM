@@ -11,6 +11,7 @@
                 <ui:XamlControlsResources />
             </ResourceDictionary.MergedDictionaries>
             <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+            <conv:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
             <conv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 

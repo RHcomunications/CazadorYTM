@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CazadorYTM.Core;
 using CazadorYTM.Core.Models;
+using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
 public partial class HistoryViewModel : ObservableObject
@@ -119,7 +120,7 @@ public partial class HistoryViewModel : ObservableObject
         var target = entry ?? SelectedEntry ?? FilteredEntries.FirstOrDefault();
         if (target == null)
         {
-            DialogService.Instance.ShowMessage("Seleccione una canción del historial para reproducir.", "Aviso", MessageBoxImage.Information);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgSelectToPlay"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
             return;
         }
 
@@ -147,7 +148,7 @@ public partial class HistoryViewModel : ObservableObject
         }
         else
         {
-            DialogService.Instance.ShowMessage($"El archivo '{target.Title}' no se encuentra en el disco:\n{target.FilePath}", "Aviso", MessageBoxImage.Warning);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgFileMissing"], target.Title, target.FilePath), LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
         }
     }
 
@@ -162,7 +163,7 @@ public partial class HistoryViewModel : ObservableObject
 
         if (allTracks.Count == 0)
         {
-            DialogService.Instance.ShowMessage("No hay archivos de audio disponibles en la biblioteca para reproducir.", "Aviso", MessageBoxImage.Information);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgNoAudioToPlay"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
             return;
         }
 
@@ -180,7 +181,7 @@ public partial class HistoryViewModel : ObservableObject
 
         if (allTracks.Count == 0)
         {
-            DialogService.Instance.ShowMessage("No hay archivos en la biblioteca para exportar a lista de reproducción.", "Aviso", MessageBoxImage.Information);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgNothingToExport"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
             return;
         }
 
@@ -199,11 +200,11 @@ public partial class HistoryViewModel : ObservableObject
 
             File.WriteAllText(savePath, sb.ToString(), System.Text.Encoding.UTF8);
             NotificationService.Instance.Notify("Lista Exportada", $"Se exportaron {allTracks.Count} canciones a la lista M3U8.", NotificationType.Success);
-            DialogService.Instance.ShowMessage($"Lista de reproducción guardada exitosamente:\n{savePath}", "Exportación Completada");
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgExportDone"], savePath), LocalizationService.Instance["TitleExportDone"]);
         }
         catch (Exception ex)
         {
-            DialogService.Instance.ShowMessage($"Error al exportar la lista de reproducción: {ex.Message}", "Error", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgExportFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
     }
 
@@ -231,7 +232,7 @@ public partial class HistoryViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                DialogService.Instance.ShowMessage($"No se pudo abrir la carpeta: {ex.Message}", "Error", MessageBoxImage.Error);
+                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["CommonMsgOpenFolderFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
             }
         }
         else
@@ -244,7 +245,7 @@ public partial class HistoryViewModel : ObservableObject
             }
             else
             {
-                DialogService.Instance.ShowMessage("No se encontró la carpeta de descargas.", "Aviso", MessageBoxImage.Information);
+                DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgDownloadsFolderNotFound"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
             }
         }
     }
@@ -256,7 +257,7 @@ public partial class HistoryViewModel : ObservableObject
         if (target != null && !string.IsNullOrEmpty(target.Url))
         {
             Clipboard.SetText(target.Url);
-            DialogService.Instance.ShowMessage("Enlace copiado al portapapeles.", "Información", MessageBoxImage.Information);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgLinkCopied"], LocalizationService.Instance["TitleInfo"], MessageBoxImage.Information);
         }
     }
 
@@ -266,7 +267,7 @@ public partial class HistoryViewModel : ObservableObject
         var target = entry ?? SelectedEntry ?? FilteredEntries.FirstOrDefault();
         if (target != null)
         {
-            if (DialogService.Instance.ShowConfirmation($"¿Desea eliminar '{target.Title}' del historial?", "Confirmar eliminación"))
+            if (DialogService.Instance.ShowConfirmation(string.Format(LocalizationService.Instance["HistoryMsgConfirmDelete"], target.Title), LocalizationService.Instance["TitleConfirmDeletion"]))
             {
                 _historyManager.RemoveEntry(target);
                 RefreshHistory();
@@ -277,7 +278,7 @@ public partial class HistoryViewModel : ObservableObject
     [RelayCommand]
     public void ClearAll()
     {
-        if (DialogService.Instance.ShowConfirmation("¿Está seguro de que desea vaciar todo el historial de descargas?", "Vaciar historial"))
+        if (DialogService.Instance.ShowConfirmation(LocalizationService.Instance["HistoryMsgConfirmClearAll"], LocalizationService.Instance["TitleClearHistory"]))
         {
             _historyManager.Clear();
             RefreshHistory();
@@ -291,7 +292,7 @@ public partial class HistoryViewModel : ObservableObject
         var target = entry ?? SelectedEntry ?? FilteredEntries.FirstOrDefault();
         if (target == null)
         {
-            DialogService.Instance.ShowMessage("Seleccione una canción para reintentar su descarga.", "Aviso", MessageBoxImage.Information);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgSelectToRetry"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
             return;
         }
 
@@ -310,13 +311,13 @@ public partial class HistoryViewModel : ObservableObject
 
         if (missing.Count == 0)
         {
-            DialogService.Instance.ShowMessage("Todos los archivos registrados en la biblioteca existen en disco.", "Biblioteca en orden", MessageBoxImage.Information);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgLibraryClean"], LocalizationService.Instance["TitleLibraryClean"], MessageBoxImage.Information);
             return;
         }
 
         var confirm = DialogService.Instance.ShowConfirmation(
-            $"Se encontraron {missing.Count} registros de canciones cuyos archivos ya no existen en disco.\n\n¿Desea eliminarlos del historial de la biblioteca?",
-            "Depurar Biblioteca");
+            string.Format(LocalizationService.Instance["HistoryMsgConfirmCleanMissing"], missing.Count),
+            LocalizationService.Instance["TitleCleanLibrary"]);
 
         if (confirm)
         {

@@ -25,6 +25,10 @@ jobs:
     - name: Run Tests
       run: dotnet test CazadorYTM.slnx --configuration Release
 
+    - name: Verify i18n integrity
+      shell: pwsh
+      run: ./scripts/Verify-I18n.ps1
+
     - name: Publish Self-Contained Win-x64
       run: |
         dotnet publish src/CazadorYTM.Gui/CazadorYTM.Gui.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:PublishReadyToRun=true -o publish/

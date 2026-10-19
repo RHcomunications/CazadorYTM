@@ -68,7 +68,7 @@ public partial class App : Application
         {
             LogService.Instance.Error($"[ERROR] Excepción no controlada en Dispatcher UI: {args.Exception}");
             args.Handled = true; // Prevent abrupt app crash
-            DialogService.Instance.ShowMessage($"Ocurrió un error en la interfaz:\n\n{args.Exception.Message}", "Error de Interfaz", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["AppMsgUiError"], args.Exception.Message), LocalizationService.Instance["AppTitleUiError"], MessageBoxImage.Error);
         };
 
         TaskScheduler.UnobservedTaskException += (s, args) =>

@@ -7,7 +7,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             AutomationProperties.Name="Panel Radar YTM"
+             AutomationProperties.Name="{loc:Loc RadarPanelName}"
              KeyboardNavigation.TabNavigation="Cycle">
 
     <Grid Margin="20">
@@ -28,42 +28,44 @@
             <!-- Standard Category Selector (when not inspecting playlist details) -->
             <WrapPanel Grid.Column="0" VerticalAlignment="Center"
                        Visibility="{Binding IsViewingPlaylistDetails, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                <RadioButton x:Name="RbHistory" Content="Historial de YouTube"
+                <RadioButton x:Name="RbHistory" Content="{loc:Loc RadarCatHistory}"
                              IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.History}}"
                              GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"
                              PreviewKeyDown="Category_PreviewKeyDown"
-                             AutomationProperties.Name="Categoría Historial de YouTube. Pulsa Enter para cargar."/>
-                <RadioButton x:Name="RbLiked" Content="Canciones que te gustan (Liked Music)"
+                             AutomationProperties.Name="{loc:Loc RadarCatHistoryHint}"/>
+                <RadioButton x:Name="RbLiked" Content="{loc:Loc RadarCatLiked}"
                              IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.LikedSongs}}"
                              GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"
                              PreviewKeyDown="Category_PreviewKeyDown"
-                             AutomationProperties.Name="Categoría Canciones que te gustan. Pulsa Enter para cargar."/>
-                <RadioButton x:Name="RbPlaylists" Content="Mis Listas de Reproducción"
+                             AutomationProperties.Name="{loc:Loc RadarCatLikedHint}"/>
+                <RadioButton x:Name="RbPlaylists" Content="{loc:Loc RadarCatPlaylists}"
                              IsChecked="{Binding SelectedSection, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:RadarSection.Playlists}}"
                              GroupName="RadarSec" Height="32" Margin="0,0,12,6" FontWeight="SemiBold"
                              PreviewKeyDown="Category_PreviewKeyDown"
-                             AutomationProperties.Name="Categoría Mis Listas de Reproducción. Pulsa Enter para cargar."/>
+                             AutomationProperties.Name="{loc:Loc RadarCatPlaylistsHint}"/>
             </WrapPanel>
 
             <!-- Breadcrumb Navigation Bar (when inspecting playlist tracks) -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
                         Visibility="{Binding IsViewingPlaylistDetails, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Button Content="◀ Volver a Listas (Flecha Izq / Backspace)"
+                <Button Content="{loc:Loc RadarBackToPlaylists}"
                         Command="{Binding BackToPlaylistsCommand}"
                         Height="32" Padding="12,0" Margin="0,0,12,0"
-                        AutomationProperties.Name="Volver a la lista de reproducción anterior"/>
+                        AutomationProperties.Name="{loc:Loc RadarBackToPlaylistsHint}"/>
                 <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
-                           Text="{Binding CurrentPlaylistTitle, StringFormat='Lista: {0}'}"/>
+                           Text="{loc:Loc RadarPlaylistLabel}"/>
+                <TextBlock VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" Margin="4,0,0,0"
+                           Text="{Binding CurrentPlaylistTitle}"/>
             </StackPanel>
 
             <!-- Top Right Action Buttons -->
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button Content="Actualizar" Command="{Binding RefreshCurrentSectionCommand}"
+                <Button Content="{loc:Loc BtnRefresh}" Command="{Binding RefreshCurrentSectionCommand}"
                         Height="32" Padding="12,0" Margin="0,0,8,0"
-                        AutomationProperties.Name="Actualizar la vista actual de Radar"/>
-                <Button Content="Sesión / Cookies..." Command="{Binding OpenCookiesManagerCommand}"
+                        AutomationProperties.Name="{loc:Loc RadarBtnRefreshHint}"/>
+                <Button Content="{loc:Loc RadarBtnSession}" Command="{Binding OpenCookiesManagerCommand}"
                         Height="32" Padding="12,0"
-                        AutomationProperties.Name="Abrir administrador de sesión y cookies de YouTube"/>
+                        AutomationProperties.Name="{loc:Loc RadarBtnSessionHint}"/>
             </StackPanel>
         </Grid>
 
@@ -75,8 +77,8 @@
             </Grid.ColumnDefinitions>
             <TextBox x:Name="TxtRadarFilter" Text="{Binding FilterQuery, UpdateSourceTrigger=PropertyChanged}" 
                      Height="36" VerticalContentAlignment="Center"
-                     ui:ControlHelper.PlaceholderText="Filtrar por título, artista o canal..."
-                     AutomationProperties.Name="Filtrar contenido en Radar"/>
+                     ui:ControlHelper.PlaceholderText="{loc:Loc RadarFilterPlaceholder}"
+                     AutomationProperties.Name="{loc:Loc RadarFilterHint}"/>
         </Grid>
 
         <!-- Center Content Area: DataGrid vs Session Prompt vs Error State -->
@@ -88,16 +90,16 @@
                     BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="28" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="Sesión de YouTube no conectada" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                    <TextBlock Text="Radar YTM te permite acceder a tu Historial reciente, a tus Canciones que te gustan (Liked Music) y a tus Listas de Reproducción privadas. Para consultar estos datos es necesario conectar tus cookies de sesión."
+                    <TextBlock Text="{loc:Loc RadarNoSessionTitle}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock Text="{loc:Loc RadarNoSessionDesc}"
                                TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,20"/>
                     <WrapPanel HorizontalAlignment="Center">
-                        <Button Content="Conectar Sesión de YouTube..." Command="{Binding OpenCookiesManagerCommand}"
+                        <Button Content="{loc:Loc RadarBtnConnect}" Command="{Binding OpenCookiesManagerCommand}"
                                 Style="{DynamicResource AccentButtonStyle}" Height="38" Padding="20,0" Margin="0,0,10,8"
-                                AutomationProperties.Name="Abrir gestor para conectar cookies de sesión"/>
-                        <Button Content="Soporte (Telegram)" Command="{Binding ContactSupportCommand}"
+                                AutomationProperties.Name="{loc:Loc RadarBtnConnectHint}"/>
+                        <Button Content="{loc:Loc BtnSupportTelegram}" Command="{Binding ContactSupportCommand}"
                                 Height="38" Padding="16,0" Margin="0,0,0,8"
-                                AutomationProperties.Name="Contactar soporte técnico en Telegram"/>
+                                AutomationProperties.Name="{loc:Loc BtnSupportTelegramHint}"/>
                     </WrapPanel>
                 </StackPanel>
             </Border>
@@ -108,20 +110,20 @@
                     BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="600">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="No se pudo cargar el contenido de Radar" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="{loc:Loc RadarErrorTitle}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"/>
                     <WrapPanel HorizontalAlignment="Center">
-                        <Button Content="Reintentar" Command="{Binding RefreshCurrentSectionCommand}"
+                        <Button Content="{loc:Loc RadarBtnRetry}" Command="{Binding RefreshCurrentSectionCommand}"
                                 Style="{DynamicResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6"/>
-                        <Button Content="Gestionar Cookies..." Command="{Binding OpenCookiesManagerCommand}"
+                        <Button Content="{loc:Loc RadarBtnManageCookies}" Command="{Binding OpenCookiesManagerCommand}"
                                 Height="34" Padding="14,0" Margin="0,0,8,6"/>
-                        <Button Content="Exportar Registro..." Command="{Binding ExportLogsCommand}"
+                        <Button Content="{loc:Loc BtnExportLogs}" Command="{Binding ExportLogsCommand}"
                                 Height="34" Padding="14,0" Margin="0,0,8,6"
-                                AutomationProperties.Name="Exportar archivo de registro de errores a disco"/>
-                        <Button Content="Enviar a Soporte (Telegram)" Command="{Binding ContactSupportCommand}"
+                                AutomationProperties.Name="{loc:Loc BtnExportLogsHint}"/>
+                        <Button Content="{loc:Loc RadarBtnSendSupport}" Command="{Binding ContactSupportCommand}"
                                 Height="34" Padding="14,0" Margin="0,0,0,6"
-                                AutomationProperties.Name="Abrir chat de soporte técnico en Telegram"/>
+                                AutomationProperties.Name="{loc:Loc RadarBtnSendSupportHint}"/>
                     </WrapPanel>
                 </StackPanel>
             </Border>
@@ -131,7 +133,7 @@
                       AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                       BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                       Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                      AutomationProperties.Name="Lista de elementos de Radar YTM. Usa Enter para reproducir y Flecha Derecha para explorar listas."
+                      AutomationProperties.Name="{loc:Loc RadarGridHint}"
                       MouseDoubleClick="GridRadar_MouseDoubleClick"
                       PreviewKeyDown="GridRadar_PreviewKeyDown">
 
@@ -153,25 +155,25 @@
                 <!-- Accessible Context Menu -->
                 <DataGrid.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Reproducir (Enter)" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
-                        <MenuItem Header="Explorar contenido de la lista (Flecha Derecha)" InputGestureText="Derecha"
+                        <MenuItem Header="{loc:Loc RadarMenuPlay}" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
+                        <MenuItem Header="{loc:Loc RadarMenuOpenPlaylist}" InputGestureText="Derecha"
                                   Command="{Binding OpenPlaylistCommand}"/>
-                        <MenuItem Header="Enviar a Descargas (Ctrl+D)" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
+                        <MenuItem Header="{loc:Loc RadarMenuSendDownload}" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
                         <Separator/>
-                        <MenuItem Header="Volver a listas (Flecha Izquierda)" InputGestureText="Izquierda / Backspace"
+                        <MenuItem Header="{loc:Loc RadarMenuBack}" InputGestureText="Izquierda / Backspace"
                                   Command="{Binding BackToPlaylistsCommand}"/>
-                        <MenuItem Header="Actualizar lista" Command="{Binding RefreshCurrentSectionCommand}"/>
+                        <MenuItem Header="{loc:Loc RadarMenuRefresh}" Command="{Binding RefreshCurrentSectionCommand}"/>
                         <Separator/>
-                        <MenuItem Header="Gestionar Cookies de YouTube..." Command="{Binding OpenCookiesManagerCommand}"/>
-                        <MenuItem Header="Exportar Registro de Errores..." Command="{Binding ExportLogsCommand}"/>
-                        <MenuItem Header="Contactar Soporte Técnico (Telegram)..." Command="{Binding ContactSupportCommand}"/>
+                        <MenuItem Header="{loc:Loc MenuManageCookies}" Command="{Binding OpenCookiesManagerCommand}"/>
+                        <MenuItem Header="{loc:Loc MenuExportLogs}" Command="{Binding ExportLogsCommand}"/>
+                        <MenuItem Header="{loc:Loc MenuContactSupport}" Command="{Binding ContactSupportCommand}"/>
                     </ContextMenu>
                 </DataGrid.ContextMenu>
 
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Título" Binding="{Binding Title}" Width="*" MinWidth="250"/>
-                    <DataGridTextColumn Header="Artista / Canal" Binding="{Binding Artist}" Width="200"/>
-                    <DataGridTextColumn Header="Duración" Binding="{Binding DisplayDuration}" Width="90"/>
+                    <DataGridTextColumn Header="{loc:Loc ColTitle}" Binding="{Binding Title}" Width="*" MinWidth="250"/>
+                    <DataGridTextColumn Header="{loc:Loc RadarColArtist}" Binding="{Binding Artist}" Width="200"/>
+                    <DataGridTextColumn Header="{loc:Loc RadarColDuration}" Binding="{Binding DisplayDuration}" Width="90"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>
@@ -189,15 +191,15 @@
 
             <StackPanel Grid.Column="1" Orientation="Horizontal"
                         Visibility="{Binding HasSessionConnected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Button Content="Explorar Lista" Command="{Binding OpenPlaylistCommand}"
+                <Button Content="{loc:Loc RadarBtnOpenPlaylist}" Command="{Binding OpenPlaylistCommand}"
                         Height="34" Margin="0,0,8,0" Padding="14,0"
-                        AutomationProperties.Name="Explorar contenido de la lista seleccionada (Flecha Derecha)"/>
-                <Button Content="Reproducir" Command="{Binding PlayItemCommand}"
+                        AutomationProperties.Name="{loc:Loc RadarBtnOpenPlaylistHint}"/>
+                <Button Content="{loc:Loc BtnPlay}" Command="{Binding PlayItemCommand}"
                         Height="34" Margin="0,0,8,0" Padding="16,0"
-                        AutomationProperties.Name="Reproducir elemento o lista seleccionada (Enter)"/>
-                <Button Content="Descargar Pista" Command="{Binding SendToDownloadCommand}"
+                        AutomationProperties.Name="{loc:Loc RadarBtnPlayHint}"/>
+                <Button Content="{loc:Loc RadarBtnDownloadTrack}" Command="{Binding SendToDownloadCommand}"
                         Height="34" Padding="16,0"
-                        AutomationProperties.Name="Enviar elemento seleccionado a descargas (Ctrl+D)"/>
+                        AutomationProperties.Name="{loc:Loc RadarBtnDownloadTrackHint}"/>
             </StackPanel>
         </Grid>
     </Grid>

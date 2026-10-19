@@ -252,10 +252,10 @@ public partial class MainViewModel : ObservableObject
             var info = await AppUpdaterService.CheckAppUpdateAsync();
             if (info.HasUpdate)
             {
-                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : $"\n\nNotas de la versión:\n{info.ReleaseNotes}";
-                var confirmMsg = $"Se ha publicado una nueva versión de Cazador YTM:\n\n• Versión actual: v{info.CurrentVersion}\n• Versión disponible: v{info.LatestVersion}{notesPreview}\n\n¿Desea descargar e instalar la actualización automáticamente ahora?";
+                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : string.Format(LocalizationService.Instance["MainMsgReleaseNotes"], info.ReleaseNotes);
+                var confirmMsg = string.Format(LocalizationService.Instance["MainMsgNewVersion"], info.CurrentVersion, info.LatestVersion, notesPreview);
 
-                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, "Actualización de Cazador YTM");
+                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, LocalizationService.Instance["TitleAppUpdate"]);
                 if (accept)
                 {
                     if (string.IsNullOrEmpty(info.AssetDownloadUrl))
@@ -275,12 +275,12 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                DialogService.Instance.ShowMessage($"Cazador YTM está al día en su versión más reciente (v{Constants.AppVersion}).", "Cazador YTM Actualizado");
+                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["MainMsgAppUpToDate"], Constants.AppVersion), LocalizationService.Instance["TitleAppUpToDate"]);
             }
         }
         catch (Exception ex)
         {
-            DialogService.Instance.ShowMessage($"Error al consultar GitHub: {ex.Message}", "Error de Actualización", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["MainMsgCheckGithubFailed"], ex.Message), LocalizationService.Instance["TitleUpdateError"], MessageBoxImage.Error);
         }
     }
 
@@ -294,23 +294,23 @@ public partial class MainViewModel : ObservableObject
             if (updatesNeeded != null && updatesNeeded.Count > 0)
             {
                 var details = string.Join("\n• ", updatesNeeded);
-                var confirmMsg = $"Se encontraron nuevas versiones para los siguientes componentes:\n\n• {details}\n\n¿Desea descargarlos e instalarlos ahora?";
-                if (DialogService.Instance.ShowConfirmation(confirmMsg, "Actualizaciones de Componentes"))
+                var confirmMsg = string.Format(LocalizationService.Instance["MainMsgComponentsFound"], details);
+                if (DialogService.Instance.ShowConfirmation(confirmMsg, LocalizationService.Instance["TitleComponentsUpdate"]))
                 {
                     NotificationService.Instance.Notify("Actualizando componentes", "Descargando e instalando componentes...", NotificationType.Info);
                     await Task.Run(() => BinaryUpdater.UpdateAll(baseDir));
                     NotificationService.Instance.Notify("Componentes Actualizados", "yt-dlp, FFmpeg y Deno se han actualizado correctamente.", NotificationType.Success);
-                    DialogService.Instance.ShowMessage("Todos los componentes se han actualizado exitosamente.", "Actualización Completada");
+                    DialogService.Instance.ShowMessage(LocalizationService.Instance["CommonMsgAllComponentsUpdated"], LocalizationService.Instance["TitleUpdateCompleted"]);
                 }
             }
             else
             {
-                DialogService.Instance.ShowMessage("Todos los componentes (yt-dlp, FFmpeg, Deno) están en su versión más reciente.", "Componentes al día");
+                DialogService.Instance.ShowMessage(LocalizationService.Instance["MainMsgComponentsUpToDate"], LocalizationService.Instance["TitleComponentsUpToDate"]);
             }
         }
         catch (Exception ex)
         {
-            DialogService.Instance.ShowMessage($"Error al actualizar componentes: {ex.Message}", "Error", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["MainMsgUpdateComponentsFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
     }
 
@@ -387,14 +387,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowAbout()
     {
-        var msg = $"{Constants.AppTitle}\n\n" +
-                  "Desarrollado por: narayan project's\n\n" +
-                  "Gestor de Descargas y Reproductor Multimedia de Alto Rendimiento.\n" +
-                  "Integración con yt-dlp, FFmpeg, Deno y YoutubeExplode.\n" +
-                  "Arquitectura C# .NET 10 / WPF ModernWPF.\n\n" +
-                  "Copyright © 2026 narayan project's. Todos los derechos reservados.";
+        var msg = string.Format(LocalizationService.Instance["MainAboutMsg"], Constants.AppTitle);
 
-        DialogService.Instance.ShowMessage(msg, "Acerca de Cazador YTM");
+        DialogService.Instance.ShowMessage(msg, LocalizationService.Instance["TitleAbout"]);
     }
 
     [RelayCommand]
@@ -409,7 +404,7 @@ public partial class MainViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                DialogService.Instance.ShowMessage($"No se pudo abrir la carpeta: {ex.Message}", "Error");
+                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["CommonMsgOpenFolderFailed"], ex.Message), LocalizationService.Instance["TitleError"]);
             }
         }
     }

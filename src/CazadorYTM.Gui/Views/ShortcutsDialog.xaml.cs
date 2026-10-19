@@ -3,6 +3,7 @@ namespace CazadorYTM.Gui.Views;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Input;
+using CazadorYTM.Core.Services;
 
 public record ShortcutItem(string Shortcut, string Description);
 
@@ -13,45 +14,46 @@ public partial class ShortcutsDialog : Window
         InitializeComponent();
         Services.Win11ThemeHelper.ApplyWin11Backdrop(this, isDialog: true);
 
+        var loc = LocalizationService.Instance;
         var shortcuts = new List<ShortcutItem>
         {
             // Globales
-            new("Ctrl + L", "Abrir esta tabla de atajos de teclado"),
-            new("Ctrl + 1", "Abrir o enfocar pestaña de Descargas"),
-            new("Ctrl + 2", "Abrir o enfocar pestaña de Biblioteca / Historial"),
-            new("Ctrl + 3", "Abrir o enfocar pestaña del Reproductor"),
-            new("Ctrl + R o Ctrl + 4", "Abrir o enfocar pestaña Radar YTM"),
-            new("Ctrl + W", "Cerrar la pestaña activa actual"),
-            new("Shift + F10 o Tecla Apps", "Abrir menú contextual y acciones de Radar YTM"),
-            new("Ctrl + ,", "Abrir ventana de Preferencias y Configuración"),
-            new("Ctrl + S", "Abrir la carpeta de descargas en el explorador"),
-            new("Alt o F10", "Activar y navegar por la barra de menús"),
+            new("Ctrl + L", loc["ScOpenTable"]),
+            new("Ctrl + 1", loc["ScOpenDownloads"]),
+            new("Ctrl + 2", loc["ScOpenLibrary"]),
+            new("Ctrl + 3", loc["ScOpenPlayer"]),
+            new(loc["ScKeyRadar"], loc["ScOpenRadar"]),
+            new("Ctrl + W", loc["ScCloseTab"]),
+            new(loc["ScKeyContextMenu"], loc["ScContextMenu"]),
+            new("Ctrl + ,", loc["ScOpenPreferences"]),
+            new("Ctrl + S", loc["ScOpenDownloadsFolder"]),
+            new(loc["ScKeyMenuBar"], loc["ScMenuBar"]),
 
             // Reproductor
-            new("Espacio", "Reproducir o pausar el audio actual"),
-            new("Shift + Izquierda", "Retroceder 5 segundos en la pista"),
-            new("Shift + Derecha", "Avanzar 5 segundos en la pista"),
-            new("Ctrl + Shift + Izquierda", "Retroceder 30 segundos en la pista"),
-            new("Ctrl + Shift + Derecha", "Avanzar 30 segundos en la pista"),
-            new("Ctrl + Arriba", "Subir volumen en pasos de 5%"),
-            new("Ctrl + Abajo", "Bajar volumen en pasos de 5%"),
-            new("Ctrl + Shift + Abajo", "Silenciar o restaurar el volumen (Mute)"),
-            new("Ctrl + Shift + Arriba", "Ajustar volumen al 100%"),
-            new("Ctrl + Shift + S", "Detener reproducción del audio"),
-            new("Inicio (Home)", "Saltar al inicio de la pista (00:00)"),
-            new("Fin (End)", "Saltar al final de la pista"),
-            new("Ctrl + O (en Reproductor)", "Abrir y cargar un archivo de audio local"),
+            new(loc["ScKeySpace"], loc["ScPlayPause"]),
+            new(loc["ScKeyShiftLeft"], loc["ScBack5"]),
+            new(loc["ScKeyShiftRight"], loc["ScForward5"]),
+            new(loc["ScKeyCtrlShiftLeft"], loc["ScBack30"]),
+            new(loc["ScKeyCtrlShiftRight"], loc["ScForward30"]),
+            new(loc["ScKeyCtrlUp"], loc["ScVolumeUp"]),
+            new(loc["ScKeyCtrlDown"], loc["ScVolumeDown"]),
+            new(loc["ScKeyCtrlShiftDown"], loc["ScMute"]),
+            new(loc["ScKeyCtrlShiftUp"], loc["ScVolumeMax"]),
+            new("Ctrl + Shift + S", loc["ScStop"]),
+            new(loc["ScKeyHome"], loc["ScGoStart"]),
+            new(loc["ScKeyEnd"], loc["ScGoEnd"]),
+            new(loc["ScKeyOpenAudioInPlayer"], loc["ScOpenAudio"]),
 
             // Descargas
-            new("Enter (en campo de búsqueda)", "Buscar canción o iniciar descarga directa"),
-            new("Ctrl + P (en Resultados)", "Previsualizar o detener streaming de audio"),
-            new("Ctrl + O (en Descargas)", "Cargar archivo de lista (.txt / .csv)"),
-            new("Espacio (en Resultados)", "Marcar o desmarcar canción seleccionada"),
+            new(loc["ScKeySearch"], loc["ScSearchDownload"]),
+            new(loc["ScKeyPreview"], loc["ScPreview"]),
+            new(loc["ScKeyLoadList"], loc["ScLoadList"]),
+            new(loc["ScKeySpaceResults"], loc["ScToggleTrack"]),
 
             // Biblioteca
-            new("Enter (en Biblioteca)", "Reproducir pista seleccionada"),
-            new("Supr / Delete (en Biblioteca)", "Eliminar pista del historial"),
-            new("F5 (en Biblioteca)", "Actualizar lista del historial")
+            new(loc["ScKeyEnterLibrary"], loc["ScPlaySelected"]),
+            new(loc["ScKeyDeleteLibrary"], loc["ScDeleteSelected"]),
+            new(loc["ScKeyRefreshLibrary"], loc["ScRefreshHistory"])
         };
 
         LstShortcuts.ItemsSource = shortcuts;

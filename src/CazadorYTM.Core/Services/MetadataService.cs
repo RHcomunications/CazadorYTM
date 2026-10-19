@@ -8,7 +8,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using YoutubeExplode;
 using YoutubeExplode.Common;
@@ -24,58 +23,6 @@ public static class MetadataService
     static MetadataService()
     {
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"CazadorYTM/{Constants.AppVersion} (Windows NT 10.0; Win64; x64)");
-    }
-
-    public static int ScoreResult(DownloadEntry entry)
-    {
-        var title = entry.Title ?? "";
-        var uploader = entry.Uploader ?? "";
-        var score = 0;
-
-        if (uploader.Contains(" - Topic", StringComparison.OrdinalIgnoreCase)) score += 50;
-        if (title.Contains(" - Topic", StringComparison.OrdinalIgnoreCase)) score += 40;
-        if (title.Contains("(Audio)", StringComparison.OrdinalIgnoreCase) || title.Contains("[Audio]", StringComparison.OrdinalIgnoreCase) || title.EndsWith(" - Audio", StringComparison.OrdinalIgnoreCase)) score += 35;
-        if (title.Contains("Official Audio", StringComparison.OrdinalIgnoreCase) || title.Contains("Audio Oficial", StringComparison.OrdinalIgnoreCase)) score += 30;
-        if (uploader.Contains("VEVO", StringComparison.OrdinalIgnoreCase) || uploader.Contains("Official", StringComparison.OrdinalIgnoreCase)) score += 20;
-
-        if (title.Contains("Official Music Video", StringComparison.OrdinalIgnoreCase) || title.Contains("Video Oficial", StringComparison.OrdinalIgnoreCase) || title.Contains("Video Clip", StringComparison.OrdinalIgnoreCase)) score -= 10;
-        if (title.Contains("Live", StringComparison.OrdinalIgnoreCase) || title.Contains("En Vivo", StringComparison.OrdinalIgnoreCase) || title.Contains("Concert", StringComparison.OrdinalIgnoreCase)) score -= 20;
-        if (title.Contains("Cover", StringComparison.OrdinalIgnoreCase) || title.Contains("Tribute", StringComparison.OrdinalIgnoreCase)) score -= 30;
-        if (title.Contains("Remix", StringComparison.OrdinalIgnoreCase) || title.Contains("Mix", StringComparison.OrdinalIgnoreCase) || title.Contains("Mashup", StringComparison.OrdinalIgnoreCase)) score -= 15;
-        if (title.Contains("Karaoke", StringComparison.OrdinalIgnoreCase) || title.Contains("Instrumental", StringComparison.OrdinalIgnoreCase)) score -= 25;
-        if (title.Contains("Teaser", StringComparison.OrdinalIgnoreCase) || title.Contains("Trailer", StringComparison.OrdinalIgnoreCase) || title.Contains("Preview", StringComparison.OrdinalIgnoreCase) || title.Contains("Behind The Scenes", StringComparison.OrdinalIgnoreCase)) score -= 50;
-
-        return score;
-    }
-
-    public static (string title, string artist) ExtractTitleArtistFromFilename(string filename)
-    {
-        var stem = Path.GetFileNameWithoutExtension(filename);
-        stem = Regex.Replace(stem, @"^\d+[\s\.\-_]+", "");
-
-        foreach (var pattern in Constants.TitleCleaningPatterns)
-        {
-            stem = Regex.Replace(stem, pattern, "", RegexOptions.IgnoreCase);
-        }
-
-        var parts = stem.Split(new[] { " - ", " _ ", " – " }, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 2)
-        {
-            return (parts[1].Trim(), parts[0].Trim());
-        }
-
-        return (stem.Trim(), "");
-    }
-
-    public static string CleanTitle(string title)
-    {
-        if (string.IsNullOrWhiteSpace(title)) return "";
-        var cleaned = title;
-        foreach (var pattern in Constants.TitleCleaningPatterns)
-        {
-            cleaned = Regex.Replace(cleaned, pattern, "", RegexOptions.IgnoreCase);
-        }
-        return cleaned.Trim();
     }
 
     public static string? FetchLyricsLrclib(string trackName, string? artistName = null, int? duration = null)
@@ -162,7 +109,7 @@ public static class MetadataService
                 {
                     if (searchSource == "YouTube Music")
                     {
-                        entries = entries.OrderByDescending(e => ScoreResult(e)).ToList();
+                        entries = entries.OrderByDescending(e => MetadataHelpers.Score(e)).ToList();
                     }
 
                     loggerCallback?.Invoke($"[SISTEMA] Búsqueda en {searchSource} exitosa ({entries.Count} resultados).");
@@ -294,7 +241,7 @@ public static class MetadataService
 
                 if (searchSource == "YouTube Music")
                 {
-                    results = results.OrderByDescending(e => ScoreResult(e)).ToList();
+                    results = results.OrderByDescending(e => MetadataHelpers.Score(e)).ToList();
                 }
 
                 var title = (root.TryGetProperty("title", out var tProp) ? tProp.GetString() : null)
@@ -323,7 +270,7 @@ public static class MetadataService
 
                     if (searchSource == "YouTube Music")
                     {
-                        results = results.OrderByDescending(e => ScoreResult(e)).ToList();
+                        results = results.OrderByDescending(e => MetadataHelpers.Score(e)).ToList();
                     }
 
                     var playlistTitle = (root.TryGetProperty("title", out var ptProp) ? ptProp.GetString() : null)

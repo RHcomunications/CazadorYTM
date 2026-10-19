@@ -3,13 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.modernwpf.com/2019"
         xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
-        Title="Gestor de Sesión y Cookies de YouTube"
+        Title="{loc:Loc CookiesWindowTitle}"
         Height="540" Width="680"
         MinHeight="460" MinWidth="580"
         WindowStartupLocation="CenterOwner"
         ui:WindowHelper.UseModernWindowStyle="True"
-        AutomationProperties.Name="Ventana de Gestión de Sesión y Cookies de YouTube"
-        AutomationProperties.HelpText="Administra cookies de sesión para Radar YTM mediante extracción automática, asistente manual o importación de archivos.">
+        AutomationProperties.Name="{loc:Loc CookiesPanelName}"
+        AutomationProperties.HelpText="{loc:Loc CookiesHelpText}">
 
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding CloseCommand}"/>
@@ -34,10 +34,10 @@
                 <TextBlock Grid.Column="0" Text="{Binding StatusSummary}" TextWrapping="Wrap"
                            VerticalAlignment="Center" FontSize="12" FontWeight="Medium"
                            AutomationProperties.LiveSetting="Polite"
-                           AutomationProperties.Name="Resumen del estado de cookies"/>
-                <Button Grid.Column="1" Content="Abrir Carpeta" Command="{Binding OpenCookiesFolderCommand}"
+                           AutomationProperties.Name="{loc:Loc CookiesStatusHint}"/>
+                <Button Grid.Column="1" Content="{loc:Loc OpenFolder}" Command="{Binding OpenCookiesFolderCommand}"
                         Height="28" Padding="10,0" Margin="10,0,0,0" VerticalAlignment="Center"
-                        AutomationProperties.Name="Abrir carpeta de cookies en el explorador de Windows"/>
+                        AutomationProperties.Name="{loc:Loc CookiesBtnOpenFolderHint}"/>
             </Grid>
         </Border>
 
@@ -45,23 +45,23 @@
         <TabControl Grid.Row="1" Margin="0,0,0,14">
 
             <!-- Vía 1: Extracción Automática desde Navegador -->
-            <TabItem Header="1. Extracción Automática">
+            <TabItem Header="{loc:Loc CookiesTabExtract}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                     <StackPanel Margin="6">
-                        <TextBlock Text="Extraer cookies directamente desde tu navegador" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <TextBlock Text="Inicia sesión previamente en YouTube o YouTube Music en el navegador seleccionado. Cazador YTM extraerá de forma segura las cookies de sesión activas."
+                        <TextBlock Text="{loc:Loc CookiesExtractTitle}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="{loc:Loc CookiesExtractDesc}"
                                    TextWrapping="Wrap" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"/>
 
-                        <Label x:Name="LblBrowserSelect" Target="{Binding ElementName=CmbBrowserSelect}" Content="Navegador donde tienes abierta tu sesión:" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <Label x:Name="LblBrowserSelect" Target="{Binding ElementName=CmbBrowserSelect}" Content="{loc:Loc CookiesBrowserLabel}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                         <ComboBox x:Name="CmbBrowserSelect" ItemsSource="{Binding Browsers}" SelectedItem="{Binding SelectedBrowser}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
                                   AutomationProperties.LabeledBy="{Binding ElementName=LblBrowserSelect}"/>
 
-                        <CheckBox Content="Guardar también en formato JSON (.json) además de .txt" IsChecked="{Binding SaveAsJson}" Margin="0,0,0,16"/>
+                        <CheckBox Content="{loc:Loc CookiesSaveJson}" IsChecked="{Binding SaveAsJson}" Margin="0,0,0,16"/>
 
-                        <Button Content="Extraer y Guardar Cookies" Command="{Binding ExtractFromBrowserCommand}"
+                        <Button Content="{loc:Loc CookiesBtnExtract}" Command="{Binding ExtractFromBrowserCommand}"
                                 Style="{DynamicResource AccentButtonStyle}" Height="38" Padding="20,0" HorizontalAlignment="Left" Margin="0,0,0,12"
                                 IsEnabled="{Binding IsExtracting, Converter={StaticResource InverseBooleanConverter}}"
-                                AutomationProperties.Name="Iniciar extracción automática de cookies desde el navegador"/>
+                                AutomationProperties.Name="{loc:Loc CookiesBtnExtractHint}"/>
 
                         <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,8" Visibility="{Binding IsExtracting, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
@@ -73,41 +73,41 @@
             </TabItem>
 
             <!-- Vía 2: Asistente con Extensión y robots.txt -->
-            <TabItem Header="2. Asistente (Extensión / robots.txt)">
+            <TabItem Header="{loc:Loc CookiesTabAssistant}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                     <StackPanel Margin="6">
-                        <TextBlock Text="Obtener cookies mediante extensión en el navegador" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                        <TextBlock Text="Método 100% confiable y compatible si tu navegador bloquea la lectura directa por restricciones de Windows DPAPI."
+                        <TextBlock Text="{loc:Loc CookiesAssistantTitle}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <TextBlock Text="{loc:Loc CookiesAssistantDesc}"
                                    TextWrapping="Wrap" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,12"/>
 
                         <!-- Step by Step -->
                         <Border Padding="12" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}" BorderThickness="1" Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock Text="Pasos recomendados:" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock Text="1. Instala en tu navegador la extensión recomendada 'Get cookies.txt LOCALLY' (disponible para Chrome, Edge, Firefox, Brave)." TextWrapping="Wrap" Margin="0,0,0,4"/>
-                                <TextBlock Text="2. Abre la URL 'youtube.com/robots.txt' en tu navegador para activar el dominio de YouTube sin recargar vídeos pesados." TextWrapping="Wrap" Margin="0,0,0,4"/>
-                                <TextBlock Text="3. Pulsa el icono de la extensión y copia el texto de las cookies." TextWrapping="Wrap" Margin="0,0,0,4"/>
-                                <TextBlock Text="4. Pulsa el botón 'Pegar desde el Portapapeles' abajo y luego 'Validar y Guardar Cookies'." TextWrapping="Wrap"/>
+                                <TextBlock Text="{loc:Loc CookiesStepsHeader}" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBlock Text="{loc:Loc CookiesStep1}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                <TextBlock Text="{loc:Loc CookiesStep2}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                <TextBlock Text="{loc:Loc CookiesStep3}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                <TextBlock Text="{loc:Loc CookiesStep4}" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
                         <WrapPanel Margin="0,0,0,10">
-                            <Button Content="Abrir youtube.com/robots.txt" Command="{Binding OpenRobotsUrlCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"
-                                    AutomationProperties.Name="Abrir enlace youtube.com robots.txt en el navegador"/>
-                            <Button Content="Pegar desde el Portapapeles" Command="{Binding PasteClipboardCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"
-                                    AutomationProperties.Name="Pegar cookies desde el portapapeles"/>
-                            <Button Content="Limpiar Texto" Command="{Binding ClearManualTextCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
+                            <Button Content="{loc:Loc CookiesBtnRobots}" Command="{Binding OpenRobotsUrlCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"
+                                    AutomationProperties.Name="{loc:Loc CookiesBtnRobotsHint}"/>
+                            <Button Content="{loc:Loc CookiesBtnPaste}" Command="{Binding PasteClipboardCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"
+                                    AutomationProperties.Name="{loc:Loc CookiesBtnPasteHint}"/>
+                            <Button Content="{loc:Loc CookiesBtnClearText}" Command="{Binding ClearManualTextCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
                         </WrapPanel>
 
                         <TextBox Text="{Binding ManualCookiesText, UpdateSourceTrigger=PropertyChanged}"
                                  Height="110" FontFamily="Consolas" FontSize="11" AcceptsReturn="True"
                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                                 ui:ControlHelper.PlaceholderText="Pega aquí el contenido de las cookies en formato Netscape o JSON..."
-                                 AutomationProperties.Name="Cuadro para pegar texto de cookies" Margin="0,0,0,10"/>
+                                 ui:ControlHelper.PlaceholderText="{loc:Loc CookiesManualPlaceholder}"
+                                 AutomationProperties.Name="{loc:Loc CookiesManualHint}" Margin="0,0,0,10"/>
 
-                        <Button Content="Validar y Guardar Cookies" Command="{Binding SaveManualCookiesCommand}"
+                        <Button Content="{loc:Loc CookiesBtnSaveManual}" Command="{Binding SaveManualCookiesCommand}"
                                 Style="{DynamicResource AccentButtonStyle}" Height="36" Padding="18,0" HorizontalAlignment="Left" Margin="0,0,0,8"
-                                AutomationProperties.Name="Validar y guardar cookies pegadas"/>
+                                AutomationProperties.Name="{loc:Loc CookiesBtnSaveManualHint}"/>
 
                         <TextBlock Text="{Binding ManualStatus}" TextWrapping="Wrap" FontSize="12" FontWeight="Medium"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
@@ -117,38 +117,38 @@
             </TabItem>
 
             <!-- Vía 3: Exportar / Importar Archivo -->
-            <TabItem Header="3. Archivo (Importar / Exportar)">
+            <TabItem Header="{loc:Loc CookiesTabFile}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
                     <StackPanel Margin="6">
-                        <TextBlock Text="Gestión y Respaldo de Archivos de Cookies" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <TextBlock Text="Exporta una copia de seguridad de tus cookies o importa un archivo de cookies existente en tu ordenador."
+                        <TextBlock Text="{loc:Loc CookiesFileTitle}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="{loc:Loc CookiesFileDesc}"
                                    TextWrapping="Wrap" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"/>
 
                         <!-- Export Group -->
-                        <GroupBox Header="Exportar Cookies" Margin="0,0,0,14">
+                        <GroupBox Header="{loc:Loc CookiesExportGroup}" Margin="0,0,0,14">
                             <StackPanel Margin="10">
-                                <TextBlock Text="Guarda el archivo de cookies activo en cualquier carpeta de tu equipo (en formato .txt o .json) para respaldarlo o utilizarlo en otro dispositivo."
+                                <TextBlock Text="{loc:Loc CookiesExportDesc}"
                                            TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                <Button Content="Exportar Archivo de Cookies..." Command="{Binding ExportCookiesCommand}" Height="36" Padding="16,0" HorizontalAlignment="Left"
+                                <Button Content="{loc:Loc CookiesBtnExport}" Command="{Binding ExportCookiesCommand}" Height="36" Padding="16,0" HorizontalAlignment="Left"
                                         IsEnabled="{Binding HasActiveCookies}"
-                                        AutomationProperties.Name="Exportar cookies a archivo"/>
+                                        AutomationProperties.Name="{loc:Loc CookiesBtnExportHint}"/>
                             </StackPanel>
                         </GroupBox>
 
                         <!-- Import Group -->
-                        <GroupBox Header="Importar Cookies" Margin="0,0,0,14">
+                        <GroupBox Header="{loc:Loc CookiesImportGroup}" Margin="0,0,0,14">
                             <StackPanel Margin="10">
-                                <TextBlock Text="Selecciona un archivo cookies.txt o cookies.json previamente descargado para cargarlo en Cazador YTM."
+                                <TextBlock Text="{loc:Loc CookiesImportDesc}"
                                            TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                <Button Content="Importar Archivo de Cookies..." Command="{Binding ImportCookiesCommand}" Height="36" Padding="16,0" HorizontalAlignment="Left"
-                                        AutomationProperties.Name="Importar archivo de cookies existente"/>
+                                <Button Content="{loc:Loc CookiesBtnImport}" Command="{Binding ImportCookiesCommand}" Height="36" Padding="16,0" HorizontalAlignment="Left"
+                                        AutomationProperties.Name="{loc:Loc CookiesBtnImportHint}"/>
                             </StackPanel>
                         </GroupBox>
 
                         <!-- Delete button -->
-                        <Button Content="Eliminar Cookies Guardadas" Command="{Binding DeleteCookiesCommand}" Height="34" Padding="14,0" HorizontalAlignment="Left"
+                        <Button Content="{loc:Loc CookiesBtnDelete}" Command="{Binding DeleteCookiesCommand}" Height="34" Padding="14,0" HorizontalAlignment="Left"
                                 IsEnabled="{Binding HasActiveCookies}"
-                                AutomationProperties.Name="Eliminar cookies guardadas en Cazador YTM"/>
+                                AutomationProperties.Name="{loc:Loc CookiesBtnDeleteHint}"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -158,13 +158,13 @@
         <!-- Bottom Actions -->
         <Grid Grid.Row="2">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                <Button Content="Exportar Registro..." Command="{Binding ExportLogsCommand}" Height="36" Padding="12,0" Margin="0,0,8,0"
-                        AutomationProperties.Name="Exportar registro de errores a archivo"/>
-                <Button Content="Soporte (Telegram)" Command="{Binding ContactSupportCommand}" Height="36" Padding="12,0"
-                        AutomationProperties.Name="Contactar soporte técnico en Telegram"/>
+                <Button Content="{loc:Loc BtnExportLogs}" Command="{Binding ExportLogsCommand}" Height="36" Padding="12,0" Margin="0,0,8,0"
+                        AutomationProperties.Name="{loc:Loc BtnExportLogsHint}"/>
+                <Button Content="{loc:Loc BtnSupportTelegram}" Command="{Binding ContactSupportCommand}" Height="36" Padding="12,0"
+                        AutomationProperties.Name="{loc:Loc BtnSupportTelegramHint}"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Cerrar" IsCancel="True" Command="{Binding CloseCommand}" Width="100" Height="36"/>
+                <Button Content="{loc:Loc Close}" IsCancel="True" Command="{Binding CloseCommand}" Width="100" Height="36"/>
             </StackPanel>
         </Grid>
     </Grid>

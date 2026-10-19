@@ -137,10 +137,10 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
             if (info.HasUpdate)
             {
                 UpdateStatusText = $"Nueva versión disponible: v{info.LatestVersion}";
-                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : $"\n\nNotas de la versión:\n{info.ReleaseNotes}";
-                var confirmMsg = $"Se ha publicado una nueva versión de Cazador YTM:\n\n• Versión actual: v{info.CurrentVersion}\n• Versión disponible: v{info.LatestVersion}{notesPreview}\n\n¿Desea descargar e instalar la actualización automáticamente ahora?";
+                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : string.Format(LocalizationService.Instance["MainMsgReleaseNotes"], info.ReleaseNotes);
+                var confirmMsg = string.Format(LocalizationService.Instance["MainMsgNewVersion"], info.CurrentVersion, info.LatestVersion, notesPreview);
 
-                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, "Actualización de Cazador YTM Disponible");
+                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, LocalizationService.Instance["TitleAppUpdateAvailable"]);
                 if (accept)
                 {
                     if (string.IsNullOrEmpty(info.AssetDownloadUrl))
@@ -174,15 +174,15 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
             {
                 UpdateStatusText = $"Cazador YTM está en su versión más reciente (v{Constants.AppVersion}).";
                 DialogService.Instance.ShowMessage(
-                    $"Cazador YTM está al día.\n\nVersión instalada: v{Constants.AppVersion}",
-                    "Aplicación al día",
+                    string.Format(LocalizationService.Instance["PrefMsgAppUpToDate"], Constants.AppVersion),
+                    LocalizationService.Instance["TitleApplicationUpToDate"],
                     MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
         {
             UpdateStatusText = $"Error al comprobar versión: {ex.Message}";
-            DialogService.Instance.ShowMessage($"Error al consultar GitHub Releases: {ex.Message}", "Error", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["PrefMsgCheckReleasesFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
         finally
         {
@@ -206,8 +206,8 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                 var details = string.Join("\n• ", updatesNeeded);
                 UpdateStatusText = $"Se encontraron {updatesNeeded.Count} actualizaciones disponibles.";
 
-                var confirmMessage = $"Se han detectado nuevas versiones disponibles para los siguientes componentes:\n\n• {details}\n\n¿Desea descargar e instalar estas actualizaciones ahora mismo?";
-                var accept = DialogService.Instance.ShowConfirmation(confirmMessage, "Actualizaciones Disponibles");
+                var confirmMessage = string.Format(LocalizationService.Instance["PrefMsgComponentsFound"], details);
+                var accept = DialogService.Instance.ShowConfirmation(confirmMessage, LocalizationService.Instance["TitleUpdatesAvailable"]);
 
                 if (accept)
                 {
@@ -218,7 +218,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                     }));
 
                     UpdateStatusText = "¡Todos los componentes se han actualizado a su versión más reciente!";
-                    DialogService.Instance.ShowMessage("Todos los componentes se han actualizado exitosamente.", "Actualización Completada", MessageBoxImage.Information);
+                    DialogService.Instance.ShowMessage(LocalizationService.Instance["CommonMsgAllComponentsUpdated"], LocalizationService.Instance["TitleUpdateCompleted"], MessageBoxImage.Information);
                     NotificationService.Instance.Notify("Componentes Actualizados", "yt-dlp, FFmpeg y Deno se han actualizado a su versión más reciente.", NotificationType.Success);
                 }
                 else
@@ -234,15 +234,15 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
 
                 UpdateStatusText = "Todos los componentes (yt-dlp, FFmpeg, Deno) están en su versión más reciente.";
                 DialogService.Instance.ShowMessage(
-                    $"Todos los componentes del motor están al día:\n\n• yt-dlp: {localYt}\n• FFmpeg: {localFf}\n• Deno: {localDeno}",
-                    "Componentes al día",
+                    string.Format(LocalizationService.Instance["AdvMsgEngineUpToDate"], localYt, localFf, localDeno),
+                    LocalizationService.Instance["TitleComponentsUpToDate"],
                     MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
         {
             UpdateStatusText = $"Error al comprobar: {ex.Message}";
-            DialogService.Instance.ShowMessage($"Error al verificar actualizaciones: {ex.Message}", "Error", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["PrefMsgVerifyUpdatesFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
         finally
         {
@@ -331,10 +331,8 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
 
         if (languageChanged)
         {
-            var msg = langCode == "en"
-                ? "The application language has been changed. Would you like to restart Cazador YTM now to apply the changes?"
-                : "Se ha cambiado el idioma de la aplicación. ¿Deseas reiniciar Cazador YTM ahora para aplicar los cambios?";
-            var title = langCode == "en" ? "Restart Required" : "Reinicio Requerido";
+            var msg = LocalizationService.Instance["PrefLanguageChangedMsg"];
+            var title = LocalizationService.Instance["PrefLanguageChangedTitle"];
 
             var result = MessageBox.Show(msg, title, MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result == MessageBoxResult.Yes)

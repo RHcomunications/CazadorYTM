@@ -114,7 +114,7 @@ public partial class PlayerViewModel : ObservableObject
         if (!string.IsNullOrEmpty(_player.CurrentFilePath))
         {
             var filename = Path.GetFileName(_player.CurrentFilePath);
-            var (title, artist) = MetadataService.ExtractTitleArtistFromFilename(filename);
+            var (title, artist) = MetadataHelpers.ExtractTitleArtist(filename);
             TrackTitle = string.IsNullOrWhiteSpace(title) ? filename : title;
             TrackArtist = artist;
         }

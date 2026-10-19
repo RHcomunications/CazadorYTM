@@ -9,9 +9,9 @@ using CazadorYTM.Core.Services;
 public class DownloadEngineAndMetadataTests
 {
     [Fact]
-    public void GetCliArgs_ConstructsValidArguments()
+    public void Build_ConstructsValidArguments()
     {
-        var args = DownloadEngine.GetCliArgs(
+        var args = YtDlpArgumentBuilder.Build(
             formatType: "mp3",
             bitrate: "320k",
             sponsorblock: true,
@@ -45,8 +45,8 @@ public class DownloadEngineAndMetadataTests
             Uploader = "Random Uploader"
         };
 
-        var scoreHigh = MetadataService.ScoreResult(highQualityEntry);
-        var scoreLow = MetadataService.ScoreResult(lowQualityEntry);
+        var scoreHigh = MetadataHelpers.Score(highQualityEntry);
+        var scoreLow = MetadataHelpers.Score(lowQualityEntry);
 
         Assert.True(scoreHigh > scoreLow);
     }
@@ -57,7 +57,7 @@ public class DownloadEngineAndMetadataTests
     [InlineData("SingleTrack.mp3", "SingleTrack", "")]
     public void ExtractTitleArtistFromFilename_ExtractsProperly(string filename, string expectedTitle, string expectedArtist)
     {
-        var (title, artist) = MetadataService.ExtractTitleArtistFromFilename(filename);
+        var (title, artist) = MetadataHelpers.ExtractTitleArtist(filename);
         Assert.Equal(expectedTitle, title);
         Assert.Equal(expectedArtist, artist);
     }

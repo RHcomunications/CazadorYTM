@@ -80,89 +80,71 @@ public partial class DownloadViewModel : ObservableObject
     public ObservableCollection<string> SearchSources { get; } = new(Constants.SearchSources);
     public ObservableCollection<ActiveDownloadSlot> ActiveSlots { get; } = new();
 
-    private readonly System.Windows.Threading.DispatcherTimer _clipboardTimer;
-    private string _lastClipboardUrl = string.Empty;
+    private readonly ClipboardLinkMonitor _clipboardMonitor;
 
     public DownloadViewModel()
     {
         _config = new AppConfig();
         _historyManager = new HistoryManager();
 
-        _selectedFormat = _config.Get("format", "mp3");
-        _selectedBitrate = _config.Get("bitrate", "320K");
-        _selectedConcurrent = _config.Get("max_concurrent", 3);
-        _selectedBrowser = _config.Get("cookies_browser", "Ninguno");
-        _isSponsorBlock = _config.Get("sponsorblock", true);
-        _isNormalize = _config.Get("normalize", true);
-        _isEmbedLyrics = _config.Get("embed_lyrics", false);
-        _isEnumerate = _config.Get("enumerar", false);
-        _isClipboardMonitorEnabled = _config.Get("clipboard_monitor", false);
+        var preferences = DownloadPreferences.Load(
+            _config,
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), Constants.MultiDownloadFolder));
 
-        var savedDest = _config.Get("destination_folder", "");
-        _destinationFolder = string.IsNullOrWhiteSpace(savedDest) || !Directory.Exists(savedDest)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), Constants.MultiDownloadFolder)
-            : savedDest;
+        _selectedFormat = preferences.Format;
+        _selectedBitrate = preferences.Bitrate;
+        _selectedConcurrent = preferences.Concurrent;
+        _selectedBrowser = preferences.Browser;
+        _isSponsorBlock = preferences.SponsorBlock;
+        _isNormalize = preferences.Normalize;
+        _isEmbedLyrics = preferences.EmbedLyrics;
+        _isEnumerate = preferences.Enumerate;
+        _isClipboardMonitorEnabled = preferences.ClipboardMonitor;
+        _destinationFolder = preferences.DestinationFolder;
 
         Directory.CreateDirectory(_destinationFolder);
 
-        _clipboardTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(1.5)
-        };
-        _clipboardTimer.Tick += OnClipboardTimerTick;
+        _clipboardMonitor = new ClipboardLinkMonitor(
+            () => Clipboard.ContainsText() ? Clipboard.GetText() : null,
+            OnClipboardLinkDetected,
+            () => IsClipboardMonitorEnabled && !IsBusy);
         if (_isClipboardMonitorEnabled)
         {
-            _clipboardTimer.Start();
+            _clipboardMonitor.Start();
         }
     }
 
     partial void OnIsClipboardMonitorEnabledChanged(bool value)
     {
         if (value)
-            _clipboardTimer.Start();
+            _clipboardMonitor.Start();
         else
-            _clipboardTimer.Stop();
+            _clipboardMonitor.Stop();
 
         SavePreferences();
     }
 
-    private void OnClipboardTimerTick(object? sender, EventArgs e)
+    private void OnClipboardLinkDetected(string url)
     {
-        if (!IsClipboardMonitorEnabled || IsBusy) return;
+        if (!string.IsNullOrWhiteSpace(InputText)) return;
 
-        try
-        {
-            if (Clipboard.ContainsText())
-            {
-                var text = Clipboard.GetText()?.Trim();
-                if (!string.IsNullOrEmpty(text) && text != _lastClipboardUrl && Helpers.IsUrl(text) &&
-                    (text.Contains("youtube.com/") || text.Contains("youtu.be/") || text.Contains("soundcloud.com/")))
-                {
-                    _lastClipboardUrl = text;
-                    if (string.IsNullOrWhiteSpace(InputText))
-                    {
-                        InputText = text;
-                        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automáticamente.", NotificationType.Info);
-                    }
-                }
-            }
-        }
-        catch { }
+        InputText = url;
+        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automáticamente.", NotificationType.Info);
     }
 
     private void SavePreferences()
     {
-        _config.Set("format", SelectedFormat);
-        _config.Set("bitrate", SelectedBitrate);
-        _config.Set("max_concurrent", SelectedConcurrent);
-        _config.Set("cookies_browser", SelectedBrowser);
-        _config.Set("sponsorblock", IsSponsorBlock);
-        _config.Set("normalize", IsNormalize);
-        _config.Set("embed_lyrics", IsEmbedLyrics);
-        _config.Set("enumerar", IsEnumerate);
-        _config.Set("destination_folder", DestinationFolder);
-        _config.Set("clipboard_monitor", IsClipboardMonitorEnabled);
-        _config.Save();
+        DownloadPreferences.Save(_config, new DownloadPreferencesState(
+            SelectedFormat,
+            SelectedBitrate,
+            SelectedConcurrent,
+            SelectedBrowser,
+            IsSponsorBlock,
+            IsNormalize,
+            IsEmbedLyrics,
+            IsEnumerate,
+            DestinationFolder,
+            IsClipboardMonitorEnabled));
     }
 
     [RelayCommand]
@@ -193,7 +175,7 @@ public partial class DownloadViewModel : ObservableObject
             var tracks = Parsers.ParseSongList(content);
             if (!tracks.Any())
             {
-                DialogService.Instance.ShowMessage("No se encontraron canciones válidas en el archivo seleccionado.", "Aviso", MessageBoxImage.Warning);
+                DialogService.Instance.ShowMessage(LocalizationService.Instance["DownloadMsgNoValidSongs"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
                 return;
             }
 
@@ -212,7 +194,7 @@ public partial class DownloadViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            DialogService.Instance.ShowMessage($"Error al leer lista: {ex.Message}", "Error", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["DownloadMsgReadListFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
     }
 
@@ -221,7 +203,7 @@ public partial class DownloadViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(InputText))
         {
-            DialogService.Instance.ShowMessage("Por favor ingrese un término de búsqueda o enlace.", "Aviso", MessageBoxImage.Warning);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["DownloadMsgEnterSearch"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
             return;
         }
 
@@ -241,7 +223,7 @@ public partial class DownloadViewModel : ObservableObject
 
             if (searchResult.Entries.Count == 0)
             {
-                DialogService.Instance.ShowMessage("No se encontraron resultados para la búsqueda.", "Sin resultados", MessageBoxImage.Information);
+                DialogService.Instance.ShowMessage(LocalizationService.Instance["DownloadMsgNoResults"], LocalizationService.Instance["TitleNoResults"], MessageBoxImage.Information);
                 StatusText = "Sin resultados";
                 return;
             }
@@ -294,7 +276,7 @@ public partial class DownloadViewModel : ObservableObject
         catch (Exception ex)
         {
             LogService.Instance.Error($"Error en análisis: {ex.Message}");
-            DialogService.Instance.ShowMessage($"Error al analizar: {ex.Message}", "Error", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["DownloadMsgAnalyzeFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
             StatusText = "Error en análisis";
         }
         finally
@@ -308,7 +290,7 @@ public partial class DownloadViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(InputText))
         {
-            DialogService.Instance.ShowMessage("Por favor ingrese un término de búsqueda o enlace.", "Aviso", MessageBoxImage.Warning);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["DownloadMsgEnterSearch"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
             return;
         }
 

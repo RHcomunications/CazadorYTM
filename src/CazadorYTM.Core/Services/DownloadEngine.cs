@@ -27,120 +27,6 @@ public static class DownloadEngine
         "private video", "this video is private", "confirm your age"
     };
 
-    public static List<string> GetCliArgs(string formatType = "mp3", string bitrate = "320k", bool sponsorblock = false,
-        string? cookiesBrowser = null, string? playlistItems = null, string? rawArgs = null,
-        string? ffmpegLocation = null, string? proxy = null, bool normalize = false,
-        bool embedLyrics = false, string? cookiesPath = null, string? playerClient = null)
-    {
-        var args = new List<string>
-        {
-            "--concurrent-fragments", "5",
-            "--embed-thumbnail",
-            "--embed-metadata",
-            "--no-mtime",
-            "--no-warnings",
-            "--convert-thumbnails", "jpg",
-            "--newline"
-        };
-
-        foreach (var pattern in Constants.TitleCleaningPatterns)
-        {
-            args.AddRange(new[] { "--parse-metadata", $"title:{pattern}:" });
-        }
-
-        if (embedLyrics)
-        {
-            args.AddRange(new[] { "--embed-subs", "--write-subs", "--sub-langs", "all,-live_chat" });
-        }
-
-        if (!string.IsNullOrEmpty(ffmpegLocation))
-        {
-            args.AddRange(new[] { "--ffmpeg-location", ffmpegLocation });
-        }
-
-        if (sponsorblock)
-        {
-            args.AddRange(new[] { "--sponsorblock-remove", "sponsor,intro,outro,selfpromo,preview,filler,interaction,music_offtopic" });
-        }
-
-        if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-        {
-            args.AddRange(new[] { "--cookies", cookiesPath });
-        }
-        else if (!string.IsNullOrEmpty(cookiesBrowser) && cookiesBrowser.ToLower() != "ninguno")
-        {
-            args.AddRange(new[] { "--cookies-from-browser", cookiesBrowser.ToLower() });
-        }
-
-        var clientExtractor = !string.IsNullOrEmpty(playerClient)
-            ? $"youtube:player_client={playerClient}"
-            : "youtube:player_client=android,web;po_token=web+";
-        args.AddRange(new[] { "--extractor-args", clientExtractor });
-
-        var baseDir = Helpers.GetBaseDir();
-        var denoPath = BinaryManager.GetDenoPath(baseDir);
-        if (!string.IsNullOrEmpty(denoPath))
-        {
-            args.AddRange(new[] { "--js-runtimes", $"deno:{denoPath}" });
-        }
-
-        if (!string.IsNullOrEmpty(proxy))
-        {
-            args.AddRange(new[] { "--proxy", proxy });
-        }
-
-        if (!string.IsNullOrEmpty(playlistItems))
-        {
-            args.AddRange(new[] { "-I", playlistItems });
-        }
-
-        if (new[] { "mp3", "flac", "m4a", "wav", "opus" }.Contains(formatType, StringComparer.OrdinalIgnoreCase))
-        {
-            args.AddRange(new[] { "-f", "bestaudio/best/ba/b/*" });
-            args.AddRange(new[] { "-x", "--audio-format", formatType });
-            if (Constants.LossyCodecs.Contains(formatType))
-            {
-                args.AddRange(new[] { "--audio-quality", bitrate });
-            }
-            if (normalize)
-            {
-                args.AddRange(new[] { "--postprocessor-args", "ExtractAudio:-af loudnorm=I=-14:TP=-1.0:LRA=11" });
-            }
-        }
-        else if (formatType == "mp4")
-        {
-            args.AddRange(new[] { "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/bestvideo+bestaudio/best/bestaudio/b" });
-            args.AddRange(new[] { "--merge-output-format", "mp4" });
-            args.AddRange(new[] { "--recode-video", "mp4" });
-        }
-
-        if (!string.IsNullOrEmpty(rawArgs))
-        {
-            var rawArgList = SplitRawArgs(rawArgs);
-            args.AddRange(rawArgList);
-        }
-
-        return args;
-    }
-
-    private static List<string> SplitRawArgs(string rawArgs)
-    {
-        var result = new List<string>();
-        var current = new StringBuilder();
-        var inQuotes = false;
-        foreach (var ch in rawArgs)
-        {
-            if (ch == '"') { inQuotes = !inQuotes; }
-            else if (ch == ' ' && !inQuotes)
-            {
-                if (current.Length > 0) { result.Add(current.ToString()); current.Clear(); }
-            }
-            else { current.Append(ch); }
-        }
-        if (current.Length > 0) result.Add(current.ToString());
-        return result;
-    }
-
     public static void CleanupTempFiles(string directory = ".", string? prefix = null)
     {
         var patterns = new[]
@@ -288,7 +174,7 @@ public static class DownloadEngine
         CheckCancelled(cancelEvent);
 
         var exe = BinaryManager.GetYtDlpPath();
-        var args = GetCliArgs(formatType, bitrate, sponsorblock, cookiesBrowser,
+        var args = YtDlpArgumentBuilder.Build(formatType, bitrate, sponsorblock, cookiesBrowser,
             playlistItems, rawArgs, ffmpegLocation, proxy, normalize, embedLyrics,
             cookiesPath: cookiesPath);
 
@@ -463,7 +349,7 @@ public static class DownloadEngine
                 if (!File.Exists(lrcPath))
                 {
                     loggerCallback?.Invoke($"[SISTEMA] Buscando letras de respaldo en LRCLIB para: {Path.GetFileName(finalFilepath)}");
-                    var (titleEx, artistEx) = MetadataService.ExtractTitleArtistFromFilename(finalFilepath);
+                    var (titleEx, artistEx) = MetadataHelpers.ExtractTitleArtist(finalFilepath);
                     MetadataService.TryWriteLyrics(finalFilepath, titleEx, artistEx);
                     if (loggerCallback != null)
                         loggerCallback?.Invoke("[SISTEMA] Letras de respaldo incrustadas en archivo .lrc.");
@@ -498,7 +384,7 @@ public static class DownloadEngine
             throw new NoResultsFound("No se encontraron resultados para la búsqueda.");
         }
 
-        var scoredEntries = metadata.Entries.Select(e => (MetadataService.ScoreResult(e), e)).ToList();
+        var scoredEntries = metadata.Entries.Select(e => (MetadataHelpers.Score(e), e)).ToList();
         if (searchSource == "YouTube Music")
         {
             scoredEntries.Sort((a, b) => b.Item1.CompareTo(a.Item1));

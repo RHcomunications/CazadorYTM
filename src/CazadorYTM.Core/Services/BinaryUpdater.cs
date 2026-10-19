@@ -8,7 +8,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -98,7 +97,7 @@ public class BinaryUpdater
                         throw new InvalidOperationException("Descarga inválida: encabezado PE esperado 'MZ', recibido " + BitConverter.ToString(header));
                 }
 
-                SafeReplaceFile(stagedPath, finalTargetPath);
+                BinaryUpdateHelpers.SafeReplaceFile(stagedPath, finalTargetPath);
                 BinaryManager.ClearCache();
                 return true;
             }
@@ -118,38 +117,6 @@ public class BinaryUpdater
         if (lastException is not null)
             throw lastException;
         return false;
-    }
-
-    private static void SafeReplaceFile(string sourcePath, string targetPath)
-    {
-        var targetDir = Path.GetDirectoryName(targetPath);
-        if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
-            Directory.CreateDirectory(targetDir);
-
-        if (File.Exists(targetPath))
-        {
-            try
-            {
-                File.Replace(sourcePath, targetPath, null);
-                return;
-            }
-            catch
-            {
-                var oldPath = targetPath + ".old";
-                if (File.Exists(oldPath))
-                {
-                    try { File.Delete(oldPath); }
-                    catch { }
-                }
-                try { File.Move(targetPath, oldPath); }
-                catch { }
-                File.Move(sourcePath, targetPath);
-            }
-        }
-        else
-        {
-            File.Move(sourcePath, targetPath);
-        }
     }
 
     public static string? GetLocalYtdlpVersion(string baseDir)
@@ -279,11 +246,7 @@ public class BinaryUpdater
         {
             var url = "https://api.github.com/repos/denoland/deno/releases/latest";
             var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
-            using var doc = JsonDocument.Parse(json);
-            var tag = doc.RootElement.GetProperty("tag_name").GetString() ?? "";
-            if (tag.StartsWith("v", StringComparison.OrdinalIgnoreCase))
-                return tag[1..];
-            return tag;
+            return BinaryUpdateLogic.ParseGithubTag(json);
         }
         catch { return null; }
     }
@@ -294,10 +257,9 @@ public class BinaryUpdater
         {
             var url = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
             var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
-            using var doc = JsonDocument.Parse(json);
-            var tag = doc.RootElement.GetProperty("tag_name").GetString();
-            if (!string.IsNullOrWhiteSpace(tag))
-                return tag.Trim().TrimStart('v');
+            var tag = BinaryUpdateLogic.ParseYtdlpGithubTag(json);
+            if (tag is not null)
+                return tag;
         }
         catch { }
 
@@ -305,8 +267,7 @@ public class BinaryUpdater
         {
             var url = "https://pypi.org/pypi/yt-dlp/json";
             var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("info").GetProperty("version").GetString();
+            return BinaryUpdateLogic.ParseYtdlpPyPiVersion(json);
         }
         catch { return null; }
     }
@@ -317,15 +278,7 @@ public class BinaryUpdater
         {
             var url = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest";
             var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("published_at", out var pubProp))
-            {
-                var pubStr = pubProp.GetString();
-                if (!string.IsNullOrEmpty(pubStr) && DateTime.TryParse(pubStr, out var pubDate))
-                {
-                    return pubDate.ToString("yyyy.MM.dd");
-                }
-            }
+            return BinaryUpdateLogic.ParseFfmpegBuildDate(json);
         }
         catch { }
 
@@ -357,83 +310,10 @@ public class BinaryUpdater
 
     public static List<string> CheckUpdates(string baseDir)
     {
-        var updatesNeeded = new List<string>();
-
-        // 1. yt-dlp check
-        var localYt = GetLocalYtdlpVersion(baseDir);
-        var remoteYt = GetRemoteYtdlpVersion();
-
-        if (!IsYtdlpInstalled(baseDir) || string.IsNullOrEmpty(localYt))
-        {
-            updatesNeeded.Add("yt-dlp (Faltante)");
-        }
-        else if (!string.IsNullOrEmpty(remoteYt) && remoteYt != localYt)
-        {
-            if (CompareVersionStrings(remoteYt, localYt) > 0)
-            {
-                updatesNeeded.Add($"yt-dlp (Instalado: {localYt} -> Disponible: {remoteYt})");
-            }
-        }
-
-        // 2. Deno check
-        var localDeno = GetLocalDenoVersion(baseDir);
-        var remoteDeno = GetRemoteDenoVersion();
-
-        if (!IsDenoInstalled(baseDir) || string.IsNullOrEmpty(localDeno))
-        {
-            updatesNeeded.Add("Deno (Faltante)");
-        }
-        else if (!string.IsNullOrEmpty(remoteDeno) && remoteDeno != localDeno)
-        {
-            if (CompareVersionStrings(remoteDeno, localDeno) > 0)
-            {
-                updatesNeeded.Add($"Deno (Instalado: {localDeno} -> Disponible: {remoteDeno})");
-            }
-        }
-
-        // 3. FFmpeg check
-        var localFf = GetLocalFfmpegVersion(baseDir);
-        var remoteFf = GetRemoteFfmpegVersion();
-
-        if (!IsFfmpegInstalled(baseDir))
-        {
-            updatesNeeded.Add("FFmpeg (Faltante)");
-        }
-        else if (!string.IsNullOrEmpty(remoteFf) && !string.IsNullOrEmpty(localFf) && localFf != "Instalado")
-        {
-            if (CompareVersionStrings(remoteFf, localFf) > 0)
-            {
-                updatesNeeded.Add($"FFmpeg (Instalado: {localFf} -> Disponible: {remoteFf})");
-            }
-        }
-
-        return updatesNeeded;
-    }
-
-    private static int CompareVersionStrings(string remote, string local)
-    {
-        try
-        {
-            var cleanR = remote.Replace("-", ".").Trim();
-            var cleanL = local.Replace("-", ".").Trim();
-
-            var partsR = cleanR.Split('.').Select(p => int.TryParse(p, out var n) ? n : 0).ToArray();
-            var partsL = cleanL.Split('.').Select(p => int.TryParse(p, out var n) ? n : 0).ToArray();
-
-            var maxLen = Math.Max(partsR.Length, partsL.Length);
-            for (var i = 0; i < maxLen; i++)
-            {
-                var vr = i < partsR.Length ? partsR[i] : 0;
-                var vl = i < partsL.Length ? partsL[i] : 0;
-                if (vr > vl) return 1;
-                if (vr < vl) return -1;
-            }
-            return 0;
-        }
-        catch
-        {
-            return string.Compare(remote, local, StringComparison.OrdinalIgnoreCase);
-        }
+        return BinaryUpdateLogic.BuildUpdatesNeeded(
+            IsYtdlpInstalled(baseDir), GetLocalYtdlpVersion(baseDir), GetRemoteYtdlpVersion(),
+            IsDenoInstalled(baseDir), GetLocalDenoVersion(baseDir), GetRemoteDenoVersion(),
+            IsFfmpegInstalled(baseDir), GetLocalFfmpegVersion(baseDir), GetRemoteFfmpegVersion());
     }
 
     public static void DownloadFfmpegWithProgress(string baseDir, Action<string>? callback, Action<int>? progressCallback)
@@ -476,12 +356,12 @@ public class BinaryUpdater
                     Directory.CreateDirectory(tDir);
                     var destFfmpeg = Path.Combine(tDir, "ffmpeg.exe");
                     var destFfprobe = Path.Combine(tDir, "ffprobe.exe");
-                    SafeReplaceFile(ffmpegSrc, destFfmpeg);
-                    SafeReplaceFile(ffprobeSrc, destFfprobe);
+                    BinaryUpdateHelpers.SafeReplaceFile(ffmpegSrc, destFfmpeg);
+                    BinaryUpdateHelpers.SafeReplaceFile(ffprobeSrc, destFfprobe);
                     if (ffplaySrc is not null)
                     {
                         var destFfplay = Path.Combine(tDir, "ffplay.exe");
-                        SafeReplaceFile(ffplaySrc, destFfplay);
+                        BinaryUpdateHelpers.SafeReplaceFile(ffplaySrc, destFfplay);
                     }
                 }
                 BinaryManager.ClearCache();
@@ -541,7 +421,7 @@ public class BinaryUpdater
                 {
                     Directory.CreateDirectory(tDir);
                     var destDeno = Path.Combine(tDir, Environment.OSVersion.Platform == PlatformID.Win32NT ? "deno.exe" : "deno");
-                    SafeReplaceFile(denoSrc, destDeno);
+                    BinaryUpdateHelpers.SafeReplaceFile(denoSrc, destDeno);
                 }
                 BinaryManager.ClearCache();
                 callback?.Invoke("[SISTEMA] Deno instalado y actualizado correctamente.");
@@ -580,7 +460,7 @@ public class BinaryUpdater
             {
                 Directory.CreateDirectory(tDir);
                 var destYt = Path.Combine(tDir, "yt-dlp.exe");
-                SafeReplaceFile(primaryExePath, destYt);
+                BinaryUpdateHelpers.SafeReplaceFile(primaryExePath, destYt);
             }
 
             BinaryManager.ClearCache();

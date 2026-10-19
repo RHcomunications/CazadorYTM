@@ -286,8 +286,8 @@ public partial class CookiesManagerViewModel : ObservableObject
         if (!File.Exists(CurrentCookiesPath)) return;
 
         var res = MessageBox.Show(
-            "¿Estás seguro de que deseas eliminar el archivo de cookies guardado?",
-            "Confirmar eliminación",
+            LocalizationService.Instance["CookiesDeleteConfirmMsg"],
+            LocalizationService.Instance["CookiesDeleteConfirmTitle"],
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 

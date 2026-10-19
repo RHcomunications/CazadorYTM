@@ -76,7 +76,7 @@ public partial class AdvancedViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(VerifyFolderPath) || !Directory.Exists(VerifyFolderPath))
         {
-            DialogService.Instance.ShowMessage("Por favor seleccione una carpeta válida existente.", "Aviso", MessageBoxImage.Warning);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["AdvMsgSelectFolder"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
             return;
         }
 
@@ -138,12 +138,12 @@ public partial class AdvancedViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                DialogService.Instance.ShowMessage($"No se pudo abrir el archivo de reporte: {ex.Message}", "Error", MessageBoxImage.Error);
+                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["AdvMsgOpenReportFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
             }
         }
         else
         {
-            DialogService.Instance.ShowMessage("Aún no se ha generado un reporte de integridad en esta carpeta.", "Aviso", MessageBoxImage.Information);
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["AdvMsgNoReport"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
         }
     }
 
@@ -171,16 +171,16 @@ public partial class AdvancedViewModel : ObservableObject
 
                 UpdateStatus = "Todos los binarios (yt-dlp, FFmpeg, Deno) están en su última versión.";
                 DialogService.Instance.ShowMessage(
-                    $"Todos los componentes del motor están al día:\n\n• yt-dlp: {localYt}\n• FFmpeg: {localFf}\n• Deno: {localDeno}",
-                    "Componentes al día",
+                    string.Format(LocalizationService.Instance["AdvMsgEngineUpToDate"], localYt, localFf, localDeno),
+                    LocalizationService.Instance["TitleComponentsUpToDate"],
                     MessageBoxImage.Information);
             }
             else
             {
                 UpdateStatus = $"Se encontraron {UpdatesNeeded.Count} actualizaciones disponibles.";
                 var details = string.Join("\n• ", UpdatesNeeded);
-                var confirmMessage = $"Se encontraron nuevas versiones para los siguientes componentes:\n\n• {details}\n\n¿Desea descargarlas e instalarlas ahora mismo?";
-                var accept = DialogService.Instance.ShowConfirmation(confirmMessage, "Actualizaciones Disponibles");
+                var confirmMessage = string.Format(LocalizationService.Instance["AdvMsgUpdatesFound"], details);
+                var accept = DialogService.Instance.ShowConfirmation(confirmMessage, LocalizationService.Instance["TitleUpdatesAvailable"]);
 
                 if (accept)
                 {
@@ -203,7 +203,7 @@ public partial class AdvancedViewModel : ObservableObject
                     UpdateStatus = "¡Todos los componentes se actualizaron exitosamente!";
                     UpdateProgress = 100;
                     UpdatesNeeded.Clear();
-                    DialogService.Instance.ShowMessage("La actualización de binarios finalizó correctamente.", "Éxito", MessageBoxImage.Information);
+                    DialogService.Instance.ShowMessage(LocalizationService.Instance["AdvMsgBinariesUpdated"], LocalizationService.Instance["TitleSuccess"], MessageBoxImage.Information);
                     NotificationService.Instance.Notify("Componentes Actualizados", "yt-dlp, FFmpeg y Deno se han actualizado a su versión más reciente.", NotificationType.Success);
                 }
                 else
@@ -216,7 +216,7 @@ public partial class AdvancedViewModel : ObservableObject
         {
             UpdateStatus = $"Error al buscar actualizaciones: {ex.Message}";
             LogService.Instance.Error($"Error al verificar actualizaciones: {ex.Message}");
-            DialogService.Instance.ShowMessage($"Error al consultar actualizaciones: {ex.Message}", "Error", MessageBoxImage.Error);
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["AdvMsgCheckUpdatesFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
         finally
         {
@@ -231,6 +231,6 @@ public partial class AdvancedViewModel : ObservableObject
         _config.Set("proxy", ProxyText.Trim());
         _config.Save();
         LogService.Instance.Info($"Configuración de proxy guardada: {(string.IsNullOrEmpty(ProxyText) ? "Ninguno" : ProxyText)}");
-        DialogService.Instance.ShowMessage("Configuración de Proxy guardada.", "Guardado");
+        DialogService.Instance.ShowMessage(LocalizationService.Instance["AdvMsgProxySaved"], LocalizationService.Instance["TitleProxySaved"]);
     }
 }

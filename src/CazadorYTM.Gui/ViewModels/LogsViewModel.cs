@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
 public partial class LogsViewModel : ObservableObject, IDisposable
@@ -110,7 +111,7 @@ public partial class LogsViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(LogText))
         {
             Clipboard.SetText(LogText);
-            DialogService.Instance.ShowMessage("Registros copiados al portapapeles.", "Copiado");
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["LogsMsgCopied"], LocalizationService.Instance["TitleCopied"]);
         }
     }
 
@@ -119,7 +120,7 @@ public partial class LogsViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(LogText))
         {
-            DialogService.Instance.ShowMessage("No hay registros para exportar.", "Aviso");
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["LogsMsgNothingToExport"], LocalizationService.Instance["TitleWarning"]);
             return;
         }
 
@@ -129,11 +130,11 @@ public partial class LogsViewModel : ObservableObject, IDisposable
             try
             {
                 File.WriteAllText(path, LogText, Encoding.UTF8);
-                DialogService.Instance.ShowMessage("Registros exportados correctamente.", "Éxito");
+                DialogService.Instance.ShowMessage(LocalizationService.Instance["LogsMsgExportDone"], LocalizationService.Instance["TitleSuccess"]);
             }
             catch (Exception ex)
             {
-                DialogService.Instance.ShowMessage($"Error al exportar: {ex.Message}", "Error", MessageBoxImage.Error);
+                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["CommonMsgExportFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
             }
         }
     }
