@@ -126,6 +126,11 @@
                     Margin="0"
                     Focusable="False"
                     KeyboardNavigation.TabNavigation="Cycle">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Header}"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
             <TabControl.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">

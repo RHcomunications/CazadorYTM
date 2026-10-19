@@ -4,11 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using Xunit;
 
+[Collection("WPF")]
 public class ViewSmokeTests
 {
     [Fact]
@@ -18,16 +18,10 @@ public class ViewSmokeTests
         var loadedCount = 0;
         Exception? startupError = null;
 
-        var thread = new Thread(() =>
+        WpfTestHost.Run(() =>
         {
             try
             {
-                if (Application.Current is null)
-                {
-                    var app = new CazadorYTM.Gui.App();
-                    app.InitializeComponent();
-                }
-
                 var viewTypes = typeof(CazadorYTM.Gui.App).Assembly.GetTypes()
                     .Where(t => !t.IsAbstract && t.IsPublic)
                     .Where(t => typeof(Window).IsAssignableFrom(t) || typeof(UserControl).IsAssignableFrom(t))
@@ -58,10 +52,6 @@ public class ViewSmokeTests
                 startupError = ex;
             }
         });
-
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
 
         Assert.Null(startupError);
         Assert.True(loadedCount >= 10, $"La detección de vistas por reflexión encontró solo {loadedCount} vistas.");
