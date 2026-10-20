@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cazador YTM v1.0 — Guía de Usuario</title>
+    <title>Cazador YTM v1.3.3 — Guía de Usuario</title>
     <style>
         :root {
             --bg-color: #f9f9fb;
@@ -65,7 +65,7 @@
         p, li {
             font-size: 1.05rem;
         }
-        ul {
+        ul, ol {
             padding-left: 24px;
         }
         li {
@@ -101,6 +101,12 @@
             padding: 18px 22px;
             margin: 18px 0;
         }
+        code {
+            background: var(--table-header);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
         .footer {
             margin-top: 40px;
             text-align: center;
@@ -113,60 +119,95 @@
 </head>
 <body>
     <main class="container">
-        <h1>🎵 Cazador YTM <span class="badge">v1.0</span></h1>
-        
-        <p><strong>Cazador YTM</strong> es una aplicación moderna, rápida y accesible diseñada para buscar, escuchar y descargar música y videos de YouTube y YouTube Music en la mejor calidad de audio disponible.</p>
-        
-        <p>Está pensada especialmente para ser fácil de usar por cualquier persona, incluyendo compatibilidad total con lectores de pantalla (como <strong>NVDA, JAWS y el Narrador de Windows</strong>) y manejo completo a través del teclado.</p>
+        <h1>🎵 Cazador YTM <span class="badge">v1.3.3</span></h1>
+
+        <p><strong>Cazador YTM</strong> es una aplicación moderna, rápida y accesible para buscar, escuchar y descargar música y videos de YouTube y YouTube Music en la mejor calidad disponible. También incluye <strong>Radar YTM</strong>, un explorador de tu biblioteca en la nube.</p>
+
+        <p>Está pensada para cualquier persona, con compatibilidad total con lectores de pantalla (<strong>NVDA, JAWS y el Narrador de Windows</strong>) y manejo completo mediante teclado.</p>
 
         <h2>🌟 Funcionalidades Principales</h2>
-        
+
         <div class="card">
             <h3>📥 1. Búsquedas y Descargas Inteligentes</h3>
             <ul>
-                <li><strong>Búsqueda por nombre o enlace</strong>: Escribe el título de una canción o pega directamente la dirección web de un video o álbum.</li>
-                <li><strong>Catálogo especializado</strong>: Puedes elegir entre buscar en <em>YouTube Music</em> (para obtener pistas de estudio oficiales y discos) o en <em>YouTube General</em> (para videos y conciertos).</li>
-                <li><strong>Formatos de alta calidad</strong>: Descarga en MP3 (hasta 320 kbps), FLAC (calidad de disco sin pérdidas), M4A, WAV, OPUS o MP4 con un solo clic.</li>
+                <li><strong>Búsqueda por nombre o enlace</strong>: escribe el título de una canción o pega la dirección de un video, lista o álbum.</li>
+                <li><strong>Catálogo especializado</strong>: busca en <em>YouTube Music</em>, <em>YouTube general</em>, <em>SoundCloud</em> o usa la búsqueda universal de <code>yt-dlp</code>.</li>
+                <li><strong>Formatos de alta calidad</strong>: MP3 (hasta 320 kbps), FLAC, M4A, WAV, OPUS o MP4.</li>
+                <li><strong>Descargas múltiples</strong>: elige entre 1 y 5 descargas simultáneas y consulta el progreso de cada hilo.</li>
+                <li><strong>Organización automática</strong>: listas y álbumes se guardan en subcarpetas con sus metadatos y portada.</li>
+                <li><strong>Extras opcionales</strong>: normalización de volumen EBU R128, SponsorBlock y letras sincronizadas en <code>.lrc</code>.</li>
             </ul>
         </div>
 
         <div class="card">
-            <h3>📚 2. Biblioteca Musical e Historial</h3>
+            <h3>📡 2. Radar YTM (tu biblioteca en la nube)</h3>
             <ul>
-                <li><strong>Registro automático</strong>: Cada canción que descargas aparece al instante en tu biblioteca.</li>
-                <li><strong>Acciones rápidas</strong>: Presiona <strong>Enter</strong> para escuchar cualquier canción, abre la carpeta donde se guardó en tu computadora o copia su enlace original.</li>
-                <li><strong>Buscador en vivo</strong>: Encuentra rápidamente canciones descargadas escribiendo en el filtro de la biblioteca.</li>
+                <li><strong>Tres secciones</strong>: Historial de reproducción, Canciones que te gustan y tus Listas de reproducción.</li>
+                <li><strong>Explora y reproduce</strong>: abre una lista para ver sus pistas y escúchalas al instante en streaming, sin descargarlas antes.</li>
+                <li><strong>Envía a descargas</strong>: pulsa <strong>Ctrl + D</strong> sobre cualquier pista o lista.</li>
+                <li><strong>Búsqueda y miniaturas</strong>: filtra mientras escribes y reconoce cada pista por su carátula.</li>
+                <li><strong>Rápido y resistente</strong>: consulta directa a YouTube Music con respaldo automático si el servicio no responde.</li>
             </ul>
         </div>
 
         <div class="card">
-            <h3>🎧 3. Reproductor Integrado</h3>
+            <h3>📚 3. Biblioteca Musical e Historial</h3>
             <ul>
-                <li>Escucha tus canciones directamente dentro de la aplicación sin abrir otros programas.</li>
-                <li>Controla el volumen, adelanta o retrocede la pista y navega fácilmente con el teclado.</li>
+                <li><strong>Registro automático</strong>: cada canción descargada aparece al instante en tu biblioteca.</li>
+                <li><strong>Acciones rápidas</strong>: <strong>Enter</strong> para escuchar, abrir la carpeta del archivo, copiar el enlace original o reenviarlo a descargas.</li>
+                <li><strong>Buscador en vivo</strong> y reproducción de toda la colección con un clic.</li>
+                <li><strong>Exportar a M3U8</strong>: crea una lista de reproducción estándar para otros reproductores.</li>
+                <li><strong>Herramienta Depurar</strong>: detecta y limpia entradas cuyos archivos ya no existen.</li>
             </ul>
         </div>
 
         <div class="card">
-            <h3>🔔 4. Notificaciones Nativas del Sistema</h3>
+            <h3>🎧 4. Reproductor Integrado</h3>
             <ul>
-                <li>El programa te avisa mediante notificaciones de Windows cuando terminan tus descargas, cuando se verifican archivos o si ocurre algún error, sin que tengas que estar mirando la ventana.</li>
+                <li>Cola de reproducción con <strong>repetir todo</strong>, <strong>repetir una</strong> y <strong>modo aleatorio</strong>.</li>
+                <li>Reproducción continua, saltos de 5 y 30 segundos, volumen y silencio.</li>
+                <li>Soporte transparente de <strong>OPUS, OGG y WebM</strong> sin instalar códecs.</li>
+                <li>Pista anterior y siguiente, inicio y final de la canción.</li>
             </ul>
         </div>
 
         <div class="card">
-            <h3>⚙️ 5. Panel de Preferencias (Ctrl + ,)</h3>
+            <h3>🔐 5. Sesión y Cookies de YouTube</h3>
             <ul>
-                <li>Elige la carpeta donde quieres que se guarden tus canciones.</li>
-                <li><strong>Normalización de volumen</strong>: Hace que todas tus canciones suenen con el mismo nivel de volumen parejo.</li>
-                <li><strong>SponsorBlock</strong>: Quita automáticamente intros largas y partes habladas de los videos musicales.</li>
-                <li><strong>Letras de canciones</strong>: Descarga las letras sincronizadas en archivos <code>.lrc</code>.</li>
-                <li><strong>Actualizador con un botón</strong>: Mantén los componentes del motor al día automáticamente.</li>
-                <li><strong>Idiomas</strong>: Selecciona entre Español e Inglés.</li>
+                <li><strong>Vía 1 — Automática</strong>: extrae las cookies de Chrome, Firefox, Edge, Brave, Opera, Vivaldi o Chromium.</li>
+                <li><strong>Vía 2 — Asistente manual</strong>: pega las cookies en formato Netscape o JSON; se validan los tokens de sesión antes de guardarlas. Incluye enlaces opcionales a la extensión <em>Get cookies.txt LOCALLY</em> para Chrome/Edge y Firefox.</li>
+                <li><strong>Vía 3 — Archivos</strong>: importa o exporta <code>cookies.txt</code> / <code>cookies.json</code> para respaldar o migrar tu sesión.</li>
+                <li>El archivo se guarda sin BOM y se repara automáticamente si una versión anterior lo dejó con BOM.</li>
             </ul>
         </div>
 
-        <h2>⌨️ Atajos de Teclado Rápidos</h2>
+        <div class="card">
+            <h3>⚙️ 6. Panel de Preferencias (Ctrl + ,)</h3>
+            <ul>
+                <li>Carpeta de descargas, formato, calidad y descargas simultáneas.</li>
+                <li>Normalización de volumen, SponsorBlock, letras y monitor del portapapeles.</li>
+                <li>Idioma (Español / Inglés), tema, tamaño de letra y pestaña de inicio.</li>
+                <li>Actualizador con un botón para la aplicación y sus componentes.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>🔔 7. Notificaciones y Barra de Tareas</h3>
+            <ul>
+                <li>Notificaciones de Windows al terminar descargas, verificar archivos o producirse un error.</li>
+                <li>Progreso visible en la barra de tareas, incluso con la ventana minimizada.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>🔄 8. Actualizaciones</h3>
+            <ul>
+                <li>Comprobación de nuevas versiones en GitHub Releases.</li>
+                <li>Actualización de la aplicación y de <code>yt-dlp</code>, <code>Deno</code> y <code>FFmpeg</code>.</li>
+            </ul>
+        </div>
+
+        <h2>⌨️ Atajos de Teclado</h2>
         <table>
             <thead>
                 <tr>
@@ -175,58 +216,54 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td><strong>Enter</strong></td>
-                    <td>En la caja de búsqueda: descarga si es enlace o busca si es texto. En listas: reproduce o confirma.</td>
-                </tr>
-                <tr>
-                    <td><strong>Barra Espaciadora</strong></td>
-                    <td>En listas: marca o desmarca canciones. En el reproductor: reproduce o pausa.</td>
-                </tr>
-                <tr>
-                    <td><strong>Ctrl + 1</strong></td>
-                    <td>Ir a la pantalla de <strong>Descargas</strong>.</td>
-                </tr>
-                <tr>
-                    <td><strong>Ctrl + 2</strong></td>
-                    <td>Ir a la <strong>Biblioteca / Historial</strong>.</td>
-                </tr>
-                <tr>
-                    <td><strong>Ctrl + 3</strong></td>
-                    <td>Ir al <strong>Reproductor Musical</strong>.</td>
-                </tr>
-                <tr>
-                    <td><strong>Ctrl + ,</strong> <em>(coma)</em></td>
-                    <td>Abrir la ventana de <strong>Preferencias y Configuración</strong>.</td>
-                </tr>
-                <tr>
-                    <td><strong>Ctrl + O</strong></td>
-                    <td>Cargar una lista de canciones desde un archivo de texto.</td>
-                </tr>
-                <tr>
-                    <td><strong>Ctrl + S</strong></td>
-                    <td>Abrir la carpeta donde se guardan tus descargas.</td>
-                </tr>
-                <tr>
-                    <td><strong>Alt o F10</strong></td>
-                    <td>Activar la barra de menús superior.</td>
-                </tr>
-                <tr>
-                    <td><strong>Escape</strong></td>
-                    <td>Cerrar ventanas emergentes o salir de los menús.</td>
-                </tr>
+                <tr><td><strong>Enter</strong></td><td>Buscar o confirmar; en listas, reproducir. En Radar, reproducir la pista o lista seleccionada.</td></tr>
+                <tr><td><strong>Espacio</strong></td><td>En resultados, marcar o desmarcar canciones. En el reproductor, reproducir o pausar.</td></tr>
+                <tr><td><strong>Ctrl + 1</strong></td><td>Ir a <strong>Descargas</strong>.</td></tr>
+                <tr><td><strong>Ctrl + 2</strong></td><td>Ir a <strong>Biblioteca</strong>.</td></tr>
+                <tr><td><strong>Ctrl + 3</strong></td><td>Ir al <strong>Reproductor</strong>.</td></tr>
+                <tr><td><strong>Ctrl + 4</strong> o <strong>Ctrl + R</strong></td><td>Ir a <strong>Radar YTM</strong>.</td></tr>
+                <tr><td><strong>Ctrl + W</strong></td><td>Cerrar la pestaña actual.</td></tr>
+                <tr><td><strong>Ctrl + O</strong></td><td>Cargar una lista de canciones desde un archivo.</td></tr>
+                <tr><td><strong>Ctrl + S</strong></td><td>Abrir la carpeta de descargas.</td></tr>
+                <tr><td><strong>Ctrl + ,</strong></td><td>Abrir <strong>Preferencias</strong>.</td></tr>
+                <tr><td><strong>Ctrl + K</strong></td><td>Abrir el <strong>Gestor de cookies</strong>.</td></tr>
+                <tr><td><strong>Ctrl + L</strong></td><td>Ver la lista completa de atajos.</td></tr>
+                <tr><td><strong>Ctrl + ← / →</strong></td><td>Pista anterior / siguiente.</td></tr>
+                <tr><td><strong>Shift + ← / →</strong></td><td>Retroceder / avanzar 5 segundos.</td></tr>
+                <tr><td><strong>Ctrl + Shift + ← / →</strong></td><td>Retroceder / avanzar 30 segundos.</td></tr>
+                <tr><td><strong>Ctrl + ↑ / ↓</strong></td><td>Subir / bajar el volumen un 5%.</td></tr>
+                <tr><td><strong>Ctrl + Shift + ↑ / ↓</strong></td><td>Volumen máximo / silenciar.</td></tr>
+                <tr><td><strong>Ctrl + Shift + R</strong></td><td>Cambiar el modo de repetición.</td></tr>
+                <tr><td><strong>Ctrl + Shift + H</strong></td><td>Activar o desactivar el modo aleatorio.</td></tr>
+                <tr><td><strong>Ctrl + Shift + S</strong></td><td>Detener la reproducción.</td></tr>
+                <tr><td><strong>Inicio / Fin</strong></td><td>Ir al principio o al final de la canción.</td></tr>
+                <tr><td><strong>Alt o F10</strong></td><td>Activar la barra de menús.</td></tr>
+                <tr><td><strong>Escape</strong></td><td>Cerrar ventanas emergentes o salir de los menús.</td></tr>
             </tbody>
         </table>
 
         <h2>🚀 Guía de Inicio Rápido</h2>
         <ol>
-            <li><strong>Para descargar una canción</strong>: Escribe el nombre de la canción en la barra principal y presiona <strong>Enter</strong>. Se abrirá la lista de resultados; muévete con las <strong>flechas arriba/abajo</strong>, presiona <strong>Espacio</strong> para marcar las canciones que deseas y presiona <strong>Enter</strong> para empezar a descargar.</li>
-            <li><strong>Para descargar una lista de canciones</strong>: Haz clic en <strong>Cargar Lista</strong> (o presiona <strong>Ctrl + O</strong>) y selecciona un archivo de texto con los títulos o enlaces.</li>
-            <li><strong>Para escuchar tu música</strong>: Ve a la pestaña <strong>Biblioteca</strong> (Ctrl + 2), selecciona cualquier canción y presiona <strong>Enter</strong>.</li>
+            <li><strong>Descargar una canción</strong>: escribe su nombre en la barra principal y pulsa <strong>Enter</strong>. En la lista de resultados, muévete con las flechas, marca con <strong>Espacio</strong> y pulsa <strong>Enter</strong> para descargar.</li>
+            <li><strong>Descargar una lista</strong>: pulsa <strong>Ctrl + O</strong> y elige un archivo de texto con títulos o enlaces.</li>
+            <li><strong>Escuchar tu música</strong>: abre <strong>Biblioteca</strong> (<strong>Ctrl + 2</strong>), selecciona una canción y pulsa <strong>Enter</strong>.</li>
+            <li><strong>Explorar tu biblioteca de YouTube Music</strong>: abre <strong>Radar YTM</strong> (<strong>Ctrl + 4</strong>). Si es la primera vez, conecta tus cookies con <strong>Ctrl + K</strong>.</li>
         </ol>
 
+        <h2>❓ Preguntas Frecuentes</h2>
+        <div class="card">
+            <h3>El Radar muestra que no hay sesión conectada</h3>
+            <p>Abre el gestor de cookies (<strong>Ctrl + K</strong>) y vuelve a conectar tu cuenta. Cazador YTM comprueba que el archivo contenga los tokens necesarios (incluido <code>SAPISID</code>); un archivo vacío o incompleto ya no se considera una sesión válida.</p>
+
+            <h3>No sé cómo obtener el archivo de cookies</h3>
+            <p>Puedes usar la extracción automática desde tu navegador o instalar la extensión opcional <em>Get cookies.txt LOCALLY</em> (enlaces disponibles dentro del gestor de cookies). La extensión es de código abierto y no envía tus datos a ningún servidor.</p>
+
+            <h3>Una descarga falló por completo</h3>
+            <p>Comprueba tu conexión y vuelve a intentarlo desde el historial con la opción <strong>Reintentar descarga</strong>. Si el problema continúa, exporta el registro de errores desde la ventana de error y compártelo con soporte.</p>
+        </div>
+
         <div class="footer">
-            <p><strong>Cazador YTM v1.0</strong> — Desarrollado por <strong>narayan project's</strong>.</p>
+            <p><strong>Cazador YTM v1.3.3</strong> — Desarrollado por <strong>narayan project's</strong>.</p>
             <p>Copyright © 2026 <strong>narayan project's</strong>. Todos los derechos reservados.</p>
         </div>
     </main>
