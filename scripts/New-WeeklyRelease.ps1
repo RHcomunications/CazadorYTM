@@ -3,7 +3,7 @@
     Automatiza el ciclo de lanzamiento dominical para Cazador YTM.
 .DESCRIPTION
     1. Verifica binarios locales (yt-dlp, deno, ffmpeg suite).
-    2. Sincroniza e incrementa la version en Constants.cs y archivos .csproj.
+    2. Sincroniza e incrementa la version en Constants.cs, archivos .csproj y README.html.
     3. Asegura la plantilla de notas de version en docs/releases/v<Version>.md.
     4. Ejecuta la suite de pruebas unitarias en modo Release.
     5. Realiza el commit y crea el tag Git.
@@ -133,6 +133,23 @@ $guiContent = [System.IO.File]::ReadAllText($guiCsproj, [System.Text.Encoding]::
 $newGuiContent = [System.Text.RegularExpressions.Regex]::Replace($guiContent, '<Version>[^<]+</Version>', "<Version>$TargetVersion</Version>")
 [System.IO.File]::WriteAllText($guiCsproj, $newGuiContent, [System.Text.Encoding]::UTF8)
 
+# Sincronizar la version visible en la guia incluida en el paquete (README.html)
+$readmeHtmlFile = Join-Path $repoRoot "README.html"
+if (Test-Path $readmeHtmlFile) {
+    $readmeContent = [System.IO.File]::ReadAllText($readmeHtmlFile, [System.Text.Encoding]::UTF8)
+    $newReadmeContent = [System.Text.RegularExpressions.Regex]::Replace($readmeContent, 'v[0-9]+\.[0-9]+(?:\.[0-9]+)?', "v$TargetVersion")
+    if ($newReadmeContent -notmatch [System.Text.RegularExpressions.Regex]::Escape("v$TargetVersion")) {
+        throw "README.html no contiene la version v$TargetVersion tras la sincronizacion."
+    }
+    if ($newReadmeContent -ne $readmeContent) {
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($readmeHtmlFile, $newReadmeContent, $utf8NoBom)
+        Write-Host "  [OK] README.html sincronizado a v$TargetVersion" -ForegroundColor Gray
+    }
+} else {
+    Write-Warning "README.html no encontrado; se omite la sincronizacion de la guia."
+}
+
 # Asegurar notas de version en docs/releases/
 $releasesDir = Join-Path $repoRoot "docs\releases"
 if (-not (Test-Path $releasesDir)) {
@@ -168,7 +185,7 @@ finally {
 Write-Host "[6/6] Creando commit y etiqueta Git v$TargetVersion..." -ForegroundColor Yellow
 Push-Location $repoRoot
 try {
-    git add src/CazadorYTM.Core/Constants.cs src/CazadorYTM.Core/CazadorYTM.Core.csproj src/CazadorYTM.Gui/CazadorYTM.Gui.csproj docs/releases/
+    git add src/CazadorYTM.Core/Constants.cs src/CazadorYTM.Core/CazadorYTM.Core.csproj src/CazadorYTM.Gui/CazadorYTM.Gui.csproj docs/releases/ README.html
     git commit -m "chore: bump version to v$TargetVersion"
     git tag "v$TargetVersion"
     Write-Host "  [OK] Commit y Tag v$TargetVersion creados localmente." -ForegroundColor Green
