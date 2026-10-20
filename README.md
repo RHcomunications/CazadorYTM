@@ -140,6 +140,11 @@ docs/releases/          Notas de cada versión publicada
 
 ---
 
+## 🙏 Agradecimientos
+- **[KeyTune](https://github.com/Ed-Fe/KeyTune)** de **Eduardo Ferreira (Ed-Fe)**, bajo licencia MIT. Su integración de YouTube Music mediante InnerTube y varias de sus ideas de interfaz fueron la referencia para construir el Radar YTM. Gracias por compartir el código.
+
+---
+
 ## 📄 Licencia y Créditos
 Desarrollado y mantenido por **narayan project's**.
 Copyright © 2026 narayan project's. Todos los derechos reservados.
