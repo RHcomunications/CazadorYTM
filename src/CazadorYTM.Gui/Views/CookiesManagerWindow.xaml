@@ -91,6 +91,22 @@
                             </StackPanel>
                         </Border>
 
+                        <Border Padding="12" CornerRadius="4" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}" BorderThickness="1" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="{loc:Loc CookiesExtTitle}" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBlock Text="{loc:Loc CookiesExtDesc}" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,8"/>
+                                <WrapPanel>
+                                    <Button Content="{loc:Loc CookiesBtnExtChrome}" Command="{Binding OpenCookiesExtensionChromeCommand}"
+                                            Height="32" Padding="12,0" Margin="0,0,8,6"
+                                            AutomationProperties.Name="{loc:Loc CookiesBtnExtChromeHint}"/>
+                                    <Button Content="{loc:Loc CookiesBtnExtFirefox}" Command="{Binding OpenCookiesExtensionFirefoxCommand}"
+                                            Height="32" Padding="12,0" Margin="0,0,8,6"
+                                            AutomationProperties.Name="{loc:Loc CookiesBtnExtFirefoxHint}"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <WrapPanel Margin="0,0,0,10">
                             <Button Content="{loc:Loc CookiesBtnRobots}" Command="{Binding OpenRobotsUrlCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"
                                     AutomationProperties.Name="{loc:Loc CookiesBtnRobotsHint}"/>

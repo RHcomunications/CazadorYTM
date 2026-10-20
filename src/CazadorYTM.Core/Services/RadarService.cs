@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using CazadorYTM.Core;
 using CazadorYTM.Core.Models;
@@ -47,7 +48,44 @@ public static class RadarService
         RadarSection section,
         string? cookiesBrowser = null,
         string? cookiesPath = null,
-        Action<string>? logger = null)
+        Action<string>? logger = null,
+        string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var session = YouTubeMusicSession.TryCreate(cookiesPath);
+        if (session != null)
+        {
+            try
+            {
+                logger?.Invoke($"[RADAR] Consultando {section} en YouTube Music...");
+                var client = new YouTubeMusicClient(session, language);
+                var items = await client.FetchSectionAsync(section, cancellationToken: cancellationToken);
+                logger?.Invoke($"[RADAR] {items.Count} elementos obtenidos vía YouTube Music.");
+                if (items.Count > 0)
+                {
+                    return items;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger?.Invoke($"[RADAR] YouTube Music no respondió ({ex.Message}); usando yt-dlp.");
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return await FetchRadarItemsFromYtDlpAsync(section, cookiesBrowser, cookiesPath, logger);
+    }
+
+    private static async Task<List<RadarItem>> FetchRadarItemsFromYtDlpAsync(
+        RadarSection section,
+        string? cookiesBrowser,
+        string? cookiesPath,
+        Action<string>? logger)
     {
         var results = new List<RadarItem>();
         try
@@ -153,7 +191,45 @@ public static class RadarService
         string playlistUrlOrId,
         string? cookiesBrowser = null,
         string? cookiesPath = null,
-        Action<string>? logger = null)
+        Action<string>? logger = null,
+        string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var session = YouTubeMusicSession.TryCreate(cookiesPath);
+        var browseId = YouTubeMusicClient.ToPlaylistBrowseId(playlistUrlOrId);
+        if (session != null && browseId != null)
+        {
+            try
+            {
+                logger?.Invoke("[RADAR] Cargando pistas desde YouTube Music...");
+                var client = new YouTubeMusicClient(session, language);
+                var items = await client.FetchPlaylistTracksAsync(browseId, cancellationToken: cancellationToken);
+                logger?.Invoke($"[RADAR] {items.Count} pistas obtenidas vía YouTube Music.");
+                if (items.Count > 0)
+                {
+                    return items;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger?.Invoke($"[RADAR] YouTube Music no respondió ({ex.Message}); usando yt-dlp.");
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return await FetchPlaylistTracksFromYtDlpAsync(playlistUrlOrId, cookiesBrowser, cookiesPath, logger);
+    }
+
+    private static async Task<List<RadarItem>> FetchPlaylistTracksFromYtDlpAsync(
+        string playlistUrlOrId,
+        string? cookiesBrowser,
+        string? cookiesPath,
+        Action<string>? logger)
     {
         var results = new List<RadarItem>();
         try

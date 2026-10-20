@@ -11,6 +11,8 @@ public static class Constants
     public const string Copyright = "Copyright © 2026 narayan project's";
     public const string GitHubRepo = "RHcomunications/CazadorYTM";
     public const string SupportTelegramUrl = "https://t.me/narayanpg";
+    public const string CookiesExtensionChromeUrl = "https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc";
+    public const string CookiesExtensionFirefoxUrl = "https://addons.mozilla.org/firefox/addon/get-cookies-txt-locally/";
 
     public static readonly string[] FormatsRaw = { "mp3", "flac", "m4a", "wav", "opus", "mp4" };
     public static readonly string[] FormatsDisplay = { "mp3", "flac", "m4a", "wav", "opus", "mp4" };

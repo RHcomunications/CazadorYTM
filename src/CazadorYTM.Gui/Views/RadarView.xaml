@@ -112,7 +112,8 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="{loc:Loc RadarErrorTitle}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
-                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"/>
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"
+                               AutomationProperties.LiveSetting="Assertive"/>
                     <WrapPanel HorizontalAlignment="Center">
                         <Button Content="{loc:Loc RadarBtnRetry}" Command="{Binding RefreshCurrentSectionCommand}"
                                 Style="{DynamicResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6"/>
@@ -129,8 +130,8 @@
             </Border>
 
             <!-- 3. Active Items DataGrid -->
-            <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
-                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
+                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" RowHeight="48"
                       BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                       Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                       AutomationProperties.Name="{loc:Loc RadarGridHint}"
@@ -171,11 +172,32 @@
                 </DataGrid.ContextMenu>
 
                 <DataGrid.Columns>
+                    <DataGridTemplateColumn Width="56" CanUserSort="False" CanUserResize="False">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Image Source="{Binding ThumbnailUrl}" Width="40" Height="40" Stretch="UniformToFill"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="{loc:Loc ColTitle}" Binding="{Binding Title}" Width="*" MinWidth="250"/>
                     <DataGridTextColumn Header="{loc:Loc RadarColArtist}" Binding="{Binding Artist}" Width="200"/>
                     <DataGridTextColumn Header="{loc:Loc RadarColDuration}" Binding="{Binding DisplayDuration}" Width="90"/>
                 </DataGrid.Columns>
             </DataGrid>
+
+            <!-- 4. Loading overlay -->
+            <Border Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Background="{DynamicResource SystemControlBackgroundAltMediumHighBrush}"
+                    BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="24,18"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    AutomationProperties.LiveSetting="Polite">
+                <StackPanel>
+                    <ProgressBar IsIndeterminate="True" Width="220" Height="4" Margin="0,0,0,10"/>
+                    <TextBlock Text="{loc:Loc RadarLoading}" FontSize="12" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                </StackPanel>
+            </Border>
         </Grid>
 
         <!-- Bottom Action Bar / Status -->

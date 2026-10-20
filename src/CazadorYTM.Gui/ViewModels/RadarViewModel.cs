@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,6 +21,10 @@ public partial class RadarViewModel : ObservableObject
 {
     private readonly AppConfig _config;
     private readonly List<RadarItem> _cachedPlaylists = new();
+    private readonly Dictionary<RadarSection, List<RadarItem>> _sectionCache = new();
+    private readonly Dictionary<RadarSection, DateTime> _sectionCacheAt = new();
+    private static readonly TimeSpan SectionCacheTtl = TimeSpan.FromMinutes(5);
+    private CancellationTokenSource? _loadCts;
 
     public event Action<DownloadEntry>? SendToDownloadRequested;
     public event Action<string, string, string?>? PlayTrackRequested;
@@ -74,11 +79,7 @@ public partial class RadarViewModel : ObservableObject
             var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
             if (File.Exists(cookiesPath))
             {
-                var fi = new FileInfo(cookiesPath);
-                if (fi.Length > 0)
-                {
-                    return true;
-                }
+                return YouTubeMusicSession.TryCreate(cookiesPath) != null;
             }
 
             var browser = _config.Get("cookies_browser", "Ninguno");
@@ -108,8 +109,6 @@ public partial class RadarViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshCurrentSection()
     {
-        if (IsLoading) return;
-
         HasSessionConnected = CheckSessionConnected();
         if (IsViewingPlaylistDetails && CurrentPlaylist != null)
         {
@@ -117,13 +116,13 @@ public partial class RadarViewModel : ObservableObject
         }
         else
         {
-            await LoadSectionAsync(SelectedSection);
+            await LoadSectionAsync(SelectedSection, force: true);
         }
     }
 
-    public async Task LoadSectionAsync(RadarSection section)
+    public async Task LoadSectionAsync(RadarSection section, bool force = false)
     {
-        if (IsLoading) return;
+        var cts = BeginLoad(out var token);
 
         IsLoading = true;
         HasError = false;
@@ -139,7 +138,13 @@ public partial class RadarViewModel : ObservableObject
             AllItems.Clear();
             FilteredItems.Clear();
             StatusText = "Sesión de YouTube no conectada. Conecta tus cookies para acceder a tu historial y biblioteca.";
-            IsLoading = false;
+            CompleteLoad(cts);
+            return;
+        }
+
+        if (!force && TryUseCachedSection(section))
+        {
+            CompleteLoad(cts);
             return;
         }
 
@@ -160,7 +165,17 @@ public partial class RadarViewModel : ObservableObject
                 section,
                 cookiesBrowser: browser,
                 cookiesPath: cookiesPath,
-                logger: msg => LogService.Instance.Info(msg));
+                logger: msg => LogService.Instance.Info(msg),
+                language: _config.Get("language", "es"),
+                cancellationToken: token);
+
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _sectionCache[section] = items;
+            _sectionCacheAt[section] = DateTime.UtcNow;
 
             AllItems.Clear();
             foreach (var it in items)
@@ -178,8 +193,16 @@ public partial class RadarViewModel : ObservableObject
             StatusText = $"{AllItems.Count} elementos cargados en {section}.";
             HasError = false;
         }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex)
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
             HasError = true;
             ErrorMessage = ex.Message;
             StatusText = $"Error al consultar Radar: {ex.Message}";
@@ -187,17 +210,59 @@ public partial class RadarViewModel : ObservableObject
         }
         finally
         {
+            CompleteLoad(cts);
+        }
+    }
+
+    private CancellationTokenSource BeginLoad(out CancellationToken token)
+    {
+        var cts = new CancellationTokenSource();
+        var previous = _loadCts;
+        _loadCts = cts;
+        previous?.Cancel();
+        token = cts.Token;
+        return cts;
+    }
+
+    private void CompleteLoad(CancellationTokenSource cts)
+    {
+        if (ReferenceEquals(_loadCts, cts))
+        {
+            _loadCts = null;
             IsLoading = false;
         }
+
+        cts.Dispose();
+    }
+
+    private bool TryUseCachedSection(RadarSection section)
+    {
+        if (!_sectionCache.TryGetValue(section, out var items) ||
+            !_sectionCacheAt.TryGetValue(section, out var loadedAt) ||
+            DateTime.UtcNow - loadedAt > SectionCacheTtl)
+        {
+            return false;
+        }
+
+        AllItems.Clear();
+        foreach (var item in items)
+        {
+            AllItems.Add(item);
+        }
+
+        ApplyFilter();
+        StatusText = $"{AllItems.Count} elementos cargados en {section} (caché).";
+        HasError = false;
+        return true;
     }
 
     [RelayCommand]
     public async Task OpenPlaylist(RadarItem? playlistItem)
     {
-        if (IsLoading) return;
-
         playlistItem ??= SelectedItem;
         if (playlistItem == null || !playlistItem.IsPlaylist) return;
+
+        var cts = BeginLoad(out var token);
 
         if (!IsViewingPlaylistDetails)
         {
@@ -222,7 +287,14 @@ public partial class RadarViewModel : ObservableObject
                 playlistItem.Url ?? playlistItem.Id,
                 cookiesBrowser: browser,
                 cookiesPath: cookiesPath,
-                logger: msg => LogService.Instance.Info(msg));
+                logger: msg => LogService.Instance.Info(msg),
+                language: _config.Get("language", "es"),
+                cancellationToken: token);
+
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
 
             AllItems.Clear();
             foreach (var trk in tracks)
@@ -234,8 +306,16 @@ public partial class RadarViewModel : ObservableObject
             StatusText = $"Lista '{playlistItem.Title}' abierta con {AllItems.Count} pistas. Pulsa Enter para reproducir o Flecha Izquierda para volver.";
             HasError = false;
         }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex)
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
             HasError = true;
             ErrorMessage = ex.Message;
             StatusText = $"Error al cargar pistas de la lista: {ex.Message}";
@@ -243,7 +323,7 @@ public partial class RadarViewModel : ObservableObject
         }
         finally
         {
-            IsLoading = false;
+            CompleteLoad(cts);
         }
     }
 
@@ -252,6 +332,7 @@ public partial class RadarViewModel : ObservableObject
     {
         if (!IsViewingPlaylistDetails) return;
 
+        _loadCts?.Cancel();
         IsViewingPlaylistDetails = false;
         var prevId = CurrentPlaylist?.Id;
         CurrentPlaylist = null;
@@ -298,7 +379,8 @@ public partial class RadarViewModel : ObservableObject
                 playlistItem.Url ?? playlistItem.Id,
                 cookiesBrowser: browser,
                 cookiesPath: cookiesPath,
-                logger: msg => LogService.Instance.Info(msg));
+                logger: msg => LogService.Instance.Info(msg),
+                language: _config.Get("language", "es"));
 
             if (tracks.Count > 0)
             {
@@ -396,7 +478,9 @@ public partial class RadarViewModel : ObservableObject
         if (CheckSessionConnected())
         {
             HasSessionConnected = true;
-            _ = LoadSectionAsync(SelectedSection);
+            _sectionCache.Clear();
+            _sectionCacheAt.Clear();
+            _ = LoadSectionAsync(SelectedSection, force: true);
         }
     }
 

@@ -142,6 +142,34 @@ public partial class CookiesManagerViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void OpenCookiesExtensionChrome()
+    {
+        OpenExternalUrl(Constants.CookiesExtensionChromeUrl);
+    }
+
+    [RelayCommand]
+    public void OpenCookiesExtensionFirefox()
+    {
+        OpenExternalUrl(Constants.CookiesExtensionFirefoxUrl);
+    }
+
+    private static void OpenExternalUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Instance.NotifyError("Cookies de YouTube", $"No se pudo abrir el navegador: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
     public void PasteClipboard()
     {
         try
