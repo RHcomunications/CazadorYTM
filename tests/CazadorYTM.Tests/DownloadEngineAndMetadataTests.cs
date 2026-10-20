@@ -8,6 +8,15 @@ using CazadorYTM.Core.Services;
 
 public class DownloadEngineAndMetadataTests
 {
+    [Theory]
+    [InlineData("--exec calc.exe")]
+    [InlineData("--output=otro.mp3")]
+    [InlineData("-o otro.mp3")]
+    [InlineData("--proxy=http://evil")]
+    [InlineData("--downloader-args=--x")]
+    public void Build_RejectsDangerousRawArguments(string rawArgs)
+        => Assert.Throws<ArgumentException>(() => YtDlpArgumentBuilder.Build(rawArgs: rawArgs));
+
     [Fact]
     public void Build_ConstructsValidArguments()
     {

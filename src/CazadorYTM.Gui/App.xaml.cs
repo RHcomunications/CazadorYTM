@@ -108,10 +108,11 @@ public partial class App : Application
     {
         try
         {
+            ProcessTracker.KillAll(TimeSpan.FromSeconds(5));
             NotificationService.Instance.Cleanup();
             AudioPlayerService.Instance.Stop();
             AudioPlayerService.Instance.CleanupAllTempCache();
-            new HistoryManager().Flush();
+            HistoryManager.FlushAll();
 
             if (_singleInstanceMutex != null)
             {

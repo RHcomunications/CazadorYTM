@@ -21,6 +21,8 @@ public class AppReleaseInfo
     public string ReleaseNotes { get; set; } = string.Empty;
     public string? AssetDownloadUrl { get; set; }
     public string? AssetName { get; set; }
+    public string? AssetSha256 { get; set; }
+    public string? ChecksumDownloadUrl { get; set; }
     public string HtmlUrl { get; set; } = string.Empty;
     public DateTime? PublishedAt { get; set; }
 }
@@ -97,13 +99,37 @@ public static class AppUpdaterService
                         var name = nameProp.GetString() ?? string.Empty;
                         var dlUrl = dlProp.GetString() ?? string.Empty;
 
-                        if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                            name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                         {
                             result.AssetName = name;
                             result.AssetDownloadUrl = dlUrl;
+
+                            if (asset.TryGetProperty("digest", out var digestProp) &&
+                                DownloadIntegrity.TryNormalizeSha256(digestProp.GetString(), out var digest))
+                            {
+                                result.AssetSha256 = digest;
+                            }
+
                             break;
                         }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(result.AssetName) &&
+                    root.TryGetProperty("assets", out var checksumAssets) &&
+                    checksumAssets.ValueKind == JsonValueKind.Array)
+                {
+                    var checksumName = result.AssetName + ".sha256";
+                    foreach (var asset in checksumAssets.EnumerateArray())
+                    {
+                        var name = asset.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+                        if (!string.Equals(name, checksumName, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        result.ChecksumDownloadUrl = asset.TryGetProperty("browser_download_url", out var checksumUrlProp)
+                            ? checksumUrlProp.GetString()
+                            : null;
+                        break;
                     }
                 }
             }
@@ -148,8 +174,39 @@ public static class AppUpdaterService
         string assetUrl,
         string targetBaseDir,
         Action<string>? statusCallback = null,
-        Action<int>? progressCallback = null)
+        Action<int>? progressCallback = null,
+        string? expectedSha256 = null,
+        string? checksumUrl = null,
+        System.Threading.CancellationToken cancellationToken = default)
     {
+        if (!Uri.TryCreate(assetUrl, UriKind.Absolute, out var assetUri) ||
+            assetUri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new InvalidOperationException("La URL del paquete de actualización no es válida.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(checksumUrl) &&
+            (!Uri.TryCreate(checksumUrl, UriKind.Absolute, out var checksumUri) ||
+             checksumUri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidOperationException("La URL del checksum de actualización no es válida.");
+        }
+
+        if (!DownloadIntegrity.TryNormalizeSha256(expectedSha256, out var verifiedSha256) &&
+            !string.IsNullOrWhiteSpace(checksumUrl))
+        {
+            verifiedSha256 = await DownloadIntegrity.FetchSha256Async(
+                HttpClient,
+                checksumUrl,
+                cancellationToken) ?? string.Empty;
+        }
+
+        if (!DownloadIntegrity.TryNormalizeSha256(verifiedSha256, out verifiedSha256))
+        {
+            throw new InvalidOperationException(
+                "La actualización no incluye un checksum SHA-256 verificable y no se aplicará.");
+        }
+
         var tempRoot = Path.Combine(Path.GetTempPath(), "CazadorYTM_Update");
         if (Directory.Exists(tempRoot))
         {
@@ -162,31 +219,65 @@ public static class AppUpdaterService
 
         statusCallback?.Invoke("Descargando paquete de actualización desde GitHub...");
 
-        using (var response = await HttpClient.GetAsync(assetUrl, HttpCompletionOption.ResponseHeadersRead))
+        try
         {
-            response.EnsureSuccessStatusCode();
-            var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-            var downloadedBytes = 0L;
-
-            using var contentStream = await response.Content.ReadAsStreamAsync();
-            using var fileStream = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None);
-
-            var buffer = new byte[64 * 1024];
-            int read;
-            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            using (var response = await HttpClient.GetAsync(
+                       assetUrl,
+                       HttpCompletionOption.ResponseHeadersRead,
+                       cancellationToken))
             {
-                await fileStream.WriteAsync(buffer, 0, read);
-                downloadedBytes += read;
-                if (totalBytes > 0 && progressCallback != null)
+                response.EnsureSuccessStatusCode();
+                if (response.RequestMessage?.RequestUri?.Scheme != Uri.UriSchemeHttps)
                 {
-                    var pct = (int)(downloadedBytes * 100 / totalBytes);
-                    progressCallback(Math.Clamp(pct, 0, 100));
+                    throw new InvalidDataException("La descarga del paquete no usa HTTPS.");
+                }
+
+                const long maxDownloadBytes = 1024L * 1024 * 1024;
+                var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                if (totalBytes > maxDownloadBytes)
+                {
+                    throw new InvalidDataException("El paquete de actualización excede el tamaño máximo permitido.");
+                }
+
+                var downloadedBytes = 0L;
+
+                using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                using var fileStream = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None);
+
+                var buffer = new byte[64 * 1024];
+                int read;
+                while ((read = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+                {
+                    downloadedBytes += read;
+                    if (downloadedBytes > 1024L * 1024 * 1024)
+                    {
+                        throw new InvalidDataException("El paquete de actualización excede el tamaño máximo permitido.");
+                    }
+
+                    await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                    if (totalBytes > 0 && progressCallback != null)
+                    {
+                        var pct = (int)(downloadedBytes * 100 / totalBytes);
+                        progressCallback(Math.Clamp(pct, 0, 100));
+                    }
                 }
             }
+
+            statusCallback?.Invoke("Verificando integridad del paquete...");
+            await DownloadIntegrity.VerifyFileAsync(tempZip, verifiedSha256, cancellationToken);
+        }
+        catch
+        {
+            if (File.Exists(tempZip))
+            {
+                try { File.Delete(tempZip); } catch { }
+            }
+            throw;
         }
 
         statusCallback?.Invoke("Extrayendo paquete de actualización...");
         Directory.CreateDirectory(extractedDir);
+        ValidateZipArchive(tempZip, extractedDir);
         ZipFile.ExtractToDirectory(tempZip, extractedDir, true);
 
         // If files are nested in a subfolder inside the zip, locate the real content root
@@ -195,6 +286,12 @@ public static class AppUpdaterService
         if (subDirs.Length == 1 && !File.Exists(Path.Combine(extractedDir, "CazadorYTM.Gui.exe")) && !File.Exists(Path.Combine(extractedDir, "CazadorYTM.Gui.dll")))
         {
             actualSourceDir = subDirs[0];
+        }
+
+        if (!File.Exists(Path.Combine(actualSourceDir, "CazadorYTM.Gui.exe")) &&
+            !File.Exists(Path.Combine(actualSourceDir, "CazadorYTM.Gui.dll")))
+        {
+            throw new InvalidDataException("El paquete de actualización no contiene CazadorYTM.Gui.exe ni CazadorYTM.Gui.dll.");
         }
 
         statusCallback?.Invoke("Preparando script de actualización y reinicio...");
@@ -215,6 +312,29 @@ public static class AppUpdaterService
         };
 
         Process.Start(psi);
+    }
+
+    private static void ValidateZipArchive(string zipPath, string destinationDir)
+    {
+        var destinationRoot = Path.GetFullPath(destinationDir);
+        long totalLength = 0;
+
+        using var archive = ZipFile.OpenRead(zipPath);
+        foreach (var entry in archive.Entries)
+        {
+            totalLength += entry.Length;
+            if (totalLength > 2L * 1024 * 1024 * 1024)
+            {
+                throw new InvalidDataException("El paquete de actualización excede el tamaño máximo permitido.");
+            }
+
+            var targetPath = Path.GetFullPath(Path.Combine(destinationRoot, entry.FullName));
+            var relativePath = Path.GetRelativePath(destinationRoot, targetPath);
+            if (relativePath.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relativePath))
+            {
+                throw new InvalidDataException("El paquete de actualización contiene una ruta no válida.");
+            }
+        }
     }
 
     public static string FormatReleaseNotesForDisplay(string markdown)
@@ -277,17 +397,6 @@ public static class AppUpdaterService
             if (Directory.Exists(root))
             {
                 Directory.Delete(root, true);
-                cleaned = true;
-            }
-        }
-        catch { }
-
-        try
-        {
-            var playerCache = Path.Combine(Path.GetTempPath(), "CazadorYTM_Player");
-            if (Directory.Exists(playerCache))
-            {
-                Directory.Delete(playerCache, true);
                 cleaned = true;
             }
         }

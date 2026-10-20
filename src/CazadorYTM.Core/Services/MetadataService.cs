@@ -19,6 +19,7 @@ public static class MetadataService
 {
     private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
     private static readonly YoutubeClient _youtubeClient = new(_httpClient);
+    private const int MaxMetadataEntries = 10000;
 
     static MetadataService()
     {
@@ -144,36 +145,29 @@ public static class MetadataService
         try
         {
             var exe = BinaryManager.GetYtDlpPath();
-            var psi = new ProcessStartInfo
+            if (string.IsNullOrEmpty(exe))
             {
-                FileName = exe,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
-            };
+                loggerCallback?.Invoke("[ERROR] No se encontró yt-dlp.");
+                return new SearchResult();
+            }
 
-            psi.ArgumentList.Add("-J");
-            psi.ArgumentList.Add("--flat-playlist");
-            psi.ArgumentList.Add("--no-warnings");
+            var args = new List<string> { "--ignore-config", "-J", "--flat-playlist", "--no-warnings" };
 
             if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
             {
-                psi.ArgumentList.Add("--cookies");
-                psi.ArgumentList.Add(cookiesPath);
+                args.Add("--cookies");
+                args.Add(cookiesPath);
             }
             else if (!string.IsNullOrEmpty(cookiesBrowser) && cookiesBrowser.ToLower() != "ninguno")
             {
-                psi.ArgumentList.Add("--cookies-from-browser");
-                psi.ArgumentList.Add(cookiesBrowser.ToLower());
+                args.Add("--cookies-from-browser");
+                args.Add(cookiesBrowser.ToLower());
             }
 
             if (!string.IsNullOrEmpty(proxy))
             {
-                psi.ArgumentList.Add("--proxy");
-                psi.ArgumentList.Add(proxy);
+                args.Add("--proxy");
+                args.Add(proxy);
             }
 
             string query;
@@ -185,8 +179,8 @@ public static class MetadataService
                 }
                 else if (searchSource == "YouTube Music")
                 {
-                    psi.ArgumentList.Add("--extractor-args");
-                    psi.ArgumentList.Add("youtube:player_client=android,web;po_token=web+");
+                    args.Add("--extractor-args");
+                    args.Add("youtube:player_client=android,web;po_token=web+");
                     query = $"ytsearch{limit}:{userInput} topic";
                 }
                 else
@@ -199,30 +193,38 @@ public static class MetadataService
                 query = userInput;
             }
 
-            psi.ArgumentList.Add(query);
+            args.Add("--");
+            args.Add(query);
 
-            using var process = Process.Start(psi);
-            if (process is null) return new SearchResult();
+            var runResult = ProcessRunner.RunAsync(
+                exe,
+                args,
+                timeoutMs: 45000,
+                maxCapturedChars: 16 * 1024 * 1024).GetAwaiter().GetResult();
 
-            var output = process.StandardOutput.ReadToEnd();
-            var exited = process.WaitForExit(45000);
-
-            if (!exited)
+            if (runResult.Canceled)
             {
-                DownloadEngine.KillProcessTree(process.Id);
+                return new SearchResult();
+            }
+
+            if (runResult.TimedOut)
+            {
                 loggerCallback?.Invoke("[AVISO] Tiempo de espera agotado al consultar metadatos con yt-dlp.");
                 return new SearchResult();
             }
 
-            if (process.ExitCode != 0)
+            if (runResult.OutputTruncated)
             {
-                var stderr = process.StandardError.ReadToEnd();
-                if (!string.IsNullOrWhiteSpace(stderr))
-                {
-                    loggerCallback?.Invoke($"[AVISO] yt-dlp: {stderr.Trim()}");
-                }
+                loggerCallback?.Invoke("[AVISO] La respuesta de metadatos superó el límite permitido.");
+                return new SearchResult();
             }
 
+            if (runResult.ExitCode != 0 && !string.IsNullOrWhiteSpace(runResult.StandardError))
+            {
+                loggerCallback?.Invoke($"[AVISO] yt-dlp: {runResult.StandardError.Trim()}");
+            }
+
+            var output = runResult.StandardOutput;
             if (string.IsNullOrWhiteSpace(output)) return new SearchResult();
 
             using var doc = JsonDocument.Parse(output);
@@ -234,6 +236,7 @@ public static class MetadataService
             {
                 foreach (var entry in root.EnumerateArray())
                 {
+                    if (results.Count >= MaxMetadataEntries) break;
                     if (entry.ValueKind == JsonValueKind.Null) continue;
                     var item = ParseDownloadEntryFromJson(entry);
                     if (item != null) results.Add(item);
@@ -263,6 +266,7 @@ public static class MetadataService
                 {
                     foreach (var entry in entriesProp.EnumerateArray())
                     {
+                        if (results.Count >= MaxMetadataEntries) break;
                         if (entry.ValueKind == JsonValueKind.Null) continue;
                         var item = ParseDownloadEntryFromJson(entry);
                         if (item != null) results.Add(item);
@@ -391,59 +395,73 @@ public static class MetadataService
             SingleWriter = false
         });
 
-        var throttler = new SemaphoreSlim(Math.Max(1, maxParallelism));
-        var rawList = rawItems.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-
         var producerTask = Task.Run(async () =>
         {
             try
             {
-                var tasks = rawList.Select(async item =>
+                var batchSize = Math.Max(1, maxParallelism);
+                var batch = new List<string>(batchSize);
+
+                async Task<DownloadEntry> ResolveOne(string item)
                 {
-                    await throttler.WaitAsync(cancellationToken);
-                    try
+                    var trimmed = item.Trim();
+                    var isUrl = Helpers.IsUrl(trimmed);
+                    var entry = new DownloadEntry
                     {
-                        if (cancellationToken.IsCancellationRequested) return;
+                        Title = trimmed,
+                        Url = isUrl ? trimmed : null
+                    };
 
-                        var trimmed = item.Trim();
-                        var isUrl = Helpers.IsUrl(trimmed);
-                        var entry = new DownloadEntry
+                    if (!isUrl)
+                    {
+                        try
                         {
-                            Title = trimmed,
-                            Url = isUrl ? trimmed : null
-                        };
+                            var meta = await GetMetadataAsync(
+                                trimmed,
+                                isSearch: true,
+                                limit: 1,
+                                cookiesBrowser: cookiesBrowser,
+                                proxy: proxy,
+                                searchSource: searchSource);
 
-                        if (!isUrl)
-                        {
-                            try
+                            if (meta.Entries.Count > 0)
                             {
-                                var meta = await GetMetadataAsync(
-                                    trimmed,
-                                    isSearch: true,
-                                    limit: 1,
-                                    cookiesBrowser: cookiesBrowser,
-                                    proxy: proxy,
-                                    searchSource: searchSource);
-
-                                if (meta.Entries.Count > 0)
-                                {
-                                    entry = meta.Entries[0];
-                                }
+                                entry = meta.Entries[0];
                             }
-                            catch { }
                         }
+                        catch { }
+                    }
 
+                    return entry;
+                }
+
+                async Task FlushBatchAsync()
+                {
+                    var entries = await Task.WhenAll(batch.Select(ResolveOne));
+                    foreach (var entry in entries)
+                    {
                         await channel.Writer.WriteAsync(entry, cancellationToken);
                     }
-                    catch (OperationCanceledException) { }
-                    finally
-                    {
-                        throttler.Release();
-                    }
-                });
+                    batch.Clear();
+                }
 
-                await Task.WhenAll(tasks);
+                foreach (var item in rawItems.Where(s => !string.IsNullOrWhiteSpace(s)))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    batch.Add(item);
+
+                    if (batch.Count >= batchSize)
+                    {
+                        await FlushBatchAsync();
+                    }
+                }
+
+                if (batch.Count > 0)
+                {
+                    await FlushBatchAsync();
+                }
             }
+            catch (OperationCanceledException) { }
             finally
             {
                 channel.Writer.Complete();

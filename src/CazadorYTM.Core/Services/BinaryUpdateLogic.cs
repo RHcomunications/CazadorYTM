@@ -4,8 +4,53 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 
+public class GithubAssetInfo
+{
+    public string DownloadUrl { get; set; } = string.Empty;
+    public string? Sha256 { get; set; }
+}
+
 public static class BinaryUpdateLogic
 {
+    public static GithubAssetInfo? ParseGithubAsset(string json, string assetName)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                return null;
+
+            foreach (var asset in assets.EnumerateArray())
+            {
+                var name = asset.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+                if (!string.Equals(name, assetName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var downloadUrl = asset.TryGetProperty("browser_download_url", out var urlProp)
+                    ? urlProp.GetString()
+                    : null;
+                if (string.IsNullOrWhiteSpace(downloadUrl))
+                    return null;
+
+                string? sha256 = null;
+                if (asset.TryGetProperty("digest", out var digestProp))
+                {
+                    DownloadIntegrity.TryNormalizeSha256(digestProp.GetString(), out var normalized);
+                    sha256 = string.IsNullOrEmpty(normalized) ? null : normalized;
+                }
+
+                return new GithubAssetInfo
+                {
+                    DownloadUrl = downloadUrl,
+                    Sha256 = sha256
+                };
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
     public static string? ParseYtdlpGithubTag(string json)
     {
         try

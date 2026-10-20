@@ -14,18 +14,24 @@ public class ProcessResult
     public string StandardOutput { get; set; } = string.Empty;
     public string StandardError { get; set; } = string.Empty;
     public bool TimedOut { get; set; }
-    public bool Success => !TimedOut && ExitCode == 0;
+    public bool Canceled { get; set; }
+    public bool OutputTruncated { get; set; }
+    public bool ErrorTruncated { get; set; }
+    public bool Success => !TimedOut && !Canceled && ExitCode == 0;
 }
 
 public static class ProcessRunner
 {
+    private const int DefaultMaxCapturedChars = 4 * 1024 * 1024;
+
     public static async Task<ProcessResult> RunAsync(
         string fileName,
         IEnumerable<string> arguments,
         int timeoutMs = 30000,
         CancellationToken cancellationToken = default,
         Action<string>? outputLineCallback = null,
-        Action<string>? errorLineCallback = null)
+        Action<string>? errorLineCallback = null,
+        int maxCapturedChars = DefaultMaxCapturedChars)
     {
         if (string.IsNullOrWhiteSpace(fileName))
         {
@@ -64,11 +70,13 @@ public static class ProcessRunner
         using var process = new Process { StartInfo = psi };
         var outputBuilder = new StringBuilder();
         var errorBuilder = new StringBuilder();
+        var outputTruncated = false;
+        var errorTruncated = false;
 
         using var outputWaitHandle = new SemaphoreSlim(0, 1);
         using var errorWaitHandle = new SemaphoreSlim(0, 1);
 
-        process.OutputDataReceived += (sender, e) =>
+        process.OutputDataReceived += (_, e) =>
         {
             if (e.Data == null)
             {
@@ -76,12 +84,12 @@ public static class ProcessRunner
             }
             else
             {
-                outputBuilder.AppendLine(e.Data);
-                outputLineCallback?.Invoke(e.Data);
+                AppendBounded(outputBuilder, e.Data, maxCapturedChars, ref outputTruncated);
+                InvokeSafely(outputLineCallback, e.Data);
             }
         };
 
-        process.ErrorDataReceived += (sender, e) =>
+        process.ErrorDataReceived += (_, e) =>
         {
             if (e.Data == null)
             {
@@ -89,8 +97,8 @@ public static class ProcessRunner
             }
             else
             {
-                errorBuilder.AppendLine(e.Data);
-                errorLineCallback?.Invoke(e.Data);
+                AppendBounded(errorBuilder, e.Data, maxCapturedChars, ref errorTruncated);
+                InvokeSafely(errorLineCallback, e.Data);
             }
         };
 
@@ -105,61 +113,183 @@ public static class ProcessRunner
                 };
             }
 
+            ProcessTracker.Track(process);
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var processExitTask = process.WaitForExitAsync(cts.Token);
-            var timeoutTask = Task.Delay(timeoutMs, cts.Token);
-
-            var completedTask = await Task.WhenAny(processExitTask, timeoutTask);
-
-            if (completedTask == timeoutTask)
+            try
             {
-                try
+                var processExitTask = process.WaitForExitAsync();
+                var timeoutTask = timeoutMs > 0
+                    ? Task.Delay(timeoutMs, cts.Token)
+                    : Task.Delay(Timeout.Infinite, cts.Token);
+
+                var completedTask = await Task.WhenAny(processExitTask, timeoutTask);
+
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    process.Kill(entireProcessTree: true);
+                    KillProcess(process);
+                    await WaitForStreamsAsync(outputWaitHandle, errorWaitHandle);
+                    return BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated, canceled: true);
                 }
-                catch { }
 
-                return new ProcessResult
+                if (completedTask == timeoutTask)
                 {
-                    TimedOut = true,
-                    ExitCode = -999,
-                    StandardOutput = outputBuilder.ToString(),
-                    StandardError = errorBuilder.ToString() + "\n[ERROR] Proceso cancelado defensivamente por tiempo de espera (Timeout)."
-                };
+                    KillProcess(process);
+                    await WaitForStreamsAsync(outputWaitHandle, errorWaitHandle);
+                    var timeoutResult = BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated);
+                    timeoutResult.TimedOut = true;
+                    timeoutResult.ExitCode = -999;
+                    timeoutResult.StandardError += "\n[ERROR] Proceso cancelado defensivamente por tiempo de espera (Timeout).";
+                    return timeoutResult;
+                }
+
+                await processExitTask;
+                await WaitForStreamsAsync(outputWaitHandle, errorWaitHandle);
+                return BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated);
             }
-
-            // Await asynchronous completion of streams
-            await Task.WhenAll(outputWaitHandle.WaitAsync(2000), errorWaitHandle.WaitAsync(2000));
-
-            return new ProcessResult
+            finally
             {
-                ExitCode = process.ExitCode,
-                StandardOutput = outputBuilder.ToString(),
-                StandardError = errorBuilder.ToString(),
-                TimedOut = false
-            };
+                cts.Cancel();
+            }
         }
         catch (OperationCanceledException)
         {
-            try { process.Kill(entireProcessTree: true); } catch { }
-            return new ProcessResult
-            {
-                TimedOut = true,
-                ExitCode = -998,
-                StandardError = "Operación cancelada por el usuario o sistema."
-            };
+            KillProcess(process);
+            return BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated, canceled: true);
         }
         catch (Exception ex)
         {
-            try { process.Kill(entireProcessTree: true); } catch { }
+            KillProcess(process);
             return new ProcessResult
             {
                 ExitCode = -1,
-                StandardError = $"Excepción defensiva al ejecutar proceso: {ex.Message}"
+                StandardOutput = outputBuilder.ToString(),
+                StandardError = $"Excepción defensiva al ejecutar proceso: {ex.Message}",
+                OutputTruncated = outputTruncated,
+                ErrorTruncated = errorTruncated
             };
         }
+    }
+
+    private static void AppendBounded(StringBuilder builder, string line, int maxChars, ref bool truncated)
+    {
+        if (maxChars <= 0)
+        {
+            return;
+        }
+
+        if (builder.Length >= maxChars)
+        {
+            truncated = true;
+            return;
+        }
+
+        var remaining = maxChars - builder.Length;
+        if (line.Length + Environment.NewLine.Length > remaining)
+        {
+            var allowed = Math.Max(0, remaining - 1);
+            if (allowed > 0)
+            {
+                builder.Append(line.AsSpan(0, Math.Min(line.Length, allowed)));
+            }
+            builder.Append('…');
+            truncated = true;
+            return;
+        }
+
+        builder.AppendLine(line);
+    }
+
+    private static void InvokeSafely(Action<string>? callback, string line)
+    {
+        if (callback is null)
+        {
+            return;
+        }
+
+        try
+        {
+            callback(line);
+        }
+        catch
+        {
+        }
+    }
+
+    private static async Task WaitForStreamsAsync(SemaphoreSlim outputWaitHandle, SemaphoreSlim errorWaitHandle)
+    {
+        await Task.WhenAll(
+            outputWaitHandle.WaitAsync(2000),
+            errorWaitHandle.WaitAsync(2000));
+    }
+
+    private static void KillProcess(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            process.WaitForExit(3000);
+        }
+        catch
+        {
+        }
+    }
+
+    private static ProcessResult BuildResult(
+        Process process,
+        StringBuilder outputBuilder,
+        StringBuilder errorBuilder,
+        bool outputTruncated,
+        bool errorTruncated,
+        bool canceled = false)
+    {
+        var exitCode = -998;
+        if (canceled)
+        {
+            try
+            {
+                if (process.HasExited)
+                {
+                    exitCode = process.ExitCode;
+                }
+            }
+            catch
+            {
+            }
+        }
+        else
+        {
+            try
+            {
+                exitCode = process.ExitCode;
+            }
+            catch
+            {
+            }
+        }
+
+        return new ProcessResult
+        {
+            ExitCode = exitCode,
+            StandardOutput = outputBuilder.ToString(),
+            StandardError = canceled
+                ? errorBuilder + "Operación cancelada por el usuario o sistema."
+                : errorBuilder.ToString(),
+            Canceled = canceled,
+            OutputTruncated = outputTruncated,
+            ErrorTruncated = errorTruncated
+        };
     }
 }

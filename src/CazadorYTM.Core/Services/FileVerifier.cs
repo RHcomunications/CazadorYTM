@@ -28,44 +28,33 @@ public static class FileVerifier
     private const double MinDurationSecs = 5.0;
     private const string ReportFilename = "_REPORTE_INTEGRIDAD.txt";
     private const int MaxVerifyWorkers = 4;
+    private const int MaxFilesToVerify = 20000;
 
     private static readonly Regex AnsiEscapeRegex = new(@"\x1b\[[0-9;]*[a-zA-ZK]|\x1b\[[0-9;]*[A-Za-z]");
 
     private static string? RunFfprobe(string ffprobePath, string filepath)
     {
-        var psi = new ProcessStartInfo
+        var args = new[]
         {
-            FileName = ffprobePath,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            "-v", "fatal",
+            "-print_format", "json",
+            "-show_streams",
+            "-show_format",
+            filepath
         };
-        psi.ArgumentList.Add("-v");
-        psi.ArgumentList.Add("fatal");
-        psi.ArgumentList.Add("-print_format");
-        psi.ArgumentList.Add("json");
-        psi.ArgumentList.Add("-show_streams");
-        psi.ArgumentList.Add("-show_format");
-        psi.ArgumentList.Add(filepath);
 
         try
         {
-            using var process = Process.Start(psi)!;
-            var output = process.StandardOutput.ReadToEnd();
-            var exited = process.WaitForExit(10000);
+            var result = ProcessRunner.RunAsync(
+                ffprobePath,
+                args,
+                timeoutMs: 10000,
+                maxCapturedChars: 2 * 1024 * 1024).GetAwaiter().GetResult();
 
-            if (!exited)
-            {
-                DownloadEngine.KillProcessTree(process.Id);
+            if (result.TimedOut || result.OutputTruncated)
                 return null;
-            }
 
-            if (!string.IsNullOrWhiteSpace(output))
-                return output;
-            return null;
+            return string.IsNullOrWhiteSpace(result.StandardOutput) ? null : result.StandardOutput;
         }
         catch (Exception)
         {
@@ -77,48 +66,39 @@ public static class FileVerifier
     {
         var ffmpegPath = ffprobePath.Replace("ffprobe.exe", "ffmpeg.exe").Replace("ffprobe", "ffmpeg");
 
-        var psi = new ProcessStartInfo
+        var args = new[]
         {
-            FileName = ffmpegPath,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            "-v", "error",
+            "-i", filepath,
+            "-f", "null",
+            "-"
         };
-        psi.ArgumentList.Add("-v");
-        psi.ArgumentList.Add("error");
-        psi.ArgumentList.Add("-i");
-        psi.ArgumentList.Add(filepath);
-        psi.ArgumentList.Add("-f");
-        psi.ArgumentList.Add("null");
-        psi.ArgumentList.Add("-");
 
         try
         {
-            using var process = Process.Start(psi)!;
-            var stderrText = process.StandardError.ReadToEnd();
-            var exited = process.WaitForExit(30000);
+            var result = ProcessRunner.RunAsync(
+                ffmpegPath,
+                args,
+                timeoutMs: 30000,
+                maxCapturedChars: 1024 * 1024).GetAwaiter().GetResult();
 
-            if (!exited)
+            if (result.TimedOut)
             {
-                DownloadEngine.KillProcessTree(process.Id);
                 return "Timeout al decodificar (proceso colgado)";
             }
 
-            if (process.ExitCode != 0)
+            if (result.ExitCode != 0)
             {
-                if (!string.IsNullOrWhiteSpace(stderrText))
+                if (!string.IsNullOrWhiteSpace(result.StandardError))
                 {
-                    var errors = stderrText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    var errors = result.StandardError.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                         .Where(l => !string.IsNullOrWhiteSpace(l))
                         .Take(3)
                         .ToList();
                     if (errors.Count > 0)
                         return string.Join("; ", errors);
                 }
-                return $"Fallo al decodificar audio (código {process.ExitCode})";
+                return $"Fallo al decodificar audio (código {result.ExitCode})";
             }
             return null;
         }
@@ -318,12 +298,19 @@ public static class FileVerifier
 
         var archivosAudio = Directory.EnumerateFiles(carpeta, "*.*", SearchOption.AllDirectories)
             .Where(f => AudioExtensions.Contains(Path.GetExtension(f).ToLower()))
+            .Take(MaxFilesToVerify + 1)
             .ToList();
 
         if (archivosAudio.Count == 0)
         {
             loggerCallback?.Invoke("[AVISO] No se encontraron archivos de audio soportados en la carpeta.");
             return new List<ResultadoArchivo>();
+        }
+
+        if (archivosAudio.Count > MaxFilesToVerify)
+        {
+            archivosAudio.RemoveAt(archivosAudio.Count - 1);
+            loggerCallback?.Invoke($"[AVISO] Se verificarán solo los primeros {MaxFilesToVerify} archivos para limitar el uso de memoria.");
         }
 
         var total = archivosAudio.Count;

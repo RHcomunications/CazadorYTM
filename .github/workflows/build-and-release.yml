@@ -15,10 +15,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
       with:
         dotnet-version: '10.0.x'
 
@@ -39,22 +39,49 @@ jobs:
         Copy-Item -Path "README.html", "CHANGELOG.html" -Destination "publish/" -Force
 
     - name: Download Latest Dependencies (yt-dlp, Deno, FFmpeg)
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        Write-Host "Downloading latest yt-dlp.exe..."
-        Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" -OutFile "publish/yt-dlp.exe"
-        
-        Write-Host "Downloading latest Deno..."
-        Invoke-WebRequest -Uri "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip" -OutFile "deno.zip"
+        $ErrorActionPreference = 'Stop'
+
+        function Get-GithubAsset([string]$repo, [string]$assetName) {
+          $headers = @{
+            'User-Agent' = 'CazadorYTM-CI'
+            'Authorization' = "Bearer $env:GITHUB_TOKEN"
+          }
+          $release = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/releases/latest"
+          $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
+          if (-not $asset) { throw "No se encontró el asset '$assetName' en $repo." }
+
+          $digestValue = [string]$asset.digest
+          $digest = ($digestValue -replace '^sha256:', '').ToLowerInvariant()
+          if ($digest -notmatch '^[0-9a-f]{64}$') { throw "El asset '$assetName' no incluye un digest SHA-256 válido." }
+
+          return @{ Url = $asset.browser_download_url; Sha256 = $digest }
+        }
+
+        function Get-VerifiedFile([string]$repo, [string]$assetName, [string]$outFile) {
+          $asset = Get-GithubAsset $repo $assetName
+          Invoke-WebRequest -Uri $asset.Url -OutFile $outFile
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $outFile).Hash.ToLowerInvariant()
+          if ($actual -ne $asset.Sha256) { throw "Checksum inválido para '$assetName'." }
+        }
+
+        Write-Host "Downloading verified yt-dlp.exe..."
+        Get-VerifiedFile 'yt-dlp/yt-dlp' 'yt-dlp.exe' 'publish/yt-dlp.exe'
+
+        Write-Host "Downloading verified Deno..."
+        Get-VerifiedFile 'denoland/deno' 'deno-x86_64-pc-windows-msvc.zip' 'deno.zip'
         Expand-Archive -Path "deno.zip" -DestinationPath "publish/" -Force
         Remove-Item "deno.zip" -Force
-        
-        Write-Host "Downloading latest FFmpeg binaries..."
-        Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+
+        Write-Host "Downloading verified FFmpeg binaries..."
+        Get-VerifiedFile 'BtbN/FFmpeg-Builds' 'ffmpeg-master-latest-win64-gpl.zip' 'ffmpeg.zip'
         Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_temp" -Force
         $binFolder = Get-ChildItem -Path "ffmpeg_temp" -Recurse -Directory -Filter "bin" | Select-Object -First 1
-        if ($binFolder) {
-            Copy-Item -Path "$($binFolder.FullName)\ffmpeg.exe", "$($binFolder.FullName)\ffprobe.exe", "$($binFolder.FullName)\ffplay.exe" -Destination "publish/" -Force
-        }
+        if (-not $binFolder) { throw "No se encontró la carpeta bin de FFmpeg." }
+        Copy-Item -Path "$($binFolder.FullName)\ffmpeg.exe", "$($binFolder.FullName)\ffprobe.exe", "$($binFolder.FullName)\ffplay.exe" -Destination "publish/" -Force
         Remove-Item "ffmpeg.zip" -Force
         Remove-Item "ffmpeg_temp" -Recurse -Force
 
@@ -62,11 +89,19 @@ jobs:
       run: |
         Compress-Archive -Path "publish/*" -DestinationPath "CazadorYTM-win-x64.zip" -CompressionLevel Optimal
 
+    - name: Create SHA-256 Checksum
+      shell: pwsh
+      run: |
+        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "CazadorYTM-win-x64.zip").Hash.ToLowerInvariant()
+        "$hash  CazadorYTM-win-x64.zip" | Set-Content -LiteralPath "CazadorYTM-win-x64.zip.sha256" -Encoding ascii
+
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: CazadorYTM-win-x64.zip
+        files: |
+          CazadorYTM-win-x64.zip
+          CazadorYTM-win-x64.zip.sha256
         body_path: docs/releases/${{ github.ref_name }}.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -20,6 +20,7 @@ public static class DownloadEngine
     private static readonly Regex AlreadyDownloadedRegex = new(@"\[download\]\s+""?([^""\n]+?)""?\s+has already been downloaded");
     private static readonly Regex MergingRegex = new(@"(?:\[Merger\]\s+)?Merging formats into\s+""?([^""\n]+)""?");
     private static readonly Regex AddingThumbnailRegex = new(@"Adding thumbnail to\s*""?([^""\n]+)""?");
+    private const int DownloadTimeoutMs = 2 * 60 * 60 * 1000;
 
     private static readonly string[] NonRetryablePatterns =
     {
@@ -40,8 +41,7 @@ public static class DownloadEngine
         {
             try
             {
-                var files = Directory.GetFiles(directory, pattern, SearchOption.AllDirectories);
-                foreach (var file in files)
+                foreach (var file in Directory.EnumerateFiles(directory, pattern, SearchOption.AllDirectories))
                 {
                     if (prefix != null)
                     {
@@ -62,20 +62,42 @@ public static class DownloadEngine
 
     public static void KillProcessTree(int pid)
     {
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        if (pid <= 0)
         {
-            try
-            {
-                var psi = new ProcessStartInfo("taskkill", $"/F /T /PID {pid}")
-                {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                };
-                Process.Start(psi)?.WaitForExit();
-            }
-            catch { }
+            return;
         }
+
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(3000);
+            return;
+        }
+        catch
+        {
+        }
+
+        if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+        {
+            return;
+        }
+
+        try
+        {
+            var psi = new ProcessStartInfo("taskkill", $"/F /T /PID {pid}")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+            using var taskkill = Process.Start(psi);
+            if (taskkill is not null && !taskkill.WaitForExit(5000))
+            {
+                try { taskkill.Kill(entireProcessTree: true); } catch { }
+            }
+        }
+        catch { }
     }
 
     public static bool TrimSilenceFfmpeg(string filepath, string? ffmpegLoc = null,
@@ -111,10 +133,13 @@ public static class DownloadEngine
         else
             qualityArgs.AddRange(bitrate != null ? new[] { "-b:a", bitrate } : new[] { "-q:a", "0" });
 
-        var cmd = new List<string> { ffmpegExe, "-y", "-v", "error", "-i", filepath,
-            "-af", "silenceremove=start_threshold=-50dB:start_duration=0.5:stop_threshold=-50dB:stop_duration=0.5:stop_periods=-1" };
-        cmd.AddRange(qualityArgs);
-        cmd.Add(tempFilepath);
+        var args = new List<string>
+        {
+            "-y", "-v", "error", "-i", filepath,
+            "-af", "silenceremove=start_threshold=-50dB:start_duration=0.5:stop_threshold=-50dB:stop_duration=0.5:stop_periods=-1"
+        };
+        args.AddRange(qualityArgs);
+        args.Add(tempFilepath);
 
         var fileSizeMb = new FileInfo(filepath).Length / (1024.0 * 1024.0);
         var dynamicTimeout = Math.Max(60, (int)(fileSizeMb * 15) + 30);
@@ -122,22 +147,15 @@ public static class DownloadEngine
         try
         {
             CheckCancelled(cancelEvent);
-            var psi = new ProcessStartInfo
-            {
-                FileName = cmd[0],
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-            foreach (var arg in cmd.Skip(1))
-                psi.ArgumentList.Add(arg);
+            var result = ProcessRunner.RunAsync(
+                ffmpegExe,
+                args,
+                timeoutMs: dynamicTimeout * 1000,
+                cancellationToken: cancelEvent ?? CancellationToken.None).GetAwaiter().GetResult();
 
-            using var process = Process.Start(psi)!;
-            process.WaitForExit();
             CheckCancelled(cancelEvent);
 
-            if (process.ExitCode == 0 && File.Exists(tempFilepath) && new FileInfo(tempFilepath).Length > 0)
+            if (result.Success && File.Exists(tempFilepath) && new FileInfo(tempFilepath).Length > 0)
             {
                 File.Replace(tempFilepath, filepath, null);
                 return true;
@@ -174,48 +192,38 @@ public static class DownloadEngine
         CheckCancelled(cancelEvent);
 
         var exe = BinaryManager.GetYtDlpPath();
+        if (string.IsNullOrEmpty(exe))
+        {
+            throw new InvalidOperationException("No se encontró yt-dlp.");
+        }
+
         var args = YtDlpArgumentBuilder.Build(formatType, bitrate, sponsorblock, cookiesBrowser,
             playlistItems, rawArgs, ffmpegLocation, proxy, normalize, embedLyrics,
             cookiesPath: cookiesPath);
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = exe,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
-
-        psi.ArgumentList.Add(args[0]);
-        foreach (var arg in args.Skip(1))
-            psi.ArgumentList.Add(arg);
-        psi.ArgumentList.Add("-o");
-        psi.ArgumentList.Add(outputTemplate);
-        psi.ArgumentList.Add("--no-playlist");
-        psi.ArgumentList.Add(url);
-
-        using var process = Process.Start(psi)!;
+        args.Add("-o");
+        args.Add(outputTemplate);
+        args.Add("--no-playlist");
+        args.Add("--");
+        args.Add(url);
 
         var finalFilepath = string.Empty;
         var lastLogPct = -10;
         var nonRetryableFound = false;
         var lastErrorLine = string.Empty;
+        var lineLock = new object();
+        double lastDispatchedPct = -1;
+        var progressDict = new Dictionary<string, string>(4);
 
-        try
+        void ProcessLine(string? line)
         {
-            double lastDispatchedPct = -1;
-            var progressDict = new Dictionary<string, string>(4);
+            if (string.IsNullOrEmpty(line)) return;
 
-            void ProcessLine(string? line)
+            var cleanLine = AnsiEscapeRegex.Replace(line, "").Trim();
+            if (string.IsNullOrEmpty(cleanLine)) return;
+
+            lock (lineLock)
             {
-                if (string.IsNullOrEmpty(line)) return;
-
-                var cleanLine = AnsiEscapeRegex.Replace(line, "").Trim();
-                if (string.IsNullOrEmpty(cleanLine)) return;
-
                 if (cleanLine.StartsWith("[download]", StringComparison.OrdinalIgnoreCase))
                 {
                     if (cleanLine.Contains("Destination:", StringComparison.OrdinalIgnoreCase))
@@ -286,37 +294,32 @@ public static class DownloadEngine
                     loggerCallback?.Invoke(Helpers.SanitizeLogMessage($"[yt-dlp] {cleanLine}"));
                 }
             }
-
-            process.OutputDataReceived += (s, e) => ProcessLine(e.Data);
-            process.ErrorDataReceived += (s, e) => ProcessLine(e.Data);
-
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            while (!process.WaitForExit(150))
-            {
-                if (cancelEvent != null && cancelEvent.Value.IsCancellationRequested)
-                {
-                    KillProcessTree(process.Id);
-                    throw new DownloadCancelled("Descarga cancelada por el usuario.");
-                }
-            }
         }
-        finally
+
+        var runResult = ProcessRunner.RunAsync(
+            exe,
+            args,
+            timeoutMs: DownloadTimeoutMs,
+            cancellationToken: cancelEvent ?? CancellationToken.None,
+            outputLineCallback: ProcessLine,
+            errorLineCallback: ProcessLine).GetAwaiter().GetResult();
+
+        if (runResult.Canceled)
         {
-            if (!process.HasExited)
-            {
-                KillProcessTree(process.Id);
-            }
-            process.WaitForExit();
-
-            if (progressCallback != null && (cancelEvent == null || !cancelEvent.Value.IsCancellationRequested))
-            {
-                progressCallback?.Invoke(new Dictionary<string, string> { { "status", "finished" } });
-            }
+            throw new DownloadCancelled("Descarga cancelada por el usuario.");
         }
 
-        var retCode = process.ExitCode;
+        if (runResult.TimedOut)
+        {
+            loggerCallback?.Invoke("[AVISO] La descarga superó el tiempo máximo permitido y fue detenida.");
+        }
+
+        if (progressCallback != null && !runResult.TimedOut)
+        {
+            progressCallback(new Dictionary<string, string> { { "status", "finished" } });
+        }
+
+        var retCode = runResult.ExitCode;
 
         if (retCode == 0)
         {
@@ -550,55 +553,43 @@ public static class DownloadEngine
     public static string? ExtractStreamUrl(string queryOrUrl, string? cookiesBrowser = null)
     {
         var exe = BinaryManager.GetYtDlpPath();
-        var psi = new ProcessStartInfo
+        if (string.IsNullOrEmpty(exe))
         {
-            FileName = exe,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
+            return null;
+        }
 
-        psi.ArgumentList.Add("-g");
-        psi.ArgumentList.Add("-f");
-        psi.ArgumentList.Add("ba/b");
-        psi.ArgumentList.Add("--no-playlist");
+        var args = new List<string>
+        {
+            "--ignore-config",
+            "-g",
+            "-f",
+            "ba/b",
+            "--no-playlist"
+        };
 
         if (!string.IsNullOrEmpty(cookiesBrowser) && cookiesBrowser.ToLower() != "ninguno")
         {
-            psi.ArgumentList.Add("--cookies-from-browser");
-            psi.ArgumentList.Add(cookiesBrowser.ToLower());
+            args.Add("--cookies-from-browser");
+            args.Add(cookiesBrowser.ToLower());
         }
 
+        args.Add("--");
         var isUrl = Helpers.IsUrl(queryOrUrl);
-        if (isUrl)
-        {
-            psi.ArgumentList.Add(queryOrUrl);
-        }
-        else
-        {
-            psi.ArgumentList.Add($"ytsearch1:{queryOrUrl}");
-        }
+        args.Add(isUrl ? queryOrUrl : $"ytsearch1:{queryOrUrl}");
 
         try
         {
-            using var proc = Process.Start(psi);
-            if (proc is null) return null;
+            var result = ProcessRunner.RunAsync(
+                exe,
+                args,
+                timeoutMs: 15000,
+                maxCapturedChars: 1024 * 1024).GetAwaiter().GetResult();
 
-            var output = proc.StandardOutput.ReadToEnd();
-            var exited = proc.WaitForExit(15000);
-
-            if (!exited)
+            if (result.Success && !string.IsNullOrWhiteSpace(result.StandardOutput))
             {
-                KillProcessTree(proc.Id);
-                return null;
-            }
-
-            if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
-            {
-                return output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                return result.StandardOutput
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .FirstOrDefault();
             }
         }
         catch { }

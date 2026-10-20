@@ -41,6 +41,20 @@ public class HelpersTests
         Assert.Equal(expected, result);
     }
 
+    [Theory]
+    [InlineData("https://user:secret@example.com/path", "https://user:********@example.com/path")]
+    [InlineData("token=abc123&x=1", "token=********&x=1")]
+    [InlineData("Password=hunter2", "Password=********")]
+    public void SanitizeLogMessage_RedactsCredentials(string input, string expected)
+        => Assert.Equal(expected, Helpers.SanitizeLogMessage(input));
+
+    [Fact]
+    public void SanitizeLogMessage_TruncatesVeryLongMessages()
+    {
+        var result = Helpers.SanitizeLogMessage(new string('a', 20000));
+        Assert.True(result.Length <= 16385);
+    }
+
     [Fact]
     public void SummarizeResults_AggregatesCountsCorrectly()
     {

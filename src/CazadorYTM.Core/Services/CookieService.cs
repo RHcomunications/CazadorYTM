@@ -35,6 +35,8 @@ public class CookiesStatusInfo
 
 public static class CookieService
 {
+    private const long MaxCookieFileBytes = 20 * 1024 * 1024;
+
     private static readonly string[] AuthCookieKeys = new[]
     {
         "SID", "HSID", "SSID", "LOGIN_INFO", "SAPISID", "APISID", "__Secure-3PSID", "__Secure-1PSID"
@@ -51,15 +53,26 @@ public static class CookieService
 
         try
         {
-            var bytes = File.ReadAllBytes(path);
-            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            var header = new byte[3];
+            var tempPath = path + ".tmp";
+            using (var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                File.WriteAllBytes(path, bytes[3..]);
-                return true;
+                if (input.Read(header, 0, header.Length) < header.Length ||
+                    header[0] != 0xEF || header[1] != 0xBB || header[2] != 0xBF)
+                {
+                    return false;
+                }
+
+                using var output = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                input.CopyTo(output);
             }
+
+            File.Move(tempPath, path, overwrite: true);
+            return true;
         }
         catch
         {
+            try { if (File.Exists(path + ".tmp")) File.Delete(path + ".tmp"); } catch { }
         }
 
         return false;
@@ -86,12 +99,15 @@ public static class CookieService
             info.FileSizeBytes = fileInfo.Length;
             info.LastModified = fileInfo.LastWriteTime;
 
-            var content = File.ReadAllText(targetPath);
-            var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            if (fileInfo.Length > MaxCookieFileBytes)
+            {
+                return info;
+            }
+
             int count = 0;
             var detected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var line in lines)
+            foreach (var line in File.ReadLines(targetPath))
             {
                 var trimmed = line.Trim();
                 if (trimmed.StartsWith("#") && !trimmed.StartsWith("#HttpOnly_")) continue;
@@ -148,61 +164,68 @@ public static class CookieService
                 }
 
                 var tempCookiesTxt = Path.Combine(Helpers.GetAppDataDir(), "temp_extracted_cookies.txt");
-                if (File.Exists(tempCookiesTxt))
+                try
                 {
-                    try { File.Delete(tempCookiesTxt); } catch { }
+                    if (File.Exists(tempCookiesTxt))
+                    {
+                        try { File.Delete(tempCookiesTxt); } catch { }
+                    }
+
+                    logger?.Invoke($"[COOKIES] Extrayendo cookies desde {browser}...");
+
+                    var args = new List<string>
+                    {
+                        "--ignore-config",
+                        "--cookies-from-browser",
+                        browser.ToLower(),
+                        "--cookies",
+                        tempCookiesTxt,
+                        "--skip-download",
+                        "--no-warnings",
+                        "--",
+                        "https://www.youtube.com/robots.txt"
+                    };
+
+                    var runResult = ProcessRunner.RunAsync(exe, args, timeoutMs: 45000).GetAwaiter().GetResult();
+                    var combinedErr = $"{runResult.StandardOutput}\n{runResult.StandardError}";
+
+                    if (combinedErr.Contains("DPAPI", StringComparison.OrdinalIgnoreCase) ||
+                        combinedErr.Contains("Failed to decrypt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger?.Invoke("[COOKIES] El navegador tiene protección de cifrado DPAPI activa.");
+                        return (false, $"El navegador '{browser}' bloquea el acceso directo por protección de cifrado DPAPI de Windows.\n\n" +
+                                       "Te recomendamos usar la Vía 2 (Asistente con la extensión 'Get cookies.txt LOCALLY' en youtube.com/robots.txt) " +
+                                       "para obtener tus cookies en un clic sin este bloqueo.");
+                    }
+
+                    if (!File.Exists(tempCookiesTxt) || new FileInfo(tempCookiesTxt).Length == 0)
+                    {
+                        return (false, $"No se pudieron extraer cookies desde {browser}. Asegúrate de cerrar el navegador o de que hayas iniciado sesión en YouTube.");
+                    }
+
+                    var rawNetscape = File.ReadAllText(tempCookiesTxt, Encoding.UTF8);
+
+                    if (asJson)
+                    {
+                        var jsonContent = NetscapeToJson(rawNetscape);
+                        var jsonPath = Path.ChangeExtension(targetPath, ".json");
+                        File.WriteAllText(jsonPath, jsonContent, Utf8NoBom);
+                    }
+
+                    File.WriteAllText(targetPath, rawNetscape, Utf8NoBom);
+
+                    var status = GetCookiesStatus(targetPath);
+                    var authNote = status.HasYouTubeAuthCookies
+                        ? " (Sesión de YouTube verificada correctamente)"
+                        : " (Advertencia: No se detectaron tokens de sesión; asegúrate de haber iniciado sesión en YouTube en dicho navegador)";
+
+                    logger?.Invoke($"[COOKIES] Cookies extraídas con éxito: {status.EstimatedCookieCount} cookies guardadas.");
+                    return (true, $"¡Cookies extraídas y guardadas exitosamente desde {browser}! {status.EstimatedCookieCount} cookies registradas{authNote}.");
                 }
-
-                logger?.Invoke($"[COOKIES] Extrayendo cookies desde {browser}...");
-
-                var args = new List<string>
+                finally
                 {
-                    "--cookies-from-browser",
-                    browser.ToLower(),
-                    "--cookies",
-                    tempCookiesTxt,
-                    "--skip-download",
-                    "--no-warnings",
-                    "https://www.youtube.com/robots.txt"
-                };
-
-                var runResult = ProcessRunner.RunAsync(exe, args, timeoutMs: 45000).GetAwaiter().GetResult();
-                var combinedErr = $"{runResult.StandardOutput}\n{runResult.StandardError}";
-
-                if (combinedErr.Contains("DPAPI", StringComparison.OrdinalIgnoreCase) ||
-                    combinedErr.Contains("Failed to decrypt", StringComparison.OrdinalIgnoreCase))
-                {
-                    logger?.Invoke("[COOKIES] El navegador tiene protección de cifrado DPAPI activa.");
-                    return (false, $"El navegador '{browser}' bloquea el acceso directo por protección de cifrado DPAPI de Windows.\n\n" +
-                                   "Te recomendamos usar la Vía 2 (Asistente con la extensión 'Get cookies.txt LOCALLY' en youtube.com/robots.txt) " +
-                                   "para obtener tus cookies en un clic sin este bloqueo.");
+                    try { if (File.Exists(tempCookiesTxt)) File.Delete(tempCookiesTxt); } catch { }
                 }
-
-                if (!File.Exists(tempCookiesTxt) || new FileInfo(tempCookiesTxt).Length == 0)
-                {
-                    return (false, $"No se pudieron extraer cookies desde {browser}. Asegúrate de cerrar el navegador o de que hayas iniciado sesión en YouTube.");
-                }
-
-                var rawNetscape = File.ReadAllText(tempCookiesTxt, Encoding.UTF8);
-
-                if (asJson)
-                {
-                    var jsonContent = NetscapeToJson(rawNetscape);
-                    var jsonPath = Path.ChangeExtension(targetPath, ".json");
-                    File.WriteAllText(jsonPath, jsonContent, Utf8NoBom);
-                }
-
-                File.WriteAllText(targetPath, rawNetscape, Utf8NoBom);
-
-                try { File.Delete(tempCookiesTxt); } catch { }
-
-                var status = GetCookiesStatus(targetPath);
-                var authNote = status.HasYouTubeAuthCookies
-                    ? " (Sesión de YouTube verificada correctamente)"
-                    : " (Advertencia: No se detectaron tokens de sesión; asegúrate de haber iniciado sesión en YouTube en dicho navegador)";
-
-                logger?.Invoke($"[COOKIES] Cookies extraídas con éxito: {status.EstimatedCookieCount} cookies guardadas.");
-                return (true, $"¡Cookies extraídas y guardadas exitosamente desde {browser}! {status.EstimatedCookieCount} cookies registradas{authNote}.");
             }
             catch (Exception ex)
             {
@@ -288,6 +311,11 @@ public static class CookieService
                     return (false, "No existe el archivo de cookies de origen para exportar.");
                 }
 
+                if (new FileInfo(sourcePath).Length > MaxCookieFileBytes)
+                {
+                    return (false, "El archivo de cookies supera el tamaño máximo permitido (20 MB).");
+                }
+
                 var content = File.ReadAllText(sourcePath, Encoding.UTF8);
                 var destDir = Path.GetDirectoryName(destinationPath);
                 if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
@@ -325,6 +353,11 @@ public static class CookieService
                 if (!File.Exists(sourcePath))
                 {
                     return (false, "El archivo seleccionado no existe.");
+                }
+
+                if (new FileInfo(sourcePath).Length > MaxCookieFileBytes)
+                {
+                    return (false, "El archivo de cookies supera el tamaño máximo permitido (20 MB).");
                 }
 
                 var content = File.ReadAllText(sourcePath, Encoding.UTF8);

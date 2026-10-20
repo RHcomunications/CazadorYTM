@@ -30,6 +30,11 @@ public sealed class YouTubeMusicSession
             return null;
         }
 
+        if (new FileInfo(cookiesPath).Length > 20 * 1024 * 1024)
+        {
+            return null;
+        }
+
         string[] lines;
         try
         {

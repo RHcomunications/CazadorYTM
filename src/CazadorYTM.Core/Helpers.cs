@@ -137,6 +137,7 @@ public static class Helpers
     public static string SanitizeLogMessage(string msg)
     {
         if (string.IsNullOrEmpty(msg)) return string.Empty;
+        if (msg.Length > 16384) msg = msg[..16384] + "…";
         msg = Regex.Replace(msg, @"(https?://[^:]+:)([^@\s]+)(@[a-zA-Z0-9.-]+)", "$1********$3");
         msg = Regex.Replace(msg, @"((?:token|key|sig|pass|password|signature|cookies)=)([^&\s#\)'\""]+)", "$1********", RegexOptions.IgnoreCase);
         return msg;

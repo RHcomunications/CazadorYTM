@@ -10,11 +10,23 @@ using System.Text.RegularExpressions;
 public static class Parsers
 {
     private static readonly Regex ArtistSplitRegex = new(@"[,;]|\s+/\s+", RegexOptions.Compiled);
+    private const int MaxInputChars = 10 * 1024 * 1024;
+    private const int MaxEntries = 20000;
 
     public static List<string> ParseSongList(string filePathOrContent)
     {
+        if (filePathOrContent.Length > MaxInputChars)
+        {
+            throw new InvalidDataException("La lista supera el tamaño máximo permitido (10 MB).");
+        }
+
         if (File.Exists(filePathOrContent))
         {
+            if (new FileInfo(filePathOrContent).Length > MaxInputChars)
+            {
+                throw new InvalidDataException("La lista supera el tamaño máximo permitido (10 MB).");
+            }
+
             if (filePathOrContent.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             {
                 var csvResult = ParseSpotifyCsv(filePathOrContent);
@@ -23,8 +35,8 @@ public static class Parsers
             return ParsePlainTextSongs(filePathOrContent);
         }
 
-        // For raw multiline CSV text pasted directly
-        var firstLine = filePathOrContent.Split('\n').FirstOrDefault()?.ToLower().Trim() ?? "";
+        var firstNewline = filePathOrContent.IndexOf('\n');
+        var firstLine = (firstNewline >= 0 ? filePathOrContent[..firstNewline] : filePathOrContent).ToLowerInvariant().Trim();
         if ((firstLine.Contains("track") || firstLine.Contains("title") || firstLine.Contains("canción") || firstLine.Contains("nombre")) &&
             (firstLine.Contains("artist") || firstLine.Contains("artista") || firstLine.Contains("uri") || firstLine.Contains("spotify") || firstLine.Contains(',') || firstLine.Contains(';')))
         {
@@ -40,6 +52,8 @@ public static class Parsers
         string content;
         if (File.Exists(filePathOrContent))
         {
+            if (new FileInfo(filePathOrContent).Length > MaxInputChars)
+                throw new InvalidDataException("La lista supera el tamaño máximo permitido (10 MB).");
             content = File.ReadAllText(filePathOrContent, Encoding.UTF8);
         }
         else
@@ -47,8 +61,11 @@ public static class Parsers
             content = filePathOrContent;
         }
 
+        if (content.Length > MaxInputChars)
+            throw new InvalidDataException("La lista supera el tamaño máximo permitido (10 MB).");
+
         content = content.TrimStart('\ufeff');
-        var lines = content.Split('\n').Select(l => l.Replace("\r", "")).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        var lines = content.Split('\n').Select(l => l.Replace("\r", "")).Where(l => !string.IsNullOrWhiteSpace(l)).Take(MaxEntries + 1).ToList();
         if (lines.Count == 0)
             return new List<string>();
 
@@ -103,7 +120,7 @@ public static class Parsers
         var hasHeader = header.Any(kw => kw.ToLower().Contains("track") || kw.ToLower().Contains("title") || kw.ToLower().Contains("artist") || kw.ToLower().Contains("uri"));
         var startRow = hasHeader ? 1 : 0;
 
-        for (var rowIdx = startRow; rowIdx < allRows.Count; rowIdx++)
+        for (var rowIdx = startRow; rowIdx < allRows.Count && queries.Count < MaxEntries; rowIdx++)
         {
             var row = allRows[rowIdx];
             if (row.Length == 0) continue;
@@ -135,6 +152,8 @@ public static class Parsers
         string content;
         if (File.Exists(filePathOrContent))
         {
+            if (new FileInfo(filePathOrContent).Length > MaxInputChars)
+                throw new InvalidDataException("La lista supera el tamaño máximo permitido (10 MB).");
             content = File.ReadAllText(filePathOrContent, Encoding.UTF8);
         }
         else
@@ -142,10 +161,15 @@ public static class Parsers
             content = filePathOrContent;
         }
 
+        if (content.Length > MaxInputChars)
+            throw new InvalidDataException("La lista supera el tamaño máximo permitido (10 MB).");
+
         content = content.TrimStart('\ufeff');
         var results = new List<string>();
         foreach (var line in content.Split('\n'))
         {
+            if (results.Count >= MaxEntries) break;
+
             var cleanLine = line.Replace("\r", "").Trim().TrimStart('\ufeff');
             if (!string.IsNullOrEmpty(cleanLine) && !cleanLine.StartsWith('#'))
                 results.Add(cleanLine);

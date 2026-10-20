@@ -266,7 +266,11 @@ public partial class MainViewModel : ObservableObject
 
                     var baseDir = Helpers.GetBaseDir();
                     NotificationService.Instance.Notify("Descargando actualización", "La actualización se está descargando en segundo plano...", NotificationType.Info);
-                    await AppUpdaterService.DownloadAndApplyUpdateAsync(info.AssetDownloadUrl, baseDir);
+                    await AppUpdaterService.DownloadAndApplyUpdateAsync(
+                        info.AssetDownloadUrl,
+                        baseDir,
+                        expectedSha256: info.AssetSha256,
+                        checksumUrl: info.ChecksumDownloadUrl);
                     Application.Current?.Dispatcher.Invoke(() => Application.Current.Shutdown());
                 }
             }

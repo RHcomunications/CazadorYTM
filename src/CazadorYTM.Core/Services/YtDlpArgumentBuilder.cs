@@ -15,6 +15,7 @@ public static class YtDlpArgumentBuilder
     {
         var args = new List<string>
         {
+            "--ignore-config",
             "--concurrent-fragments", "5",
             "--embed-thumbnail",
             "--embed-metadata",
@@ -97,15 +98,30 @@ public static class YtDlpArgumentBuilder
 
         if (!string.IsNullOrEmpty(rawArgs))
         {
-            var rawArgList = SplitRawArgs(rawArgs);
-            args.AddRange(rawArgList);
+            args.AddRange(SplitRawArgs(rawArgs));
         }
 
         return args;
     }
 
+    private static readonly HashSet<string> BlockedRawOptions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "--", "--config-location", "--exec", "--exec-before-download",
+        "--batch-file", "--load-info-json", "--cookies", "--cookies-from-browser",
+        "--output", "-o", "--paths", "-P", "--print-to-file",
+        "--username", "-u", "--password", "-p", "--video-password", "--netrc",
+        "--client-certificate", "--ca-certificate", "--proxy",
+        "--downloader", "--external-downloader", "--downloader-args",
+        "--postprocessor-args", "--update", "--update-to", "--plugin-dirs"
+    };
+
     private static List<string> SplitRawArgs(string rawArgs)
     {
+        if (rawArgs.Length > 4096)
+        {
+            throw new ArgumentException("Los argumentos adicionales superan el límite permitido.", nameof(rawArgs));
+        }
+
         var result = new List<string>();
         var current = new StringBuilder();
         var inQuotes = false;
@@ -119,6 +135,22 @@ public static class YtDlpArgumentBuilder
             else { current.Append(ch); }
         }
         if (current.Length > 0) result.Add(current.ToString());
+
+        foreach (var arg in result)
+        {
+            var option = arg.Split('=', 2)[0];
+            if (BlockedRawOptions.Contains(option))
+            {
+                throw new ArgumentException($"El argumento adicional '{option}' no está permitido.", nameof(rawArgs));
+            }
+
+            if (arg.Length > 1 && arg[0] == '-' && arg[1] != '-' &&
+                "oPup".Contains(char.ToLowerInvariant(arg[1])))
+            {
+                throw new ArgumentException($"El argumento adicional '{arg[..2]}' no está permitido.", nameof(rawArgs));
+            }
+        }
+
         return result;
     }
 }

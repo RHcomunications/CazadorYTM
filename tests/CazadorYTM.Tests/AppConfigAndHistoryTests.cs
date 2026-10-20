@@ -103,6 +103,7 @@ public class HistoryManagerTests : IDisposable
 
     public void Dispose()
     {
+        HistoryManager.FlushAll();
         if (File.Exists(_tempHistoryPath))
         {
             try { File.Delete(_tempHistoryPath); } catch { }
@@ -195,6 +196,20 @@ public class HistoryManagerTests : IDisposable
         var entries = reloaded.GetEntries();
         Assert.Single(entries);
         Assert.Equal("Debounced Song", entries[0].Title);
+    }
+
+    [Fact]
+    public void HistoryManager_FlushAll_PersistsAllInstances()
+    {
+        var history = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 5000);
+        history.Add("FlushAll Song", "https://youtube.com/watch?v=flushall", "mp3", "OK");
+
+        HistoryManager.FlushAll();
+
+        var reloaded = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 0);
+        var entries = reloaded.GetEntries();
+        Assert.Single(entries);
+        Assert.Equal("FlushAll Song", entries[0].Title);
     }
 }
 

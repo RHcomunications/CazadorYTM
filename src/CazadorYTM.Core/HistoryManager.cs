@@ -10,6 +10,8 @@ using CazadorYTM.Core.Models;
 public class HistoryManager
 {
     private static readonly object _fileLock = new();
+    private static readonly object _instancesLock = new();
+    private static readonly List<WeakReference<HistoryManager>> _instances = new();
     private readonly string _path;
 
     private readonly object _stateLock = new();
@@ -31,6 +33,35 @@ public class HistoryManager
         {
             var appData = Helpers.GetAppDataDir();
             _path = Path.Combine(appData, Constants.HistoryFilename);
+        }
+
+        lock (_instancesLock)
+        {
+            _instances.Add(new WeakReference<HistoryManager>(this));
+        }
+    }
+
+    public static void FlushAll()
+    {
+        List<HistoryManager> alive = new();
+        lock (_instancesLock)
+        {
+            for (var i = _instances.Count - 1; i >= 0; i--)
+            {
+                if (_instances[i].TryGetTarget(out var manager))
+                {
+                    alive.Add(manager);
+                }
+                else
+                {
+                    _instances.RemoveAt(i);
+                }
+            }
+        }
+
+        foreach (var manager in alive)
+        {
+            manager.Flush();
         }
     }
 
@@ -56,11 +87,17 @@ public class HistoryManager
             {
                 try
                 {
+                    if (new FileInfo(_path).Length > 20 * 1024 * 1024) return new List<DownloadHistoryRecord>();
                     var json = File.ReadAllText(_path);
                     if (!string.IsNullOrWhiteSpace(json))
                     {
                         var data = JsonHelper.Deserialize<List<DownloadHistoryRecord>>(json);
-                        if (data != null) return data;
+                        if (data != null)
+                        {
+                            return data.Count > 500
+                                ? data.GetRange(data.Count - 500, 500)
+                                : data;
+                        }
                     }
                 }
                 catch { }

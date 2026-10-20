@@ -2,7 +2,6 @@ namespace CazadorYTM.Gui.Services;
 
 using System;
 using System.Windows.Threading;
-using CazadorYTM.Core;
 
 public sealed class ClipboardLinkMonitor : IDisposable
 {
@@ -44,9 +43,22 @@ public sealed class ClipboardLinkMonitor : IDisposable
         catch { }
     }
 
-    public static bool IsSupportedLink(string text) =>
-        Helpers.IsUrl(text) &&
-        (text.Contains("youtube.com/") || text.Contains("youtu.be/") || text.Contains("soundcloud.com/"));
+    public static bool IsSupportedLink(string text)
+    {
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return false;
+        }
+
+        return IsHostOrSubdomain(uri.Host, "youtube.com") ||
+               IsHostOrSubdomain(uri.Host, "youtu.be") ||
+               IsHostOrSubdomain(uri.Host, "soundcloud.com");
+    }
+
+    private static bool IsHostOrSubdomain(string host, string domain) =>
+        host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
 
     public void Dispose() => _timer.Stop();
 }

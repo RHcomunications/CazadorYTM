@@ -10,23 +10,11 @@ using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Views;
 using CazadorYTM.Gui.ViewModels;
 
-public interface IDialogService
-{
-    string? SelectFolder(string? initialDirectory = null);
-    string? SelectFile(string filter, string? initialDirectory = null);
-    string? SaveFile(string defaultFileName, string filter);
-    void ShowMessage(string message, string title = "Cazador YTM", MessageBoxImage icon = MessageBoxImage.Information);
-    bool ShowConfirmation(string message, string? title = null);
-    List<DownloadEntry>? ShowTrackSelectionDialog(string title, string typeDescription, List<DownloadEntry> tracks);
-    PlaylistSelection? ShowPlaylistPicker(string trackTitle, IReadOnlyList<RadarItem> playlists);
-    DownloadFormatChoice? ShowDownloadFormatDialog(string trackTitle, string defaultFormat, string defaultBitrate);
-}
-
 public sealed record PlaylistSelection(string? PlaylistId, string? NewPlaylistTitle);
 
 public sealed record DownloadFormatChoice(bool UseDefault, string Format, string Bitrate);
 
-public class DialogService : IDialogService
+public class DialogService
 {
     private static readonly Lazy<DialogService> _instance = new(() => new DialogService());
     public static DialogService Instance => _instance.Value;

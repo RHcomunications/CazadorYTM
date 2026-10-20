@@ -43,18 +43,27 @@ public class AudioTranscodeCache
             var psi = new ProcessStartInfo
             {
                 FileName = ffmpegExe,
-                Arguments = $"-y -v error -i \"{sourcePath}\" -vn -c:a pcm_s16le \"{tempWav}\"",
                 CreateNoWindow = true,
                 UseShellExecute = false
             };
+            psi.ArgumentList.Add("-y");
+            psi.ArgumentList.Add("-v");
+            psi.ArgumentList.Add("error");
+            psi.ArgumentList.Add("-i");
+            psi.ArgumentList.Add(sourcePath);
+            psi.ArgumentList.Add("-vn");
+            psi.ArgumentList.Add("-c:a");
+            psi.ArgumentList.Add("pcm_s16le");
+            psi.ArgumentList.Add(tempWav);
 
             using var process = Process.Start(psi);
             if (process == null) return null;
 
+            ProcessTracker.Track(process);
             var exited = process.WaitForExit(15000);
             if (!exited)
             {
-                try { process.Kill(); } catch { }
+                try { process.Kill(entireProcessTree: true); } catch { }
                 return null;
             }
 
@@ -88,6 +97,8 @@ public class AudioTranscodeCache
 
                 return tempWav;
             }
+
+            try { if (File.Exists(tempWav)) File.Delete(tempWav); } catch { }
         }
         catch (Exception ex)
         {
@@ -112,15 +123,5 @@ public class AudioTranscodeCache
             _lruOrder.Clear();
             _currentTempWav = null;
         }
-
-        try
-        {
-            var tempDir = Path.Combine(Path.GetTempPath(), "CazadorYTM_Player");
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, true);
-            }
-        }
-        catch { }
     }
 }

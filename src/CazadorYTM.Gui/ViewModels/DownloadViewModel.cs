@@ -184,6 +184,12 @@ public partial class DownloadViewModel : ObservableObject
     {
         try
         {
+            if (new FileInfo(file).Length > 10 * 1024 * 1024)
+            {
+                DialogService.Instance.ShowMessage("La lista supera el tamaño máximo permitido (10 MB).", LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
+                return;
+            }
+
             var content = File.ReadAllText(file);
             var tracks = Parsers.ParseSongList(content);
             if (!tracks.Any())
@@ -222,7 +228,7 @@ public partial class DownloadViewModel : ObservableObject
 
         IsBusy = true;
         StatusText = "Analizando entrada y buscando metadatos...";
-        LogService.Instance.Info($"Búsqueda iniciada para: {InputText}");
+        LogService.Instance.Info($"Búsqueda iniciada para: {Helpers.SanitizeLogMessage(InputText)}");
 
         var fromRadar = _isRadarImport;
         _isRadarImport = false;
@@ -426,7 +432,9 @@ public partial class DownloadViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+            var cts = _downloadCts;
             _downloadCts = null;
+            cts?.Dispose();
         }
     }
 
@@ -594,7 +602,9 @@ public partial class DownloadViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+            var cts = _downloadCts;
             _downloadCts = null;
+            cts?.Dispose();
             Application.Current?.Dispatcher.Invoke(() =>
             {
                 HasActiveBatchSlots = false;

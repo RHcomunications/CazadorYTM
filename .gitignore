@@ -29,9 +29,5 @@ cazador_config.json
 downloads_history.json
 *.log
 
-# Non-Cazador workspace files
-BibliotecaSagradaHindu/
-HinduScriptures*
-Iniciar-Biblioteca-Hindu*
-LEEME_ACCESIBILIDAD.txt
+# Agent artifacts
 .agents/

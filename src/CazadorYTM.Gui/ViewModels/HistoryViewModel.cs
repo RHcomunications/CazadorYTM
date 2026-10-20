@@ -104,8 +104,8 @@ public partial class HistoryViewModel : ObservableObject
             {
                 try
                 {
-                    var matches = Directory.GetFiles(destFolder, $"*{target.Title}*");
-                    if (matches.Length > 0) return matches[0];
+                    var match = Directory.EnumerateFiles(destFolder, $"*{target.Title}*").FirstOrDefault();
+                    if (match != null) return match;
                 }
                 catch { }
             }

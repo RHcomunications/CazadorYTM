@@ -85,9 +85,12 @@ public class ClipboardLinkMonitorTests
 
     [Theory]
     [InlineData("https://www.youtube.com/watch?v=abc", true)]
+    [InlineData("https://music.youtube.com/watch?v=abc", true)]
     [InlineData("https://youtu.be/abc", true)]
     [InlineData("https://soundcloud.com/artist/track", true)]
     [InlineData("https://open.spotify.com/track/abc", false)]
+    [InlineData("https://evil.com/youtube.com/watch?v=abc", false)]
+    [InlineData("https://youtube.com.evil.com/watch?v=abc", false)]
     [InlineData("no es una url", false)]
     public void IsSupportedLink_DetectsSupportedHosts(string text, bool expected)
         => Assert.Equal(expected, ClipboardLinkMonitor.IsSupportedLink(text));

@@ -123,6 +123,7 @@ public class AppConfig
             if (!File.Exists(_path)) return;
             try
             {
+                if (new FileInfo(_path).Length > 10 * 1024 * 1024) return;
                 var json = File.ReadAllText(_path);
                 var saved = JsonHelper.Deserialize<Dictionary<string, JsonElement>>(json);
                 if (saved != null)

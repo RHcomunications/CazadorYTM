@@ -38,6 +38,28 @@ public static class BinaryUpdateHelpers
         }
     }
 
+    public static void SafeCopyFile(string sourcePath, string targetPath)
+    {
+        var targetDir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
+            Directory.CreateDirectory(targetDir);
+
+        var stagedPath = targetPath + ".new";
+        try
+        {
+            File.Copy(sourcePath, stagedPath, overwrite: true);
+            SafeReplaceFile(stagedPath, targetPath);
+        }
+        catch
+        {
+            if (File.Exists(stagedPath))
+            {
+                try { File.Delete(stagedPath); } catch { }
+            }
+            throw;
+        }
+    }
+
     public static int CompareVersionStrings(string remote, string local)
     {
         try

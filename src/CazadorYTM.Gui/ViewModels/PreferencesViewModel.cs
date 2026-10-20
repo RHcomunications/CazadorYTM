@@ -160,8 +160,9 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                         info.AssetDownloadUrl,
                         baseDir,
                         msg => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = msg),
-                        pct => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = $"Descargando actualización ({pct}%)...")
-                    );
+                        pct => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = $"Descargando actualización ({pct}%)..."),
+                        info.AssetSha256,
+                        info.ChecksumDownloadUrl);
 
                     Application.Current?.Dispatcher.Invoke(() => Application.Current.Shutdown());
                 }

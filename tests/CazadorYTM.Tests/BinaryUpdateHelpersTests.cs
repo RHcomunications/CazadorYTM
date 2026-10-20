@@ -60,6 +60,20 @@ public class BinaryUpdateHelpersTests : IDisposable
     }
 
     [Fact]
+    public void SafeCopyFile_KeepsSourceAndReplacesTarget()
+    {
+        var source = Path.Combine(_dir, "source-copy.bin");
+        var target = Path.Combine(_dir, "target-copy.bin");
+        File.WriteAllText(source, "nuevo");
+        File.WriteAllText(target, "viejo");
+
+        BinaryUpdateHelpers.SafeCopyFile(source, target);
+
+        Assert.True(File.Exists(source));
+        Assert.Equal("nuevo", File.ReadAllText(target));
+    }
+
+    [Fact]
     public void SafeReplaceFile_CreatesTargetDirectory()
     {
         var source = Path.Combine(_dir, "source3.bin");

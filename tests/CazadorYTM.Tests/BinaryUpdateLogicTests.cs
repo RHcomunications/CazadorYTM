@@ -45,6 +45,59 @@ public class BinaryUpdateLogicTests
         => Assert.Null(BinaryUpdateLogic.ParseGithubTag("<html>"));
 
     [Fact]
+    public void ParseGithubAsset_ReadsUrlAndDigest()
+    {
+        const string json = """
+            {
+              "assets": [
+                {
+                  "name": "yt-dlp.exe",
+                  "browser_download_url": "https://example.com/yt-dlp.exe",
+                  "digest": "sha256:ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"
+                }
+              ]
+            }
+            """;
+
+        var asset = BinaryUpdateLogic.ParseGithubAsset(json, "yt-dlp.exe");
+
+        Assert.NotNull(asset);
+        Assert.Equal("https://example.com/yt-dlp.exe", asset!.DownloadUrl);
+        Assert.Equal("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", asset.Sha256);
+    }
+
+    [Fact]
+    public void ParseGithubAsset_MissingDigest_ReturnsAssetWithoutHash()
+    {
+        const string json = """
+            {
+              "assets": [
+                { "name": "yt-dlp.exe", "browser_download_url": "https://example.com/yt-dlp.exe" }
+              ]
+            }
+            """;
+
+        var asset = BinaryUpdateLogic.ParseGithubAsset(json, "yt-dlp.exe");
+
+        Assert.NotNull(asset);
+        Assert.Null(asset!.Sha256);
+    }
+
+    [Fact]
+    public void ParseGithubAsset_UnknownAsset_ReturnsNull()
+    {
+        const string json = """
+            {
+              "assets": [
+                { "name": "other.exe", "browser_download_url": "https://example.com/other.exe" }
+              ]
+            }
+            """;
+
+        Assert.Null(BinaryUpdateLogic.ParseGithubAsset(json, "yt-dlp.exe"));
+    }
+
+    [Fact]
     public void ParseFfmpegBuildDate_FormatsPublishedAt()
         => Assert.Equal("2024.05.06", BinaryUpdateLogic.ParseFfmpegBuildDate("{\"published_at\":\"2024-05-06T12:00:00Z\"}"));
 
