@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.modernwpf.com/2019"
         xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+        xmlns:acc="clr-namespace:CazadorYTM.Gui.Accessibility"
         Title="{loc:Loc CookiesWindowTitle}"
         Height="540" Width="680"
         MinHeight="460" MinWidth="580"
@@ -34,7 +35,8 @@
                 <TextBlock Grid.Column="0" Text="{Binding StatusSummary}" TextWrapping="Wrap"
                            VerticalAlignment="Center" FontSize="12" FontWeight="Medium"
                            AutomationProperties.LiveSetting="Polite"
-                           AutomationProperties.Name="{loc:Loc CookiesStatusHint}"/>
+                           AutomationProperties.Name="{Binding StatusSummary}"
+                           acc:LiveRegion.Announce="{Binding StatusSummary}"/>
                 <Button Grid.Column="1" Content="{loc:Loc OpenFolder}" Command="{Binding OpenCookiesFolderCommand}"
                         Height="28" Padding="10,0" Margin="10,0,0,0" VerticalAlignment="Center"
                         AutomationProperties.Name="{loc:Loc CookiesBtnOpenFolderHint}"/>
@@ -42,7 +44,8 @@
         </Border>
 
         <!-- Main Tab Control for the 3 Methods -->
-        <TabControl Grid.Row="1" Margin="0,0,0,14">
+        <TabControl x:Name="CookiesTabs" Grid.Row="1" Margin="0,0,0,14"
+                    AutomationProperties.Name="{loc:Loc CookiesTabsName}">
 
             <!-- Vía 1: Extracción Automática desde Navegador -->
             <TabItem Header="{loc:Loc CookiesTabExtract}">
@@ -67,7 +70,9 @@
 
                         <TextBlock Text="{Binding AutoExtractStatus}" TextWrapping="Wrap" FontSize="12" FontWeight="Medium"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                   AutomationProperties.LiveSetting="Polite"/>
+                                   AutomationProperties.Name="{Binding AutoExtractStatus}"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   acc:LiveRegion.Announce="{Binding AutoExtractStatus}"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -127,7 +132,9 @@
 
                         <TextBlock Text="{Binding ManualStatus}" TextWrapping="Wrap" FontSize="12" FontWeight="Medium"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                   AutomationProperties.LiveSetting="Polite"/>
+                                   AutomationProperties.Name="{Binding ManualStatus}"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   acc:LiveRegion.Announce="{Binding ManualStatus}"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

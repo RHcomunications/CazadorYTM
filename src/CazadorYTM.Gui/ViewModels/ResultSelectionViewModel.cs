@@ -28,6 +28,7 @@ public partial class SelectableTrackViewModel : ObservableObject
     public string Uploader => string.IsNullOrWhiteSpace(Entry.Uploader) ? "Artista desconocido" : Entry.Uploader;
     public string DurationFormatted => Entry.Duration.HasValue ? Helpers.FormatDuration(Entry.Duration.Value) : "--:--";
     public string DisplayText => $"[{Index} de {Total}] {Title} [{DurationFormatted}] ({Uploader})";
+    public string? VideoId { get; }
 
     public SelectableTrackViewModel(DownloadEntry entry, int index, int total, bool initialSelected = false)
     {
@@ -35,6 +36,7 @@ public partial class SelectableTrackViewModel : ObservableObject
         Index = index;
         Total = total;
         _isSelected = initialSelected;
+        VideoId = RadarActionService.GetVideoId(entry);
     }
 
     public override string ToString() => DisplayText;
@@ -42,6 +44,7 @@ public partial class SelectableTrackViewModel : ObservableObject
 
 public partial class ResultSelectionViewModel : ObservableObject, IDisposable
 {
+    private readonly RadarActionService _radar = new();
     private Process? _previewProcess;
 
     [ObservableProperty]
@@ -100,6 +103,89 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
     {
         var selected = Tracks.Count(t => t.IsSelected);
         SelectedCountText = $"{selected} de {Tracks.Count} seleccionados";
+    }
+
+    public bool CanUseRadarActions => _radar.IsSessionConnected;
+
+    [RelayCommand(CanExecute = nameof(CanActOnTrack))]
+    private async Task LikeTrack(SelectableTrackViewModel? track) =>
+        await ApplyRatingAsync(track, RadarRating.Like);
+
+    [RelayCommand(CanExecute = nameof(CanActOnTrack))]
+    private async Task DislikeTrack(SelectableTrackViewModel? track) =>
+        await ApplyRatingAsync(track, RadarRating.Dislike);
+
+    [RelayCommand(CanExecute = nameof(CanActOnTrack))]
+    private async Task ClearTrackRating(SelectableTrackViewModel? track) =>
+        await ApplyRatingAsync(track, RadarRating.None);
+
+    [RelayCommand(CanExecute = nameof(CanActOnTrack))]
+    private async Task AddTrackToPlaylist(SelectableTrackViewModel? track)
+    {
+        if (track?.VideoId is not { } videoId)
+        {
+            return;
+        }
+
+        var loc = LocalizationService.Instance;
+        var previousStatus = PreviewStatusText;
+        PreviewStatusText = loc["RadarStatusLoadingPlaylists"];
+
+        try
+        {
+            var status = await _radar.AddToPlaylistAsync(videoId, track.Title);
+            if (status == null)
+            {
+                PreviewStatusText = previousStatus;
+                return;
+            }
+
+            PreviewStatusText = status;
+            NotificationService.Instance.Notify("Radar YTM", status, NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            PreviewStatusText = Format(loc["RadarErrorAddToPlaylist"], ex.Message);
+            NotificationService.Instance.NotifyError("Radar YTM", PreviewStatusText);
+            LogService.Instance.Error($"Error al añadir a lista desde resultados: {ex.Message}");
+        }
+    }
+
+    private bool CanActOnTrack(SelectableTrackViewModel? track) =>
+        CanUseRadarActions && track?.VideoId != null;
+
+    private async Task ApplyRatingAsync(SelectableTrackViewModel? track, RadarRating rating)
+    {
+        if (track?.VideoId is not { } videoId)
+        {
+            return;
+        }
+
+        var loc = LocalizationService.Instance;
+        PreviewStatusText = loc["RadarStatusSavingRating"];
+
+        try
+        {
+            var status = await _radar.SetRatingAsync(videoId, track.Title, rating);
+            PreviewStatusText = status;
+            NotificationService.Instance.Notify("Radar YTM", status, NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            PreviewStatusText = Format(loc["RadarErrorRating"], ex.Message);
+            NotificationService.Instance.NotifyError("Radar YTM", PreviewStatusText);
+            LogService.Instance.Error($"Error al valorar pista desde resultados: {ex.Message}");
+        }
+    }
+
+    private static string Format(string template, params string[] values)
+    {
+        for (var i = 0; i < values.Length; i++)
+        {
+            template = template.Replace("{" + i + "}", values[i]);
+        }
+
+        return template;
     }
 
     [RelayCommand]

@@ -18,7 +18,13 @@ public interface IDialogService
     void ShowMessage(string message, string title = "Cazador YTM", MessageBoxImage icon = MessageBoxImage.Information);
     bool ShowConfirmation(string message, string? title = null);
     List<DownloadEntry>? ShowTrackSelectionDialog(string title, string typeDescription, List<DownloadEntry> tracks);
+    PlaylistSelection? ShowPlaylistPicker(string trackTitle, IReadOnlyList<RadarItem> playlists);
+    DownloadFormatChoice? ShowDownloadFormatDialog(string trackTitle, string defaultFormat, string defaultBitrate);
 }
+
+public sealed record PlaylistSelection(string? PlaylistId, string? NewPlaylistTitle);
+
+public sealed record DownloadFormatChoice(bool UseDefault, string Format, string Bitrate);
 
 public class DialogService : IDialogService
 {
@@ -100,5 +106,25 @@ public class DialogService : IDialogService
             return vm.GetSelectedEntries();
         }
         return null;
+    }
+
+    public PlaylistSelection? ShowPlaylistPicker(string trackTitle, IReadOnlyList<RadarItem> playlists)
+    {
+        var dialog = new PlaylistPickerWindow(trackTitle, playlists)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
+        return dialog.ShowDialog() == true ? dialog.Selection : null;
+    }
+
+    public DownloadFormatChoice? ShowDownloadFormatDialog(string trackTitle, string defaultFormat, string defaultBitrate)
+    {
+        var dialog = new DownloadFormatDialog(trackTitle, defaultFormat, defaultBitrate)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
+        return dialog.ShowDialog() == true ? dialog.Choice : null;
     }
 }

@@ -5,6 +5,7 @@
         xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
         xmlns:views="clr-namespace:CazadorYTM.Gui.Views"
         xmlns:vm="clr-namespace:CazadorYTM.Gui.ViewModels"
+        xmlns:acc="clr-namespace:CazadorYTM.Gui.Accessibility"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -36,7 +37,8 @@
         <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding OpenDownloadsFolderCommand}"/>
         
         <!-- Controles globales del Reproductor estilo Spotify -->
-        <KeyBinding Key="Space" Command="{Binding PlayerVM.PlayPauseCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding PlayerVM.PlayPauseCommand}"/>
+        <KeyBinding Key="MediaPlayPause" Command="{Binding PlayerVM.PlayPauseCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="Left" Command="{Binding PlayerVM.PlayPreviousCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="Right" Command="{Binding PlayerVM.PlayNextCommand}"/>
         <KeyBinding Modifiers="Ctrl+Shift" Key="R" Command="{Binding PlayerVM.ToggleRepeatCommand}"/>
@@ -113,8 +115,14 @@
             <Separator/>
             <StatusBarItem>
                 <TextBlock Text="{Binding DownloadVM.StatusText}" FontSize="12"
-                           AutomationProperties.Name="{loc:Loc StatusLabel}"
-                           AutomationProperties.LiveSetting="Polite"/>
+                           AutomationProperties.Name="{Binding DownloadVM.StatusText}"
+                           AutomationProperties.LiveSetting="Polite"
+                           acc:LiveRegion.Announce="{Binding DownloadVM.StatusText}"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <TextBlock x:Name="AppLiveAnnouncer" Width="1" Height="1" Opacity="0.01"
+                           Focusable="False" IsHitTestVisible="False"
+                           AutomationProperties.LiveSetting="Assertive"/>
             </StatusBarItem>
         </StatusBar>
 
@@ -122,9 +130,10 @@
         <TabControl x:Name="MainTabs" 
                     ItemsSource="{Binding OpenTabs}" 
                     SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
-                    SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" 
                     Margin="0"
-                    Focusable="False"
+                    SelectionChanged="MainTabs_SelectionChanged"
+                    AutomationProperties.Name="{loc:Loc MainTabsName}"
+                    AutomationProperties.HelpText="{loc:Loc MainTabsHelpText}"
                     KeyboardNavigation.TabNavigation="Cycle">
             <TabControl.ItemContainerStyle>
                 <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">

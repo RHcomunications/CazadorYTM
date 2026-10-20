@@ -105,8 +105,7 @@ public class RadarViewModelTests
     }
 
     [Fact]
-    public void BackToPlaylists_WhenViewingDetails_ExitsDetailsMode()
-    {
+    public void BackToPlaylists_WhenViewingDetails_ExitsDetailsMode()    {
         var vm = new RadarViewModel();
         vm.IsViewingPlaylistDetails = true;
         vm.CurrentPlaylistTitle = "Mi lista favorita";
@@ -117,5 +116,35 @@ public class RadarViewModelTests
         Assert.Null(vm.CurrentPlaylist);
         Assert.Equal(string.Empty, vm.CurrentPlaylistTitle);
         Assert.Contains("Mis Listas", vm.StatusText);
+    }
+
+    [Fact]
+    public void HasSelectedTrack_IsFalseForPlaylist()
+    {
+        var vm = new RadarViewModel();
+        var playlist = Item("VLPL1", "Mi lista", null);
+        playlist.IsPlaylist = true;
+
+        vm.SelectedItem = playlist;
+
+        Assert.False(vm.HasSelectedTrack);
+        Assert.False(vm.LikeSelectedCommand.CanExecute(null));
+        Assert.False(vm.DislikeSelectedCommand.CanExecute(null));
+        Assert.False(vm.ClearRatingCommand.CanExecute(null));
+        Assert.False(vm.AddToPlaylistCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void HasSelectedTrack_IsTrueForTrackAndEnablesCommands()
+    {
+        var vm = new RadarViewModel();
+
+        vm.SelectedItem = Item("1", "Bohemian Rhapsody", "Queen");
+
+        Assert.True(vm.HasSelectedTrack);
+        Assert.True(vm.LikeSelectedCommand.CanExecute(null));
+        Assert.True(vm.DislikeSelectedCommand.CanExecute(null));
+        Assert.True(vm.ClearRatingCommand.CanExecute(null));
+        Assert.True(vm.AddToPlaylistCommand.CanExecute(null));
     }
 }

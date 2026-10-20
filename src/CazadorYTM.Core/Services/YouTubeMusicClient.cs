@@ -14,12 +14,11 @@ using System.Threading.Tasks;
 public sealed class YouTubeMusicClient
 {
     private const string Origin = "https://music.youtube.com";
-    private const string BrowseUrl = Origin + "/youtubei/v1/browse?prettyPrint=false";
     private const string FallbackClientVersion = "1.20261018.16.00";
     private const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
     private const int MaxPages = 30;
 
-    private static readonly HttpClient Http = CreateHttpClient();
+    private static readonly HttpClient SharedHttp = CreateHttpClient();
     private static readonly SemaphoreSlim VersionLock = new(1, 1);
     private static readonly Regex ClientVersionRegex = new("\"INNERTUBE_CLIENT_VERSION\":\"([^\"]+)\"", RegexOptions.Compiled);
     private static readonly Regex LoggedOutRegex = new("\"logged_in\",\"value\":\"0\"", RegexOptions.Compiled);
@@ -27,11 +26,18 @@ public sealed class YouTubeMusicClient
 
     private readonly YouTubeMusicSession _session;
     private readonly string _language;
+    private readonly HttpClient _http;
 
     public YouTubeMusicClient(YouTubeMusicSession session, string? language = null)
+        : this(session, language, null)
+    {
+    }
+
+    public YouTubeMusicClient(YouTubeMusicSession session, string? language, HttpClient? httpClient)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _language = string.IsNullOrWhiteSpace(language) ? "es" : language.Trim();
+        _http = httpClient ?? SharedHttp;
     }
 
     public async Task<List<RadarItem>> FetchSectionAsync(RadarSection section, int maxItems = 1000, CancellationToken cancellationToken = default)
@@ -60,8 +66,7 @@ public sealed class YouTubeMusicClient
             : await FetchAllAsync(browseId, RadarSection.Playlists, maxItems, cancellationToken).ConfigureAwait(false);
     }
 
-    public static string? ToPlaylistBrowseId(string? playlistIdOrUrl)
-    {
+    public static string? ToPlaylistBrowseId(string? playlistIdOrUrl)    {
         if (string.IsNullOrWhiteSpace(playlistIdOrUrl))
         {
             return null;
@@ -85,6 +90,113 @@ public sealed class YouTubeMusicClient
         }
 
         return value.StartsWith("VL", StringComparison.Ordinal) ? value : "VL" + value;
+    }
+
+    public async Task SetTrackRatingAsync(string videoId, RadarRating rating, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(videoId))
+        {
+            throw new ArgumentException("Se requiere el identificador de la pista.", nameof(videoId));
+        }
+
+        var endpoint = rating switch
+        {
+            RadarRating.Like => "like/like",
+            RadarRating.Dislike => "like/dislike",
+            RadarRating.None => "like/removelike",
+            _ => throw new ArgumentOutOfRangeException(nameof(rating))
+        };
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["target"] = new Dictionary<string, object?>
+            {
+                ["videoId"] = videoId
+            }
+        };
+
+        var root = await PostAsync(endpoint, payload, cancellationToken).ConfigureAwait(false);
+        EnsureWriteSucceeded(root);
+    }
+
+    public async Task AddTrackToPlaylistAsync(string playlistId, string videoId, CancellationToken cancellationToken = default)
+    {
+        var normalizedPlaylistId = NormalizePlaylistId(playlistId);
+        if (string.IsNullOrWhiteSpace(normalizedPlaylistId))
+        {
+            throw new ArgumentException("Se requiere el identificador de la lista.", nameof(playlistId));
+        }
+
+        if (string.IsNullOrWhiteSpace(videoId))
+        {
+            throw new ArgumentException("Se requiere el identificador de la pista.", nameof(videoId));
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["playlistId"] = normalizedPlaylistId,
+            ["actions"] = new object[]
+            {
+                new Dictionary<string, object?>
+                {
+                    ["action"] = "ACTION_ADD_VIDEO",
+                    ["addedVideoId"] = videoId,
+                    ["dedupeOption"] = "DEDUPE_OPTION_SKIP"
+                }
+            }
+        };
+
+        var root = await PostAsync("browse/edit_playlist", payload, cancellationToken).ConfigureAwait(false);
+        EnsureWriteSucceeded(root);
+    }
+
+    public async Task<string> CreatePlaylistWithTrackAsync(string title, string videoId, CancellationToken cancellationToken = default)
+    {
+        var normalizedTitle = title?.Trim() ?? string.Empty;
+        if (normalizedTitle.Length == 0)
+        {
+            throw new ArgumentException("Se requiere un título para la lista.", nameof(title));
+        }
+
+        if (string.IsNullOrWhiteSpace(videoId))
+        {
+            throw new ArgumentException("Se requiere el identificador de la pista.", nameof(videoId));
+        }
+
+        if (normalizedTitle.Contains('<') || normalizedTitle.Contains('>'))
+        {
+            throw new YouTubeMusicException("El título de la lista no puede contener < ni >.");
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["title"] = normalizedTitle,
+            ["description"] = string.Empty,
+            ["privacyStatus"] = "PRIVATE",
+            ["videoIds"] = new[] { videoId }
+        };
+
+        var root = await PostAsync("playlist/create", payload, cancellationToken).ConfigureAwait(false);
+        if (root.TryGetProperty("playlistId", out var playlistId) &&
+            playlistId.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(playlistId.GetString()))
+        {
+            return playlistId.GetString()!;
+        }
+
+        EnsureWriteSucceeded(root);
+        throw new YouTubeMusicException("YouTube Music no devolvió el identificador de la lista creada.");
+    }
+
+    public static string NormalizePlaylistId(string? playlistIdOrUrl)
+    {
+        var browseId = ToPlaylistBrowseId(playlistIdOrUrl);
+        if (browseId == null)
+        {
+            return string.Empty;
+        }
+
+        return browseId.StartsWith("VL", StringComparison.Ordinal) ? browseId.Substring(2) : browseId;
     }
 
     private static string? ExtractListId(string value)
@@ -135,7 +247,7 @@ public sealed class YouTubeMusicClient
                 payload["continuation"] = continuation;
             }
 
-            var root = await PostBrowseAsync(payload, cancellationToken).ConfigureAwait(false);
+            var root = await PostAsync("browse", payload, cancellationToken).ConfigureAwait(false);
             var (pageItems, nextContinuation) = YouTubeMusicResponseParser.Parse(root, section);
 
             foreach (var item in pageItems)
@@ -180,19 +292,23 @@ public sealed class YouTubeMusicClient
         };
     }
 
-    private async Task<JsonElement> PostBrowseAsync(Dictionary<string, object?> payload, CancellationToken cancellationToken)
+    private async Task<JsonElement> PostAsync(string endpoint, Dictionary<string, object?> payload, CancellationToken cancellationToken)
     {
+        var clientVersion = await GetClientVersionAsync(cancellationToken).ConfigureAwait(false);
+        payload["context"] = BuildContext(clientVersion);
         var json = JsonSerializer.Serialize(payload);
-        using var request = new HttpRequestMessage(HttpMethod.Post, BrowseUrl);
+        var url = $"{Origin}/youtubei/v1/{endpoint}?prettyPrint=false";
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Headers.TryAddWithoutValidation("Cookie", _session.CookieHeader);
         request.Headers.TryAddWithoutValidation("Authorization", _session.CreateAuthorizationHeader(DateTimeOffset.UtcNow, Origin));
         request.Headers.TryAddWithoutValidation("Origin", Origin);
         request.Headers.TryAddWithoutValidation("Referer", Origin + "/");
         request.Headers.TryAddWithoutValidation("X-Goog-AuthUser", _session.AccountIndex.ToString(CultureInfo.InvariantCulture));
+        request.Headers.TryAddWithoutValidation("X-Goog-Request-Time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
         request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
+        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
@@ -216,6 +332,36 @@ public sealed class YouTubeMusicClient
         }
     }
 
+    private static void EnsureWriteSucceeded(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new YouTubeMusicException("YouTube Music devolvió una respuesta inesperada.");
+        }
+
+        if (root.TryGetProperty("actions", out var actions) && actions.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var action in actions.EnumerateArray())
+            {
+                if (action.ValueKind == JsonValueKind.Object &&
+                    action.TryGetProperty("showEngagementPanelEndpoint", out _))
+                {
+                    throw new YouTubeMusicException(
+                        "YouTube Music pidió una interacción adicional y no completó la acción. La cuenta puede estar restringida temporalmente.");
+                }
+            }
+        }
+
+        if (root.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String)
+        {
+            var value = status.GetString();
+            if (!string.Equals(value, "STATUS_SUCCEEDED", StringComparison.Ordinal))
+            {
+                throw new YouTubeMusicException($"YouTube Music rechazó la acción ({value}).");
+            }
+        }
+    }
+
     private async Task<string> GetClientVersionAsync(CancellationToken cancellationToken)
     {
         if (_cachedClientVersion != null)
@@ -233,7 +379,7 @@ public sealed class YouTubeMusicClient
 
             try
             {
-                using var response = await Http.GetAsync(Origin + "/", cancellationToken).ConfigureAwait(false);
+                using var response = await _http.GetAsync(Origin + "/", cancellationToken).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                 {
                     var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -269,6 +415,13 @@ public sealed class YouTubeMusicClient
         client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
         return client;
     }
+}
+
+public enum RadarRating
+{
+    None,
+    Like,
+    Dislike
 }
 
 public class YouTubeMusicException : Exception

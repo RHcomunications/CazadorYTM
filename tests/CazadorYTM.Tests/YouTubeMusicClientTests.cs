@@ -357,6 +357,115 @@ public class YouTubeMusicClientTests : IDisposable
             () => RadarService.FetchRadarItemsAsync(RadarSection.History, cancellationToken: cts.Token));
     }
 
+    [Theory]
+    [InlineData(RadarRating.Like, "like/like")]
+    [InlineData(RadarRating.Dislike, "like/dislike")]
+    [InlineData(RadarRating.None, "like/removelike")]
+    public async Task Client_SetTrackRatingAsync_SendsEndpointAndTarget(RadarRating rating, string expectedEndpoint)
+    {
+        var handler = new RecordingHandler("{}");
+        var client = CreateClient(handler);
+
+        await client.SetTrackRatingAsync("abc123", rating);
+
+        Assert.NotNull(handler.LastRequest);
+        Assert.Contains($"/youtubei/v1/{expectedEndpoint}", handler.LastRequest!.RequestUri!.ToString());
+        Assert.True(handler.LastRequest.Headers.Contains("X-Goog-AuthUser"));
+        Assert.True(handler.LastRequest.Headers.Contains("X-Goog-Request-Time"));
+
+        using var document = JsonDocument.Parse(handler.LastBody!);
+        var root = document.RootElement;
+        Assert.Equal("WEB_REMIX", root.GetProperty("context").GetProperty("client").GetProperty("clientName").GetString());
+        Assert.Equal("abc123", root.GetProperty("target").GetProperty("videoId").GetString());
+    }
+
+    [Fact]
+    public async Task Client_AddTrackToPlaylistAsync_SendsEditPlaylistAction()
+    {
+        var handler = new RecordingHandler("{\"status\":\"STATUS_SUCCEEDED\"}");
+        var client = CreateClient(handler);
+
+        await client.AddTrackToPlaylistAsync("VLPL123", "abc123");
+
+        Assert.NotNull(handler.LastRequest);
+        Assert.Contains("/youtubei/v1/browse/edit_playlist", handler.LastRequest!.RequestUri!.ToString());
+
+        using var document = JsonDocument.Parse(handler.LastBody!);
+        var root = document.RootElement;
+        Assert.Equal("PL123", root.GetProperty("playlistId").GetString());
+        var action = root.GetProperty("actions")[0];
+        Assert.Equal("ACTION_ADD_VIDEO", action.GetProperty("action").GetString());
+        Assert.Equal("abc123", action.GetProperty("addedVideoId").GetString());
+    }
+
+    [Fact]
+    public async Task Client_CreatePlaylistWithTrackAsync_ReturnsPlaylistId()
+    {
+        var handler = new RecordingHandler("{\"playlistId\":\"PLnueva\"}");
+        var client = CreateClient(handler);
+
+        var playlistId = await client.CreatePlaylistWithTrackAsync("Favoritas", "abc123");
+
+        Assert.Equal("PLnueva", playlistId);
+        using var document = JsonDocument.Parse(handler.LastBody!);
+        var root = document.RootElement;
+        Assert.Equal("Favoritas", root.GetProperty("title").GetString());
+        Assert.Equal("PRIVATE", root.GetProperty("privacyStatus").GetString());
+        Assert.Equal("abc123", root.GetProperty("videoIds")[0].GetString());
+    }
+
+    [Fact]
+    public async Task Client_SetTrackRatingAsync_GatedResponse_Throws()
+    {
+        var handler = new RecordingHandler(
+            "{\"actions\":[{\"showEngagementPanelEndpoint\":{\"identifier\":{\"tag\":\"captcha\"}}}]}");
+        var client = CreateClient(handler);
+
+        await Assert.ThrowsAsync<YouTubeMusicException>(
+            () => client.SetTrackRatingAsync("abc123", RadarRating.Like));
+    }
+
+    private YouTubeMusicClient CreateClient(RecordingHandler handler)
+    {
+        var path = Path.Combine(_tempDir, $"cookies_{Guid.NewGuid():N}.txt");
+        File.WriteAllText(path,
+            "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t1790000000\tSAPISID\tabc123\n");
+        var session = YouTubeMusicSession.TryCreate(path);
+        Assert.NotNull(session);
+        return new YouTubeMusicClient(session!, "es", new HttpClient(handler));
+    }
+
+    private sealed class RecordingHandler : HttpMessageHandler
+    {
+        private readonly string _postResponse;
+
+        public RecordingHandler(string postResponse)
+        {
+            _postResponse = postResponse;
+        }
+
+        public HttpRequestMessage? LastRequest { get; private set; }
+        public string? LastBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"INNERTUBE_CLIENT_VERSION\":\"1.20260101.00.00\"}")
+                };
+            }
+
+            LastRequest = request;
+            LastBody = request.Content == null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(_postResponse)
+            };
+        }
+    }
+
     private static (System.Collections.Generic.List<RadarItem> Items, string? Continuation) Parse(string json, RadarSection section)
     {
         using var document = JsonDocument.Parse(json);

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.modernwpf.com/2019"
              xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+             xmlns:acc="clr-namespace:CazadorYTM.Gui.Accessibility"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -10,7 +11,8 @@
              KeyboardNavigation.TabNavigation="Cycle">
 
     <UserControl.InputBindings>
-        <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding PlayPauseCommand}"/>
+        <KeyBinding Key="MediaPlayPause" Command="{Binding PlayPauseCommand}"/>
         <KeyBinding Modifiers="Shift" Key="Left" Command="{Binding SeekRelativeCommand}" CommandParameter="-5"/>
         <KeyBinding Modifiers="Shift" Key="Right" Command="{Binding SeekRelativeCommand}" CommandParameter="5"/>
         <KeyBinding Modifiers="Ctrl+Shift" Key="Left" Command="{Binding SeekRelativeCommand}" CommandParameter="-30"/>
@@ -35,11 +37,10 @@
                 <StackPanel HorizontalAlignment="Center" Margin="0,0,0,24">
                     <TextBlock Text="{Binding TrackTitle}" FontSize="22" FontWeight="Bold" 
                                HorizontalAlignment="Center" TextAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="620" Margin="0,0,0,6"
-                               AutomationProperties.Name="Título de la pista actual"
-                               AutomationProperties.LiveSetting="Polite"/>
+                               AutomationProperties.Name="{Binding TrackTitle}"/>
                     <TextBlock Text="{Binding TrackArtist}" FontSize="15" 
                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" HorizontalAlignment="Center"
-                               AutomationProperties.Name="Artista de la pista actual"/>
+                               AutomationProperties.Name="{Binding TrackArtist}"/>
                 </StackPanel>
 
                 <!-- Timeline Slider & Time Labels -->
@@ -77,8 +78,8 @@
                         <!-- Shuffle -->
                         <Button Content="🔀" Command="{Binding ToggleShuffleCommand}" Width="44" Height="40" Margin="0,0,6,0"
                                 ToolTip="Modo Aleatorio (Shuffle)"
-                                AutomationProperties.Name="Modo Aleatorio"
-                                AutomationProperties.HelpText="{Binding IsShuffle, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                AutomationProperties.Name="{loc:Loc PlayerShuffleName}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerShuffleHelp}"/>
 
                         <!-- Previous -->
                         <Button Content="⏮" Command="{Binding PlayPreviousCommand}" Width="48" Height="40" Margin="0,0,6,0"
@@ -90,8 +91,8 @@
                         <!-- Play/Pause -->
                         <Button Content="{loc:Loc BtnPlayPause}" Style="{DynamicResource AccentButtonStyle}" 
                                 Command="{Binding PlayPauseCommand}" Width="150" Height="40" Margin="0,0,6,0"
-                                AutomationProperties.Name="Reproducir o Pausar"
-                                AutomationProperties.HelpText="Atajo: Barra Espaciadora"/>
+                                AutomationProperties.Name="{loc:Loc BtnPlayPause}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerPlayPauseHelp}"/>
 
                         <!-- Next -->
                         <Button Content="⏭" Command="{Binding PlayNextCommand}" Width="48" Height="40" Margin="0,0,6,0"
@@ -126,8 +127,14 @@
                 <!-- Queue Status Indicator -->
                 <TextBlock Text="{Binding QueueStatusText}" HorizontalAlignment="Center" FontSize="12" Margin="0,0,0,6"
                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                           AutomationProperties.Name="Estado de la cola de reproducción"
+                           AutomationProperties.Name="{Binding QueueStatusText}"
                            AutomationProperties.LiveSetting="Polite"/>
+
+                <TextBlock x:Name="TrackLiveAnnouncer"
+                           Text="{Binding TrackAnnouncement}"
+                           AutomationProperties.LiveSetting="Polite"
+                           acc:LiveRegion.Announce="{Binding TrackAnnouncement}"
+                           Height="1" Width="1" Opacity="0.01" Focusable="False"/>
 
                 <!-- Live Region for assertive volume updates during manipulation -->
                 <TextBlock x:Name="VolumeLiveAnnouncer" 

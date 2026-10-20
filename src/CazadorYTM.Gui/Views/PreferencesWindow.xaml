@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.modernwpf.com/2019"
         xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+        xmlns:acc="clr-namespace:CazadorYTM.Gui.Accessibility"
         Title="{loc:Loc PreferencesTitle}"
         Width="680" Height="620"
         WindowStartupLocation="CenterOwner"
@@ -21,7 +22,8 @@
         <TextBlock Grid.Row="0" Text="{loc:Loc PreferencesTitle}" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,16"/>
 
         <!-- Tabs -->
-        <TabControl Grid.Row="1" Margin="0,0,0,16" Focusable="False">
+        <TabControl x:Name="PrefTabs" Grid.Row="1" Margin="0,0,0,16"
+                    AutomationProperties.Name="{loc:Loc PrefTabsName}">
             <!-- Tab 1: General & Descargas -->
             <TabItem Header="{loc:Loc PrefDownloadsTab}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
@@ -113,7 +115,9 @@
                                             IsEnabled="{Binding IsCheckingUpdates, Converter={StaticResource InverseBooleanConverter}}"/>
                                 </WrapPanel>
                                 <TextBlock Text="{Binding UpdateStatusText}" FontWeight="Medium" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                           AutomationProperties.LiveSetting="Polite"/>
+                                           AutomationProperties.Name="{Binding UpdateStatusText}"
+                                           AutomationProperties.LiveSetting="Polite"
+                                           acc:LiveRegion.Announce="{Binding UpdateStatusText}"/>
                             </StackPanel>
                         </GroupBox>
 
@@ -124,7 +128,9 @@
                                 <Button Content="{loc:Loc PrefVerifyBtn}" Command="{Binding RunVerifyCommand}" Height="36" Width="260" HorizontalAlignment="Left" Margin="0,0,0,8"
                                         IsEnabled="{Binding IsVerifying, Converter={StaticResource InverseBooleanConverter}}"/>
                                 <TextBlock Text="{Binding VerifyStatusText}" FontWeight="Medium" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                           AutomationProperties.LiveSetting="Polite"/>
+                                           AutomationProperties.Name="{Binding VerifyStatusText}"
+                                           AutomationProperties.LiveSetting="Polite"
+                                           acc:LiveRegion.Announce="{Binding VerifyStatusText}"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
@@ -141,8 +147,10 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                        <Label Content="{loc:Loc PrefFilterLogs}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SelectedFilter}" Width="140" Height="34"/>
+                        <Label x:Name="LblPrefFilterLogs" Content="{loc:Loc PrefFilterLogs}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"
+                               Target="{Binding ElementName=CmbPrefFilterLogs}"/>
+                        <ComboBox x:Name="CmbPrefFilterLogs" ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SelectedFilter}" Width="140" Height="34"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=LblPrefFilterLogs}"/>
                     </StackPanel>
 
                     <Border Grid.Row="1" BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" CornerRadius="4">
@@ -161,7 +169,8 @@
 
         <!-- Bottom Actions -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="{loc:Loc Save}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding SaveCommand}" Width="120" Height="38" Margin="0,0,10,0"/>
+            <Button Content="{loc:Loc Save}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding SaveCommand}" Width="120" Height="38" Margin="0,0,10,0"
+                    IsDefault="True"/>
             <Button Content="{loc:Loc BtnCancel}" IsCancel="True" Command="{Binding CancelCommand}" Width="110" Height="38"/>
         </StackPanel>
     </Grid>

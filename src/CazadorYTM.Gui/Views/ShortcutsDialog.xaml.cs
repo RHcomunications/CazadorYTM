@@ -31,6 +31,7 @@ public partial class ShortcutsDialog : Window
 
             // Reproductor
             new(loc["ScKeySpace"], loc["ScPlayPause"]),
+            new(loc["ScKeyMediaPlayPause"], loc["ScPlayPause"]),
             new(loc["ScKeyShiftLeft"], loc["ScBack5"]),
             new(loc["ScKeyShiftRight"], loc["ScForward5"]),
             new(loc["ScKeyCtrlShiftLeft"], loc["ScBack30"]),
@@ -53,7 +54,12 @@ public partial class ShortcutsDialog : Window
             // Biblioteca
             new(loc["ScKeyEnterLibrary"], loc["ScPlaySelected"]),
             new(loc["ScKeyDeleteLibrary"], loc["ScDeleteSelected"]),
-            new(loc["ScKeyRefreshLibrary"], loc["ScRefreshHistory"])
+            new(loc["ScKeyRefreshLibrary"], loc["ScRefreshHistory"]),
+
+            // Radar YTM
+            new("Ctrl + Shift + L", loc["ScRadarLike"]),
+            new("Ctrl + Shift + D", loc["ScRadarDislike"]),
+            new("Ctrl + Shift + A", loc["ScRadarAddToPlaylist"])
         };
 
         LstShortcuts.ItemsSource = shortcuts;

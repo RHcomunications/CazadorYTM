@@ -27,6 +27,7 @@
                      Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}" 
                      FontSize="13" Height="36" VerticalContentAlignment="Center"
                      ui:ControlHelper.PlaceholderText="{loc:Loc LibraryFilterPlaceholder}"
+                     AutomationProperties.Name="{loc:Loc LibraryFilterPlaceholder}"
                      Margin="0,0,8,0"/>
 
             <Button Grid.Column="1" Content="▶ Reproducir Todo" Command="{Binding PlayAllCommand}" Height="36" Padding="12,0" Margin="0,0,8,0"

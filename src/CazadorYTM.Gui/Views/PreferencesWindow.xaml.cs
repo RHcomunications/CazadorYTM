@@ -2,7 +2,9 @@ namespace CazadorYTM.Gui.Views;
 
 using System;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using CazadorYTM.Gui.ViewModels;
 
 public partial class PreferencesWindow : Window
@@ -16,6 +18,14 @@ public partial class PreferencesWindow : Window
         vm.RequestClose += () => Close();
 
         Closed += (s, e) => vm.Dispose();
+
+        Loaded += (s, e) => Dispatcher.InvokeAsync(() =>
+        {
+            if (PrefTabs.SelectedItem is TabItem item)
+            {
+                item.Focus();
+            }
+        }, DispatcherPriority.Input);
 
         PreviewKeyDown += (s, e) =>
         {

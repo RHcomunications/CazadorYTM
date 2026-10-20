@@ -98,6 +98,19 @@ public partial class RadarViewModel : ObservableObject
         ApplyFilter();
     }
 
+    partial void OnSelectedItemChanged(RadarItem? value)
+    {
+        OnPropertyChanged(nameof(HasSelectedTrack));
+        LikeSelectedCommand.NotifyCanExecuteChanged();
+        DislikeSelectedCommand.NotifyCanExecuteChanged();
+        ClearRatingCommand.NotifyCanExecuteChanged();
+        AddToPlaylistCommand.NotifyCanExecuteChanged();
+    }
+
+    public bool HasSelectedTrack => SelectedItem != null && !SelectedItem.IsPlaylist;
+
+    private bool CanRateSelected() => HasSelectedTrack;
+
     partial void OnSelectedSectionChanged(RadarSection value)
     {
         IsViewingPlaylistDetails = false;
@@ -325,6 +338,139 @@ public partial class RadarViewModel : ObservableObject
         {
             CompleteLoad(cts);
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRateSelected))]
+    public async Task LikeSelected() => await SetRatingAsync(SelectedItem, RadarRating.Like);
+
+    [RelayCommand(CanExecute = nameof(CanRateSelected))]
+    public async Task DislikeSelected() => await SetRatingAsync(SelectedItem, RadarRating.Dislike);
+
+    [RelayCommand(CanExecute = nameof(CanRateSelected))]
+    public async Task ClearRating() => await SetRatingAsync(SelectedItem, RadarRating.None);
+
+    private async Task SetRatingAsync(RadarItem? item, RadarRating rating)
+    {
+        if (item == null || item.IsPlaylist)
+        {
+            return;
+        }
+
+        var loc = LocalizationService.Instance;
+        var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
+        var language = _config.Get("language", "es");
+        StatusText = loc["RadarStatusSavingRating"];
+
+        try
+        {
+            await RadarService.SetTrackRatingAsync(item.Id, rating, cookiesPath, language);
+
+            StatusText = rating switch
+            {
+                RadarRating.Like => Format(loc["RadarStatusLikeSaved"], item.Title),
+                RadarRating.Dislike => Format(loc["RadarStatusDislikeSaved"], item.Title),
+                _ => Format(loc["RadarStatusRatingRemoved"], item.Title)
+            };
+            HasError = false;
+            NotificationService.Instance.Notify("Radar YTM", StatusText, NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = ex.Message;
+            StatusText = Format(loc["RadarErrorRating"], ex.Message);
+            NotificationService.Instance.NotifyError("Radar YTM", StatusText);
+            LogService.Instance.Error($"Error al valorar pista en Radar: {ex.Message}");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRateSelected))]
+    public async Task AddToPlaylist()
+    {
+        var item = SelectedItem;
+        if (item == null || item.IsPlaylist)
+        {
+            return;
+        }
+
+        var loc = LocalizationService.Instance;
+        var previousStatus = StatusText;
+        var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
+        var language = _config.Get("language", "es");
+        StatusText = loc["RadarStatusLoadingPlaylists"];
+
+        try
+        {
+            if (_cachedPlaylists.Count == 0)
+            {
+                var playlists = await RadarService.FetchRadarItemsAsync(
+                    RadarSection.Playlists,
+                    cookiesBrowser: _config.Get("cookies_browser", "Ninguno"),
+                    cookiesPath: cookiesPath,
+                    logger: msg => LogService.Instance.Info(msg),
+                    language: language);
+
+                _cachedPlaylists.Clear();
+                _cachedPlaylists.AddRange(playlists.Where(p => p.IsPlaylist));
+            }
+
+            var choices = _cachedPlaylists
+                .Where(p => p.IsPlaylist && p.Id != "VLLM" && p.Id != "LM")
+                .ToList();
+
+            var selection = DialogService.Instance.ShowPlaylistPicker(item.Title, choices);
+            if (selection == null)
+            {
+                StatusText = previousStatus;
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(selection.NewPlaylistTitle))
+            {
+                await RadarService.CreatePlaylistWithTrackAsync(
+                    selection.NewPlaylistTitle!, item.Id, cookiesPath, language);
+
+                InvalidatePlaylistCaches();
+                StatusText = Format(loc["RadarStatusPlaylistCreated"], selection.NewPlaylistTitle!, item.Title);
+            }
+            else if (!string.IsNullOrWhiteSpace(selection.PlaylistId))
+            {
+                await RadarService.AddTrackToPlaylistAsync(
+                    selection.PlaylistId!, item.Id, cookiesPath, language);
+
+                var playlistTitle = _cachedPlaylists
+                    .FirstOrDefault(p => p.Id == selection.PlaylistId)?.Title ?? selection.PlaylistId!;
+                StatusText = Format(loc["RadarStatusAddedToPlaylist"], item.Title, playlistTitle);
+            }
+
+            HasError = false;
+            NotificationService.Instance.Notify("Radar YTM", StatusText, NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = ex.Message;
+            StatusText = Format(loc["RadarErrorAddToPlaylist"], ex.Message);
+            NotificationService.Instance.NotifyError("Radar YTM", StatusText);
+            LogService.Instance.Error($"Error al añadir a lista en Radar: {ex.Message}");
+        }
+    }
+
+    private void InvalidatePlaylistCaches()
+    {
+        _sectionCache.Remove(RadarSection.Playlists);
+        _sectionCacheAt.Remove(RadarSection.Playlists);
+        _cachedPlaylists.Clear();
+    }
+
+    private static string Format(string template, params string[] values)
+    {
+        for (var i = 0; i < values.Length; i++)
+        {
+            template = template.Replace("{" + i + "}", values[i]);
+        }
+
+        return template;
     }
 
     [RelayCommand]

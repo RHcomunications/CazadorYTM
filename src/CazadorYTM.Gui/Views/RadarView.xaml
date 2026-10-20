@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.modernwpf.com/2019"
              xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+             xmlns:acc="clr-namespace:CazadorYTM.Gui.Accessibility"
              xmlns:models="clr-namespace:CazadorYTM.Core.Services;assembly=CazadorYTM.Core"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -113,7 +114,9 @@
                     <TextBlock Text="{loc:Loc RadarErrorTitle}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"
-                               AutomationProperties.LiveSetting="Assertive"/>
+                               AutomationProperties.Name="{Binding ErrorMessage}"
+                               AutomationProperties.LiveSetting="Assertive"
+                               acc:LiveRegion.Announce="{Binding ErrorMessage}"/>
                     <WrapPanel HorizontalAlignment="Center">
                         <Button Content="{loc:Loc RadarBtnRetry}" Command="{Binding RefreshCurrentSectionCommand}"
                                 Style="{DynamicResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6"/>
@@ -160,6 +163,11 @@
                         <MenuItem Header="{loc:Loc RadarMenuOpenPlaylist}" InputGestureText="Derecha"
                                   Command="{Binding OpenPlaylistCommand}"/>
                         <MenuItem Header="{loc:Loc RadarMenuSendDownload}" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:Loc RadarBtnLike}" InputGestureText="Ctrl+Shift+L" Command="{Binding LikeSelectedCommand}"/>
+                        <MenuItem Header="{loc:Loc RadarBtnDislike}" InputGestureText="Ctrl+Shift+D" Command="{Binding DislikeSelectedCommand}"/>
+                        <MenuItem Header="{loc:Loc RadarBtnClearRating}" Command="{Binding ClearRatingCommand}"/>
+                        <MenuItem Header="{loc:Loc RadarBtnAddToPlaylist}" InputGestureText="Ctrl+Shift+A" Command="{Binding AddToPlaylistCommand}"/>
                         <Separator/>
                         <MenuItem Header="{loc:Loc RadarMenuBack}" InputGestureText="Izquierda / Backspace"
                                   Command="{Binding BackToPlaylistsCommand}"/>
@@ -209,7 +217,9 @@
 
             <TextBlock Grid.Column="0" Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12"
                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                       AutomationProperties.LiveSetting="Polite"/>
+                       AutomationProperties.Name="{Binding StatusText}"
+                       AutomationProperties.LiveSetting="Polite"
+                       acc:LiveRegion.Announce="{Binding StatusText}"/>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal"
                         Visibility="{Binding HasSessionConnected, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -219,6 +229,15 @@
                 <Button Content="{loc:Loc BtnPlay}" Command="{Binding PlayItemCommand}"
                         Height="34" Margin="0,0,8,0" Padding="16,0"
                         AutomationProperties.Name="{loc:Loc RadarBtnPlayHint}"/>
+                <Button Content="{loc:Loc RadarBtnLike}" Command="{Binding LikeSelectedCommand}"
+                        Height="34" Margin="0,0,8,0" Padding="12,0"
+                        AutomationProperties.Name="{loc:Loc RadarBtnLikeHint}"/>
+                <Button Content="{loc:Loc RadarBtnDislike}" Command="{Binding DislikeSelectedCommand}"
+                        Height="34" Margin="0,0,8,0" Padding="12,0"
+                        AutomationProperties.Name="{loc:Loc RadarBtnDislikeHint}"/>
+                <Button Content="{loc:Loc RadarBtnAddToPlaylist}" Command="{Binding AddToPlaylistCommand}"
+                        Height="34" Margin="0,0,8,0" Padding="12,0"
+                        AutomationProperties.Name="{loc:Loc RadarBtnAddToPlaylistHint}"/>
                 <Button Content="{loc:Loc RadarBtnDownloadTrack}" Command="{Binding SendToDownloadCommand}"
                         Height="34" Padding="16,0"
                         AutomationProperties.Name="{loc:Loc RadarBtnDownloadTrackHint}"/>

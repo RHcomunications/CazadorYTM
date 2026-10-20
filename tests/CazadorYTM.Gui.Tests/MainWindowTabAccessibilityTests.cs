@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -58,6 +59,46 @@ public class MainWindowTabAccessibilityTests
             "anunciado=" + string.Join("|", peerNames));
         Assert.All(peerNames, name => Assert.DoesNotContain("MainTabItem", name));
         Assert.All(peerNames, name => Assert.False(string.IsNullOrWhiteSpace(name)));
+    }
+
+    [Fact]
+    public void MainTabs_CanReceiveKeyboardFocus_AndHaveAccessibleNames()
+    {
+        Exception? error = null;
+
+        WpfTestHost.Run(() =>
+        {
+            try
+            {
+                var window = new MainWindow { DataContext = new MainViewModel() };
+                var root = (FrameworkElement)window.Content;
+                root.Measure(new Size(1080, 780));
+                root.Arrange(new Rect(0, 0, 1080, 780));
+                root.UpdateLayout();
+
+                var tabControl = FindChild<TabControl>(root)
+                    ?? throw new InvalidOperationException("MainWindow no contiene un TabControl.");
+
+                Assert.True(tabControl.Focusable, "El TabControl principal debe poder recibir el foco.");
+                Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(tabControl)),
+                    "El TabControl principal debe tener un nombre accesible.");
+
+                var tabItems = FindAll<TabItem>(tabControl);
+                Assert.NotEmpty(tabItems);
+                Assert.All(tabItems, item => Assert.True(item.Focusable,
+                    "Cada pestaña debe poder recibir el foco para que el lector de pantalla anuncie el cambio."));
+
+                var announcer = window.FindName("AppLiveAnnouncer") as TextBlock
+                    ?? throw new InvalidOperationException("No se encontró la región de anuncios.");
+                Assert.Equal(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(announcer));
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+        });
+
+        Assert.Null(error);
     }
 
     private static T? FindChild<T>(DependencyObject root) where T : DependencyObject

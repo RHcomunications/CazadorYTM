@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.modernwpf.com/2019"
         xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+        xmlns:acc="clr-namespace:CazadorYTM.Gui.Accessibility"
         Title="{Binding Title}"
         Width="720" Height="560"
         WindowStartupLocation="CenterOwner"
@@ -39,7 +40,26 @@
                      VirtualizingStackPanel.VirtualizationMode="Recycling"
                      ScrollViewer.CanContentScroll="True"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     AutomationProperties.Name="{loc:Loc ResultsListName}"
+                     PreviewMouseRightButtonDown="TracksList_PreviewMouseRightButtonDown">
+                <ListBox.ContextMenu>
+                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                        <MenuItem Header="{loc:Loc RadarBtnLike}"
+                                  Command="{Binding LikeTrackCommand}"
+                                  CommandParameter="{Binding SelectedTrack}"/>
+                        <MenuItem Header="{loc:Loc RadarBtnDislike}"
+                                  Command="{Binding DislikeTrackCommand}"
+                                  CommandParameter="{Binding SelectedTrack}"/>
+                        <MenuItem Header="{loc:Loc RadarBtnClearRating}"
+                                  Command="{Binding ClearTrackRatingCommand}"
+                                  CommandParameter="{Binding SelectedTrack}"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:Loc RadarBtnAddToPlaylist}"
+                                  Command="{Binding AddTrackToPlaylistCommand}"
+                                  CommandParameter="{Binding SelectedTrack}"/>
+                    </ContextMenu>
+                </ListBox.ContextMenu>
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                         <Setter Property="Padding" Value="0"/>
@@ -74,21 +94,21 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" Content="{loc:Loc SelectAll}" Command="{Binding SelectAllCommand}" Height="36" Margin="0,0,8,0"
-                    AutomationProperties.Name="Seleccionar todas las canciones"/>
-            <Button Grid.Column="1" Content="{loc:Loc DeselectAll}" Command="{Binding DeselectAllCommand}" Height="36" Margin="0,0,8,0"
-                    AutomationProperties.Name="Deseleccionar todas las canciones"/>
+            <Button Grid.Column="0" Content="{loc:Loc SelectAll}" Command="{Binding SelectAllCommand}" Height="36" Margin="0,0,8,0"/>
+            <Button Grid.Column="1" Content="{loc:Loc DeselectAll}" Command="{Binding DeselectAllCommand}" Height="36" Margin="0,0,8,0"/>
             <Button Grid.Column="2" Content="{Binding PreviewButtonText}" Command="{Binding PreviewSelectedCommand}" Height="36" Margin="0,0,8,0"
-                    AutomationProperties.Name="Previsualizar pista seleccionada"
                     AutomationProperties.HelpText="Atajo: Control + P"/>
-            <Button Grid.Column="3" Content="{loc:Loc ExportTxt}" Command="{Binding ExportTxtCommand}" Height="36" Margin="0,0,8,0"
-                    AutomationProperties.Name="Exportar lista de pistas a archivo de texto"/>
+            <Button Grid.Column="3" Content="{loc:Loc ExportTxt}" Command="{Binding ExportTxtCommand}" Height="36" Margin="0,0,8,0"/>
             <TextBlock Grid.Column="4" Text="{Binding PreviewStatusText}" VerticalAlignment="Center" Margin="8,0,8,0"
                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                       AutomationProperties.LiveSetting="Polite"/>
+                       AutomationProperties.Name="{Binding PreviewStatusText}"
+                       AutomationProperties.LiveSetting="Polite"
+                       acc:LiveRegion.Announce="{Binding PreviewStatusText}"/>
             <TextBlock Grid.Column="5" Text="{Binding SelectedCountText}" VerticalAlignment="Center" FontWeight="Medium" 
                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                       AutomationProperties.LiveSetting="Polite"/>
+                       AutomationProperties.Name="{Binding SelectedCountText}"
+                       AutomationProperties.LiveSetting="Polite"
+                       acc:LiveRegion.Announce="{Binding SelectedCountText}"/>
         </Grid>
 
         <!-- Actions -->

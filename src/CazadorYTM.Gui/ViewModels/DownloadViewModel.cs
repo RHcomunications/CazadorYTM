@@ -21,6 +21,7 @@ public partial class DownloadViewModel : ObservableObject
     private readonly AppConfig _config;
     private readonly HistoryManager _historyManager;
     private CancellationTokenSource? _downloadCts;
+    private bool _isRadarImport;
 
     [ObservableProperty]
     private string _inputText = string.Empty;
@@ -129,7 +130,19 @@ public partial class DownloadViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(InputText)) return;
 
         InputText = url;
-        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automáticamente.", NotificationType.Info);
+        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automǭticamente.", NotificationType.Info);
+    }
+
+    public void SetInputFromRadar(string target)
+    {
+        InputText = target;
+        _isRadarImport = true;
+    }
+
+    private string? ResolveCookiesPath()
+    {
+        var path = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
+        return !string.IsNullOrWhiteSpace(path) && File.Exists(path) ? path : null;
     }
 
     private void SavePreferences()
@@ -211,6 +224,9 @@ public partial class DownloadViewModel : ObservableObject
         StatusText = "Analizando entrada y buscando metadatos...";
         LogService.Instance.Info($"Búsqueda iniciada para: {InputText}");
 
+        var fromRadar = _isRadarImport;
+        _isRadarImport = false;
+
         try
         {
             var isUrl = Helpers.IsUrl(InputText.Trim());
@@ -219,6 +235,7 @@ public partial class DownloadViewModel : ObservableObject
                 isSearch: !isUrl,
                 cookiesBrowser: SelectedBrowser,
                 loggerCallback: msg => LogService.Instance.Info(msg),
+                cookiesPath: ResolveCookiesPath(),
                 searchSource: SelectedSearchSource);
 
             if (searchResult.Entries.Count == 0)
@@ -226,6 +243,29 @@ public partial class DownloadViewModel : ObservableObject
                 DialogService.Instance.ShowMessage(LocalizationService.Instance["DownloadMsgNoResults"], LocalizationService.Instance["TitleNoResults"], MessageBoxImage.Information);
                 StatusText = "Sin resultados";
                 return;
+            }
+
+            var targetFormat = SelectedFormat;
+            var targetBitrate = SelectedBitrate;
+            if (fromRadar)
+            {
+                var dialogTitle = searchResult.Entries.Count == 1
+                    ? searchResult.Entries[0].Title ?? InputText.Trim()
+                    : searchResult.Title ?? InputText.Trim();
+                var choice = DialogService.Instance.ShowDownloadFormatDialog(
+                    dialogTitle, SelectedFormat, SelectedBitrate);
+
+                if (choice == null)
+                {
+                    StatusText = "Operación cancelada por el usuario";
+                    return;
+                }
+
+                if (!choice.UseDefault)
+                {
+                    targetFormat = choice.Format;
+                    targetBitrate = choice.Bitrate;
+                }
             }
 
             if (searchResult.Type == "playlist")
@@ -238,7 +278,7 @@ public partial class DownloadViewModel : ObservableObject
 
                 if (selected != null && selected.Any())
                 {
-                    await StartBatchDownloadAsync(selected, playlistTitle);
+                    await StartBatchDownloadAsync(selected, playlistTitle, targetFormat, targetBitrate);
                 }
                 else
                 {
@@ -256,11 +296,11 @@ public partial class DownloadViewModel : ObservableObject
                 {
                     if (selected.Count == 1)
                     {
-                        await StartSingleDownloadAsync(selected[0]);
+                        await StartSingleDownloadAsync(selected[0], targetFormat, targetBitrate);
                     }
                     else
                     {
-                        await StartBatchDownloadAsync(selected, playlistTitle: null);
+                        await StartBatchDownloadAsync(selected, playlistTitle: null, format: targetFormat, bitrate: targetBitrate);
                     }
                 }
                 else
@@ -270,7 +310,7 @@ public partial class DownloadViewModel : ObservableObject
             }
             else
             {
-                await StartSingleDownloadAsync(searchResult.Entries[0]);
+                await StartSingleDownloadAsync(searchResult.Entries[0], targetFormat, targetBitrate);
             }
         }
         catch (Exception ex)
@@ -303,12 +343,14 @@ public partial class DownloadViewModel : ObservableObject
         await SubmitInput();
     }
 
-    private async Task StartSingleDownloadAsync(DownloadEntry entry)
+    private async Task StartSingleDownloadAsync(DownloadEntry entry, string? format = null, string? bitrate = null)
     {
         IsBusy = true;
         _downloadCts = new CancellationTokenSource();
         SavePreferences();
 
+        var useFormat = format ?? SelectedFormat;
+        var useBitrate = bitrate ?? SelectedBitrate;
         var query = entry.Url ?? entry.Title ?? InputText;
         StatusText = $"Descargando: {entry.Title ?? query}...";
         ProgressPercentage = 0;
@@ -318,8 +360,8 @@ public partial class DownloadViewModel : ObservableObject
         {
             var result = await Task.Run(() => DownloadEngine.DownloadItem(
                 query,
-                SelectedFormat,
-                SelectedBitrate,
+                useFormat,
+                useBitrate,
                 outFolder: DestinationFolder,
                 isSearch: !Helpers.IsUrl(query),
                 sponsorblock: IsSponsorBlock,
@@ -328,6 +370,7 @@ public partial class DownloadViewModel : ObservableObject
                 embedLyrics: IsEmbedLyrics,
                 cancelEvent: _downloadCts.Token,
                 loggerCallback: msg => LogService.Instance.Info(msg),
+                cookiesPath: ResolveCookiesPath(),
                 isEnumerate: IsEnumerate,
                 itemIndex: 0,
                 searchSource: SelectedSearchSource,
@@ -355,7 +398,7 @@ public partial class DownloadViewModel : ObservableObject
                     Title = entry.Title ?? Path.GetFileNameWithoutExtension(result.FilePath),
                     Url = entry.Url ?? query,
                     FilePath = result.FilePath,
-                    Format = SelectedFormat,
+                    Format = useFormat,
                     Status = "OK",
                     Timestamp = DateTime.Now
                 });
@@ -387,12 +430,15 @@ public partial class DownloadViewModel : ObservableObject
         }
     }
 
-    private async Task StartBatchDownloadAsync(List<DownloadEntry> entries, string? playlistTitle = null)
+    private async Task StartBatchDownloadAsync(List<DownloadEntry> entries, string? playlistTitle = null,
+        string? format = null, string? bitrate = null)
     {
         IsBusy = true;
         _downloadCts = new CancellationTokenSource();
         SavePreferences();
 
+        var useFormat = format ?? SelectedFormat;
+        var useBitrate = bitrate ?? SelectedBitrate;
         var batchTargetFolder = !string.IsNullOrWhiteSpace(playlistTitle)
             ? Path.Combine(DestinationFolder, Helpers.SanitizeFolderName(playlistTitle))
             : DestinationFolder;
@@ -456,8 +502,8 @@ public partial class DownloadViewModel : ObservableObject
                     var query = entry.Url ?? entry.Title ?? "";
                     var res = await Task.Run(() => DownloadEngine.DownloadItem(
                         query,
-                        SelectedFormat,
-                        SelectedBitrate,
+                        useFormat,
+                        useBitrate,
                         outFolder: batchTargetFolder,
                         isSearch: !Helpers.IsUrl(query),
                         sponsorblock: IsSponsorBlock,
@@ -466,6 +512,7 @@ public partial class DownloadViewModel : ObservableObject
                         embedLyrics: IsEmbedLyrics,
                         cancelEvent: _downloadCts.Token,
                         loggerCallback: msg => LogService.Instance.Info(msg),
+                        cookiesPath: ResolveCookiesPath(),
                         isEnumerate: IsEnumerate,
                         itemIndex: itemIndex,
                         searchSource: SelectedSearchSource,
@@ -497,7 +544,7 @@ public partial class DownloadViewModel : ObservableObject
                             Title = entry.Title ?? Path.GetFileNameWithoutExtension(res.FilePath),
                             Url = entry.Url ?? query,
                             FilePath = res.FilePath,
-                            Format = SelectedFormat,
+                            Format = useFormat,
                             Status = "OK",
                             Timestamp = DateTime.Now
                         });

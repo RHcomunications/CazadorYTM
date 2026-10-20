@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
+using CazadorYTM.Gui.Accessibility;
 
 public enum NotificationType
 {
@@ -73,6 +74,11 @@ public class NotificationService
 
     public void Notify(string title, string message, NotificationType type = NotificationType.Info)
     {
+        var announcement = string.IsNullOrWhiteSpace(title)
+            ? message
+            : $"{title.Trim()}. {message}";
+        AccessibilityAnnouncer.Announce(announcement);
+
         // 1. Immediate audible feedback
         try
         {

@@ -56,15 +56,21 @@ public partial class ResultSelectionDialog : Window
 
     private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (((e.Key == Key.F10 && (Keyboard.Modifiers & ModifierKeys.Shift) != 0) ||
+             e.Key == Key.Apps || e.SystemKey == Key.Apps) &&
+            TracksList.IsKeyboardFocusWithin)
+        {
+            OpenTrackContextMenu();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Enter)
         {
-            if (e.OriginalSource is not Button btn || (btn.Content?.ToString() != "Cancelar" && btn.Content?.ToString() != "_Cancelar"))
+            if (Keyboard.FocusedElement is not Button && DataContext is ResultSelectionViewModel vm)
             {
-                if (DataContext is ResultSelectionViewModel vm)
-                {
-                    vm.ConfirmCommand.Execute(null);
-                    e.Handled = true;
-                }
+                vm.ConfirmCommand.Execute(null);
+                e.Handled = true;
             }
         }
         else if (e.Key == Key.Escape)
@@ -74,6 +80,37 @@ public partial class ResultSelectionDialog : Window
                 vm.CancelCommand.Execute(null);
                 e.Handled = true;
             }
+        }
+    }
+
+    private void OpenTrackContextMenu()
+    {
+        var focused = Keyboard.FocusedElement as DependencyObject;
+        if (focused != null &&
+            ItemsControl.ContainerFromElement(TracksList, focused) is ListBoxItem container)
+        {
+            TracksList.SelectedItem = container.DataContext;
+        }
+
+        if (TracksList.ContextMenu == null)
+        {
+            return;
+        }
+
+        TracksList.ContextMenu.PlacementTarget = TracksList;
+        TracksList.ContextMenu.IsOpen = true;
+    }
+
+    private void TracksList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox list || e.OriginalSource is not DependencyObject source)
+        {
+            return;
+        }
+
+        if (ItemsControl.ContainerFromElement(list, source) is ListBoxItem container)
+        {
+            list.SelectedItem = container.DataContext;
         }
     }
 

@@ -21,6 +21,9 @@ public partial class PlayerViewModel : ObservableObject
     private string _trackArtist = string.Empty;
 
     [ObservableProperty]
+    private string _trackAnnouncement = string.Empty;
+
+    [ObservableProperty]
     private string _currentPositionText = "00:00";
 
     [ObservableProperty]
@@ -123,6 +126,10 @@ public partial class PlayerViewModel : ObservableObject
             TrackTitle = "Sin reproducción activa";
             TrackArtist = string.Empty;
         }
+
+        TrackAnnouncement = string.IsNullOrWhiteSpace(TrackArtist)
+            ? TrackTitle
+            : $"{TrackTitle} — {TrackArtist}";
     }
 
     private void OnPlayerPositionChanged(TimeSpan pos, TimeSpan dur)
@@ -292,6 +299,9 @@ public partial class PlayerViewModel : ObservableObject
     {
         TrackTitle = title;
         TrackArtist = artist ?? string.Empty;
+        TrackAnnouncement = string.IsNullOrWhiteSpace(TrackArtist)
+            ? TrackTitle
+            : $"{TrackTitle} — {TrackArtist}";
         _player.Play(streamUrl);
     }
 

@@ -2,8 +2,12 @@ namespace CazadorYTM.Gui.Views;
 
 using System;
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using CazadorYTM.Core.Services;
+using CazadorYTM.Gui.Accessibility;
 using CazadorYTM.Gui.ViewModels;
 
 public partial class MainWindow : Window
@@ -19,17 +23,16 @@ public partial class MainWindow : Window
 
         Services.Win11ThemeHelper.ApplyWin11Backdrop(this);
 
+        AccessibilityAnnouncer.AnnouncementRequested += OnAnnouncementRequested;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         PreviewKeyUp += MainWindow_PreviewKeyUp;
         MainMenu.LostFocus += MainMenu_LostFocus;
         MainMenu.PreviewKeyDown += MainMenu_PreviewKeyDown;
+        Closed += (s, e) => AccessibilityAnnouncer.AnnouncementRequested -= OnAnnouncementRequested;
 
         Loaded += (s, e) =>
         {
-            Dispatcher.InvokeAsync(() =>
-            {
-                MainTabs.Focus();
-            }, DispatcherPriority.Input);
+            Dispatcher.InvokeAsync(FocusSelectedTab, DispatcherPriority.Input);
         };
     }
 
@@ -49,17 +52,6 @@ public partial class MainWindow : Window
             ToggleMenu();
             e.Handled = true;
             return;
-        }
-
-        // Shift+F10 or Apps key: Open/Focus Radar YTM accessible context
-        if ((e.Key == Key.F10 && (Keyboard.Modifiers & ModifierKeys.Shift) != 0) || e.Key == Key.Apps)
-        {
-            if (DataContext is MainViewModel vm)
-            {
-                vm.OpenOrFocusTab(MainTabType.Radar);
-                e.Handled = true;
-                return;
-            }
         }
 
         // Track bare Alt key press
@@ -135,6 +127,62 @@ public partial class MainWindow : Window
             _previousFocus.Focus();
             _previousFocus = null;
         }
+    }
+
+    private void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || e.Source != MainTabs)
+        {
+            return;
+        }
+
+        Dispatcher.InvokeAsync(FocusSelectedTab, DispatcherPriority.Loaded);
+    }
+
+    private void FocusSelectedTab()
+    {
+        if (!IsLoaded || MainTabs.SelectedItem is not MainTabItem tab)
+        {
+            return;
+        }
+
+        if (MainTabs.ItemContainerGenerator.ContainerFromItem(tab) is not TabItem item)
+        {
+            AnnounceSelectedTab(tab);
+            return;
+        }
+
+        var focused = item.Focus();
+        var peer = UIElementAutomationPeer.FromElement(item)
+                   ?? UIElementAutomationPeer.CreatePeerForElement(item);
+        peer?.RaiseAutomationEvent(AutomationEvents.SelectionItemPatternOnElementSelected);
+
+        if (!focused)
+        {
+            AnnounceSelectedTab(tab);
+        }
+    }
+
+    private void AnnounceSelectedTab(MainTabItem tab)
+    {
+        var index = MainTabs.Items.IndexOf(tab);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var text = LocalizationService.Instance["TabAnnouncement"]
+            .Replace("{0}", tab.Header)
+            .Replace("{1}", (index + 1).ToString())
+            .Replace("{2}", MainTabs.Items.Count.ToString());
+
+        AccessibilityAnnouncer.Announce(text);
+    }
+
+    private void OnAnnouncementRequested(string message)
+    {
+        AppLiveAnnouncer.Text = message;
+        LiveRegion.Raise(AppLiveAnnouncer);
     }
 
     private void MainWindow_DragOver(object sender, DragEventArgs e)

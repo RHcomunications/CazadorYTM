@@ -29,6 +29,11 @@ public class RadarItem
 
     public string DisplayDuration => Duration.HasValue ? Helpers.FormatDuration(Duration.Value) : "--:--";
 
+    public override string ToString()
+    {
+        return string.IsNullOrWhiteSpace(Artist) ? Title : $"{Title} — {Artist}";
+    }
+
     public DownloadEntry ToDownloadEntry()
     {
         return new DownloadEntry
@@ -324,6 +329,51 @@ public static class RadarService
         }
 
         return results;
+    }
+
+    public static async Task SetTrackRatingAsync(
+        string videoId,
+        RadarRating rating,
+        string? cookiesPath = null,
+        string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        var client = CreateWriteClient(cookiesPath, language);
+        await client.SetTrackRatingAsync(videoId, rating, cancellationToken);
+    }
+
+    public static async Task AddTrackToPlaylistAsync(
+        string playlistId,
+        string videoId,
+        string? cookiesPath = null,
+        string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        var client = CreateWriteClient(cookiesPath, language);
+        await client.AddTrackToPlaylistAsync(playlistId, videoId, cancellationToken);
+    }
+
+    public static async Task<string> CreatePlaylistWithTrackAsync(
+        string title,
+        string videoId,
+        string? cookiesPath = null,
+        string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        var client = CreateWriteClient(cookiesPath, language);
+        return await client.CreatePlaylistWithTrackAsync(title, videoId, cancellationToken);
+    }
+
+    private static YouTubeMusicClient CreateWriteClient(string? cookiesPath, string? language)
+    {
+        var session = YouTubeMusicSession.TryCreate(cookiesPath);
+        if (session == null)
+        {
+            throw new InvalidOperationException(
+                "Conecta tu sesión de YouTube Music para valorar pistas o modificar listas.");
+        }
+
+        return new YouTubeMusicClient(session, language);
     }
 
     public static async Task<string?> GetStreamUrlAsync(string videoUrlOrId, string? cookiesBrowser = null, string? cookiesPath = null)

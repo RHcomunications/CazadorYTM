@@ -230,6 +230,13 @@ public static class BinaryManager
                 var fullPath = Path.Combine(dir, fileName);
                 if (File.Exists(fullPath))
                     return fullPath;
+
+                if (IsWindows && !fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    var exePath = fullPath + ".exe";
+                    if (File.Exists(exePath))
+                        return exePath;
+                }
             }
             catch { }
         }

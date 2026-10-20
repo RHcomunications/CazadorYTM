@@ -78,6 +78,18 @@ public class RadarItemTests
         Assert.Equal(215, entry.Duration);
         Assert.Equal("https://music.youtube.com/watch?v=test12345", entry.Url);
     }
+
+    [Fact]
+    public void RadarItem_ToString_ReturnsTitleAndArtist()
+    {
+        var item = new CazadorYTM.Core.Services.RadarItem
+        {
+            Title = "Canción de Prueba",
+            Artist = "Artista de Prueba"
+        };
+
+        Assert.Equal("Canción de Prueba — Artista de Prueba", item.ToString());
+    }
 }
 
 public class HistoryManagerTests : IDisposable

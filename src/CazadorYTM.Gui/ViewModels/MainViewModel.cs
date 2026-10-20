@@ -29,9 +29,6 @@ public partial class MainViewModel : ObservableObject
     private MainTabItem? _selectedTab;
 
     [ObservableProperty]
-    private int _selectedTabIndex = 0;
-
-    [ObservableProperty]
     private string _statusText = "Listo";
 
     [ObservableProperty]
@@ -74,7 +71,11 @@ public partial class MainViewModel : ObservableObject
         {
             OpenOrFocusTab(MainTabType.Downloads);
             var target = !string.IsNullOrWhiteSpace(entry.Url) ? entry.Url : entry.Title ?? "";
-            DownloadVM.InputText = target;
+            DownloadVM.SetInputFromRadar(target);
+            if (!DownloadVM.IsBusy)
+            {
+                _ = DownloadVM.SubmitInputCommand.ExecuteAsync(null);
+            }
         };
 
         RadarVM.PlayTrackRequested += (streamUrl, title, artist) =>
@@ -113,7 +114,6 @@ public partial class MainViewModel : ObservableObject
         if (existing != null)
         {
             SelectedTab = existing;
-            SelectedTabIndex = OpenTabs.IndexOf(existing);
             return;
         }
 
@@ -129,7 +129,6 @@ public partial class MainViewModel : ObservableObject
 
         OpenTabs.Add(newTab);
         SelectedTab = newTab;
-        SelectedTabIndex = OpenTabs.IndexOf(newTab);
 
         if (tabType == MainTabType.History)
         {
@@ -157,7 +156,6 @@ public partial class MainViewModel : ObservableObject
 
         var newIdx = Math.Clamp(curIdx, 0, OpenTabs.Count - 1);
         SelectedTab = OpenTabs[newIdx];
-        SelectedTabIndex = newIdx;
     }
 
     [RelayCommand]
@@ -174,7 +172,6 @@ public partial class MainViewModel : ObservableObject
         {
             var newIdx = Math.Clamp(curIdx, 0, OpenTabs.Count - 1);
             SelectedTab = OpenTabs[newIdx];
-            SelectedTabIndex = newIdx;
         }
     }
 

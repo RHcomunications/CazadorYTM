@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.modernwpf.com/2019"
              xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
+             xmlns:acc="clr-namespace:CazadorYTM.Gui.Accessibility"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -59,13 +60,15 @@
                     
                     <TextBlock Text="{Binding VerifyStatus}" FontSize="12" 
                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,4"
-                               AutomationProperties.Name="{loc:Loc AdvVerifyStatusHint}"
-                               AutomationProperties.LiveSetting="Polite"/>
+                               AutomationProperties.Name="{Binding VerifyStatus}"
+                               AutomationProperties.LiveSetting="Polite"
+                               acc:LiveRegion.Announce="{Binding VerifyStatus}"/>
                     
                     <TextBlock Text="{Binding VerifySummary}" FontWeight="SemiBold" FontSize="13" 
                                Foreground="{DynamicResource SystemControlHighlightAccentBrush}" Margin="0,0,0,10"
-                               AutomationProperties.Name="{loc:Loc AdvVerifySummaryHint}"
-                               AutomationProperties.LiveSetting="Polite"/>
+                               AutomationProperties.Name="{Binding VerifySummary}"
+                               AutomationProperties.LiveSetting="Polite"
+                               acc:LiveRegion.Announce="{Binding VerifySummary}"/>
 
                     <!-- Results DataGrid -->
                     <DataGrid ItemsSource="{Binding VerificationResults}" AutoGenerateColumns="False" 
@@ -91,8 +94,9 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="{Binding UpdateStatus}" VerticalAlignment="Center" FontWeight="Medium"
-                                   AutomationProperties.Name="{loc:Loc AdvUpdaterStatusHint}"
-                                   AutomationProperties.LiveSetting="Polite"/>
+                                   AutomationProperties.Name="{Binding UpdateStatus}"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   acc:LiveRegion.Announce="{Binding UpdateStatus}"/>
                         <Button Grid.Column="1" Content="{loc:Loc AdvBtnCheckUpdates}" Width="220" Height="36" 
                                 Command="{Binding CheckUpdatesCommand}"
                                 AutomationProperties.Name="{loc:Loc AdvBtnCheckUpdatesHint}"/>

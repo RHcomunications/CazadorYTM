@@ -76,12 +76,18 @@ public class LocalizationService
         {
             // App & Accessibility
             SetDefault("AppName", "Cazador YTM");
-            SetDefault("MainWindowHelpText", "Press ALT to access the menu, Control + comma for preferences, or use Control + 1 to 3 to switch tabs.");
+            SetDefault("MainWindowHelpText", "Press ALT to access the menu, Control + comma for preferences, or use Control + 1 to 4 to switch tabs.");
             SetDefault("MenuBarHelpText", "Use keyboard arrows to navigate and Escape to exit menu.");
             SetDefault("ResultSelectionHelpText", "Navigate with Up and Down arrows, press Space to select or unselect, and Enter to accept.");
+            SetDefault("ResultsListName", "List of found tracks");
             SetDefault("PrefWindowHelpText", "Configure default download, network, maintenance, language and log options.");
+            SetDefault("PrefTabsName", "Preferences sections");
+            SetDefault("CookiesTabsName", "Cookie setup methods");
             SetDefault("StatusBarName", "Application status bar");
             SetDefault("StatusLabel", "Current operation status");
+            SetDefault("MainTabsName", "Main tabs");
+            SetDefault("MainTabsHelpText", "Use Ctrl + 1 to Ctrl + 4 to switch tabs, or the Left and Right arrows when focus is on a tab.");
+            SetDefault("TabAnnouncement", "Tab {0} selected, {1} of {2}.");
             SetDefault("VersionLabel", "Version");
 
             // Navigation & Tabs
@@ -112,7 +118,7 @@ public class LocalizationService
             SetDefault("BtnLoadList", "Load List...");
             SetDefault("BtnDownload", "Start Download");
             SetDefault("BtnCancel", "Cancel");
-            SetDefault("OptionsHeader", "Conversion & Performance Options");
+            SetDefault("OptionsHeader", "Advanced options");
             SetDefault("SourceLabel", "Source:");
             SetDefault("FormatLabel", "Format:");
             SetDefault("QualityLabel", "Quality / Bitrate:");
@@ -145,6 +151,9 @@ public class LocalizationService
             SetDefault("TrackPositionLabel", "Playback position:");
             SetDefault("BtnOpenAudioFile", "Open File...");
             SetDefault("BtnPlayPause", "Play / Pause");
+            SetDefault("PlayerPlayPauseHelp", "Shortcut: Ctrl + Space or the Media Play/Pause key.");
+            SetDefault("PlayerShuffleName", "Shuffle mode");
+            SetDefault("PlayerShuffleHelp", "Turns shuffle playback on or off. Shortcut: Ctrl + Shift + H.");
             SetDefault("VolumeLabel", "Vol:");
 
             // Selection Dialog
@@ -188,12 +197,18 @@ public class LocalizationService
         {
             // App & Accessibility
             SetDefault("AppName", "Cazador YTM");
-            SetDefault("MainWindowHelpText", "Presione ALT para acceder al menú, Control + coma para preferencias o use Control + 1 al 3 para alternar pestañas.");
+            SetDefault("MainWindowHelpText", "Presione ALT para acceder al menú, Control + coma para preferencias o use Control + 1 al 4 para alternar pestañas.");
             SetDefault("MenuBarHelpText", "Use las flechas del teclado para navegar y Escape para salir del menú.");
             SetDefault("ResultSelectionHelpText", "Navegue con las flechas arriba y abajo, pulse Espacio para marcar o desmarcar y Enter para aceptar.");
+            SetDefault("ResultsListName", "Lista de pistas encontradas");
             SetDefault("PrefWindowHelpText", "Configure las opciones predeterminadas de descarga, red, mantenimiento, idioma y registros.");
+            SetDefault("PrefTabsName", "Secciones de preferencias");
+            SetDefault("CookiesTabsName", "Métodos de configuración de cookies");
             SetDefault("StatusBarName", "Barra de estado de la aplicación");
             SetDefault("StatusLabel", "Estado de la operación actual");
+            SetDefault("MainTabsName", "Pestañas principales");
+            SetDefault("MainTabsHelpText", "Use Ctrl + 1 a Ctrl + 4 para cambiar de pestaña o las flechas izquierda y derecha cuando el foco esté en una pestaña.");
+            SetDefault("TabAnnouncement", "Pestaña {0} seleccionada, {1} de {2}.");
             SetDefault("VersionLabel", "Versión");
 
             // Navigation & Tabs
@@ -224,7 +239,7 @@ public class LocalizationService
             SetDefault("BtnLoadList", "Cargar Lista...");
             SetDefault("BtnDownload", "Iniciar Descarga");
             SetDefault("BtnCancel", "Cancelar");
-            SetDefault("OptionsHeader", "Parámetros de Conversión y Rendimiento");
+            SetDefault("OptionsHeader", "Opciones avanzadas");
             SetDefault("SourceLabel", "Fuente:");
             SetDefault("FormatLabel", "Formato:");
             SetDefault("QualityLabel", "Calidad / Bitrate:");
@@ -257,6 +272,9 @@ public class LocalizationService
             SetDefault("TrackPositionLabel", "Posición de reproducción:");
             SetDefault("BtnOpenAudioFile", "Abrir Archivo...");
             SetDefault("BtnPlayPause", "Reproducir / Pausar");
+            SetDefault("PlayerPlayPauseHelp", "Atajo: Ctrl + Espacio o la tecla multimedia Reproducir/Pausar.");
+            SetDefault("PlayerShuffleName", "Modo aleatorio");
+            SetDefault("PlayerShuffleHelp", "Activa o desactiva la reproducción aleatoria. Atajo: Ctrl + Shift + H.");
             SetDefault("VolumeLabel", "Vol:");
 
             // Selection Dialog

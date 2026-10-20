@@ -101,7 +101,28 @@ public partial class RadarView : UserControl
                 }
             }
         }
-        else if (e.Key == Key.D && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+        else if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) ==
+                 (ModifierKeys.Control | ModifierKeys.Shift))
+        {
+            if (e.Key == Key.L)
+            {
+                e.Handled = true;
+                vm.LikeSelectedCommand.Execute(null);
+            }
+            else if (e.Key == Key.D)
+            {
+                e.Handled = true;
+                vm.DislikeSelectedCommand.Execute(null);
+            }
+            else if (e.Key == Key.A)
+            {
+                e.Handled = true;
+                vm.AddToPlaylistCommand.Execute(null);
+            }
+        }
+        else if (e.Key == Key.D &&
+                 (Keyboard.Modifiers & ModifierKeys.Control) != 0 &&
+                 (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
         {
             if (vm.SelectedItem != null)
             {
