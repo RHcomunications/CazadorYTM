@@ -47,7 +47,6 @@ public partial class ShortcutsDialog : Window
 
             // Descargas
             new(loc["ScKeySearch"], loc["ScSearchDownload"]),
-            new(loc["ScKeyPreview"], loc["ScPreview"]),
             new(loc["ScKeyLoadList"], loc["ScLoadList"]),
             new(loc["ScKeySpaceResults"], loc["ScToggleTrack"]),
 
@@ -57,6 +56,10 @@ public partial class ShortcutsDialog : Window
             new(loc["ScKeyRefreshLibrary"], loc["ScRefreshHistory"]),
 
             // Radar YTM
+            new(loc["ScKeyRight"], loc["ScRadarOpenPlaylist"]),
+            new(loc["ScKeyLeftBack"], loc["ScRadarBackToPlaylists"]),
+            new("Ctrl + D", loc["ScRadarSendDownload"]),
+            new("Ctrl + K", loc["ScRadarManageCookies"]),
             new("Ctrl + Shift + L", loc["ScRadarLike"]),
             new("Ctrl + Shift + D", loc["ScRadarDislike"]),
             new("Ctrl + Shift + A", loc["ScRadarAddToPlaylist"])

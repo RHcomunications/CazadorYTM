@@ -13,6 +13,7 @@
             <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
             <conv:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
             <conv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+            <conv:ThumbnailImageConverter x:Key="ThumbnailImageConverter" />
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
             <!-- Global WinUI 3 Fluent Typography and Render Styles -->

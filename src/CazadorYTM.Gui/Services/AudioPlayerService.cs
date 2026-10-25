@@ -44,7 +44,15 @@ public interface IAudioPlayerService
 
 public class AudioPlayerService : IAudioPlayerService
 {
-    private static readonly Lazy<AudioPlayerService> _instance = new(() => new AudioPlayerService());
+    private static readonly Lazy<AudioPlayerService> _instance = new(() =>
+    {
+        var app = System.Windows.Application.Current;
+        if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess())
+        {
+            return app.Dispatcher.Invoke(() => new AudioPlayerService());
+        }
+        return new AudioPlayerService();
+    });
     public static AudioPlayerService Instance => _instance.Value;
 
     private readonly MediaPlayer _mediaPlayer = new();

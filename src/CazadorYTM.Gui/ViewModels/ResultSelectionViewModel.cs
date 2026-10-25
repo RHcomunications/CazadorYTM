@@ -45,7 +45,6 @@ public partial class SelectableTrackViewModel : ObservableObject
 public partial class ResultSelectionViewModel : ObservableObject, IDisposable
 {
     private readonly RadarActionService _radar = new();
-    private Process? _previewProcess;
 
     [ObservableProperty]
     private string _title;
@@ -58,15 +57,6 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private SelectableTrackViewModel? _selectedTrack;
-
-    [ObservableProperty]
-    private bool _isPreviewing = false;
-
-    [ObservableProperty]
-    private string _previewButtonText = "Previsualizar";
-
-    [ObservableProperty]
-    private string _previewStatusText = string.Empty;
 
     public ObservableCollection<SelectableTrackViewModel> Tracks { get; } = new();
 
@@ -128,25 +118,19 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
         }
 
         var loc = LocalizationService.Instance;
-        var previousStatus = PreviewStatusText;
-        PreviewStatusText = loc["RadarStatusLoadingPlaylists"];
 
         try
         {
             var status = await _radar.AddToPlaylistAsync(videoId, track.Title);
-            if (status == null)
+            if (status != null)
             {
-                PreviewStatusText = previousStatus;
-                return;
+                NotificationService.Instance.Notify("Radar YTM", status, NotificationType.Success);
             }
-
-            PreviewStatusText = status;
-            NotificationService.Instance.Notify("Radar YTM", status, NotificationType.Success);
         }
         catch (Exception ex)
         {
-            PreviewStatusText = Format(loc["RadarErrorAddToPlaylist"], ex.Message);
-            NotificationService.Instance.NotifyError("Radar YTM", PreviewStatusText);
+            var err = Format(loc["RadarErrorAddToPlaylist"], ex.Message);
+            NotificationService.Instance.NotifyError("Radar YTM", err);
             LogService.Instance.Error($"Error al añadir a lista desde resultados: {ex.Message}");
         }
     }
@@ -162,18 +146,19 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
         }
 
         var loc = LocalizationService.Instance;
-        PreviewStatusText = loc["RadarStatusSavingRating"];
 
         try
         {
             var status = await _radar.SetRatingAsync(videoId, track.Title, rating);
-            PreviewStatusText = status;
-            NotificationService.Instance.Notify("Radar YTM", status, NotificationType.Success);
+            if (status != null)
+            {
+                NotificationService.Instance.Notify("Radar YTM", status, NotificationType.Success);
+            }
         }
         catch (Exception ex)
         {
-            PreviewStatusText = Format(loc["RadarErrorRating"], ex.Message);
-            NotificationService.Instance.NotifyError("Radar YTM", PreviewStatusText);
+            var err = Format(loc["RadarErrorRating"], ex.Message);
+            NotificationService.Instance.NotifyError("Radar YTM", err);
             LogService.Instance.Error($"Error al valorar pista desde resultados: {ex.Message}");
         }
     }
@@ -209,105 +194,6 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task PreviewSelected()
-    {
-        if (IsPreviewing)
-        {
-            StopPreview();
-            return;
-        }
-
-        var target = SelectedTrack ?? Tracks.FirstOrDefault(t => t.IsSelected) ?? Tracks.FirstOrDefault();
-        if (target == null)
-        {
-            DialogService.Instance.ShowMessage(LocalizationService.Instance["SelectMsgPickToPreview"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
-            return;
-        }
-
-        var query = target.Entry.Url ?? target.Entry.Title ?? "";
-        if (string.IsNullOrWhiteSpace(query)) return;
-
-        IsPreviewing = true;
-        PreviewButtonText = "Detener Previsualización";
-        PreviewStatusText = $"Obteniendo audio para '{target.Title}'...";
-
-        try
-        {
-            var streamUrl = await Task.Run(() => DownloadEngine.ExtractStreamUrl(query));
-            if (string.IsNullOrEmpty(streamUrl))
-            {
-                PreviewStatusText = "No se pudo obtener el audio de previsualización.";
-                DialogService.Instance.ShowMessage(LocalizationService.Instance["SelectMsgPreviewStreamFailed"], LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
-                StopPreview();
-                return;
-            }
-
-            var ffplayExe = BinaryManager.GetFfplayPath();
-            if (string.IsNullOrEmpty(ffplayExe) || !File.Exists(ffplayExe))
-            {
-                AudioPlayerService.Instance.Play(streamUrl);
-                PreviewStatusText = $"Reproduciendo: {target.Title}";
-                return;
-            }
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = ffplayExe,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            psi.ArgumentList.Add("-nodisp");
-            psi.ArgumentList.Add("-autoexit");
-            psi.ArgumentList.Add(streamUrl);
-
-            _previewProcess = Process.Start(psi);
-            if (_previewProcess != null)
-            {
-                PreviewStatusText = $"Reproduciendo: {target.Title}";
-                _ = Task.Run(() =>
-                {
-                    try { _previewProcess?.WaitForExit(); }
-                    catch { }
-                    finally
-                    {
-                        Application.Current?.Dispatcher.InvokeAsync(() =>
-                        {
-                            IsPreviewing = false;
-                            PreviewButtonText = "Previsualizar";
-                            PreviewStatusText = string.Empty;
-                        });
-                    }
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            PreviewStatusText = $"Error: {ex.Message}";
-            StopPreview();
-        }
-    }
-
-    public void StopPreview()
-    {
-        try
-        {
-            if (_previewProcess != null && !_previewProcess.HasExited)
-            {
-                DownloadEngine.KillProcessTree(_previewProcess.Id);
-            }
-        }
-        catch { }
-        finally
-        {
-            _previewProcess = null;
-            IsPreviewing = false;
-            PreviewButtonText = "Previsualizar";
-            PreviewStatusText = string.Empty;
-            AudioPlayerService.Instance.Stop();
-        }
-    }
-
-    [RelayCommand]
     private void ExportTxt()
     {
         var selected = Tracks.Where(t => t.IsSelected).Select(t => t.Entry.Url ?? t.Entry.Title ?? "").ToList();
@@ -335,7 +221,6 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Confirm()
     {
-        StopPreview();
         var selectedCount = Tracks.Count(t => t.IsSelected);
         if (selectedCount == 0)
         {
@@ -349,13 +234,11 @@ public partial class ResultSelectionViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Cancel()
     {
-        StopPreview();
         RequestClose?.Invoke(false);
     }
 
     public void Dispose()
     {
-        StopPreview();
     }
 
     public List<DownloadEntry> GetSelectedEntries()

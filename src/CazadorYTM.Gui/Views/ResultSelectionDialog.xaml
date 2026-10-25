@@ -11,9 +11,6 @@
         ResizeMode="CanResizeWithGrip"
         AutomationProperties.Name="{Binding Title}"
         AutomationProperties.HelpText="{loc:Loc ResultSelectionHelpText}">
-    <Window.InputBindings>
-        <KeyBinding Modifiers="Ctrl" Key="P" Command="{Binding PreviewSelectedCommand}"/>
-    </Window.InputBindings>
 
     <Grid Margin="18">
         <Grid.RowDefinitions>
@@ -83,10 +80,9 @@
             </ListBox>
         </Border>
 
-        <!-- Selection & Preview Toolbar -->
+        <!-- Selection Toolbar -->
         <Grid Grid.Row="3" Margin="0,12,0,16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -96,15 +92,8 @@
 
             <Button Grid.Column="0" Content="{loc:Loc SelectAll}" Command="{Binding SelectAllCommand}" Height="36" Margin="0,0,8,0"/>
             <Button Grid.Column="1" Content="{loc:Loc DeselectAll}" Command="{Binding DeselectAllCommand}" Height="36" Margin="0,0,8,0"/>
-            <Button Grid.Column="2" Content="{Binding PreviewButtonText}" Command="{Binding PreviewSelectedCommand}" Height="36" Margin="0,0,8,0"
-                    AutomationProperties.HelpText="Atajo: Control + P"/>
-            <Button Grid.Column="3" Content="{loc:Loc ExportTxt}" Command="{Binding ExportTxtCommand}" Height="36" Margin="0,0,8,0"/>
-            <TextBlock Grid.Column="4" Text="{Binding PreviewStatusText}" VerticalAlignment="Center" Margin="8,0,8,0"
-                       Foreground="{DynamicResource SystemControlForegroundAccentBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                       AutomationProperties.Name="{Binding PreviewStatusText}"
-                       AutomationProperties.LiveSetting="Polite"
-                       acc:LiveRegion.Announce="{Binding PreviewStatusText}"/>
-            <TextBlock Grid.Column="5" Text="{Binding SelectedCountText}" VerticalAlignment="Center" FontWeight="Medium" 
+            <Button Grid.Column="2" Content="{loc:Loc ExportTxt}" Command="{Binding ExportTxtCommand}" Height="36" Margin="0,0,8,0"/>
+            <TextBlock Grid.Column="4" Text="{Binding SelectedCountText}" VerticalAlignment="Center" FontWeight="Medium" 
                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                        AutomationProperties.Name="{Binding SelectedCountText}"
                        AutomationProperties.LiveSetting="Polite"

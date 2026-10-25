@@ -21,7 +21,6 @@ public partial class MainViewModel : ObservableObject
     public PlayerViewModel PlayerVM { get; }
     public HistoryViewModel HistoryVM { get; }
     public RadarViewModel RadarVM { get; }
-    public LogsViewModel LogsVM { get; }
 
     public ObservableCollection<MainTabItem> OpenTabs { get; } = new();
 
@@ -47,7 +46,6 @@ public partial class MainViewModel : ObservableObject
         PlayerVM = new PlayerViewModel();
         HistoryVM = new HistoryViewModel();
         RadarVM = new RadarViewModel();
-        LogsVM = new LogsViewModel();
 
         DownloadVM.PropertyChanged += (s, e) =>
         {

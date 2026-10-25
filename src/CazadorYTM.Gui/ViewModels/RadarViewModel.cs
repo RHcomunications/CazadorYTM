@@ -25,6 +25,7 @@ public partial class RadarViewModel : ObservableObject
     private readonly Dictionary<RadarSection, DateTime> _sectionCacheAt = new();
     private static readonly TimeSpan SectionCacheTtl = TimeSpan.FromMinutes(5);
     private CancellationTokenSource? _loadCts;
+    private CancellationTokenSource? _streamCts;
 
     public event Action<DownloadEntry>? SendToDownloadRequested;
     public event Action<string, string, string?>? PlayTrackRequested;
@@ -316,6 +317,7 @@ public partial class RadarViewModel : ObservableObject
             }
 
             ApplyFilter();
+            SelectedItem = FilteredItems.FirstOrDefault();
             StatusText = $"Lista '{playlistItem.Title}' abierta con {AllItems.Count} pistas. Pulsa Enter para reproducir o Flecha Izquierda para volver.";
             HasError = false;
         }
@@ -584,9 +586,17 @@ public partial class RadarViewModel : ObservableObject
         var browser = _config.Get("cookies_browser", "Ninguno");
         var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
 
+        var cts = new CancellationTokenSource();
+        var prevCts = _streamCts;
+        _streamCts = cts;
+        prevCts?.Cancel();
+        prevCts?.Dispose();
+
         try
         {
-            var streamUrl = await RadarService.GetStreamUrlAsync(item.Url ?? item.Id, browser, cookiesPath);
+            var streamUrl = await RadarService.GetStreamUrlAsync(item.Url ?? item.Id, browser, cookiesPath, cts.Token);
+            if (cts.Token.IsCancellationRequested) return;
+
             if (!string.IsNullOrEmpty(streamUrl))
             {
                 PlayTrackRequested?.Invoke(streamUrl, item.Title, item.Artist);
@@ -598,10 +608,22 @@ public partial class RadarViewModel : ObservableObject
                 NotificationService.Instance.NotifyError("Radar YTM", $"No se pudo reproducir en directo: {item.Title}");
             }
         }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex)
         {
+            if (cts.Token.IsCancellationRequested) return;
             StatusText = $"Error al obtener stream: {ex.Message}";
             NotificationService.Instance.NotifyError("Error de Stream", ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_streamCts, cts))
+            {
+                _streamCts = null;
+            }
+            cts.Dispose();
         }
     }
 

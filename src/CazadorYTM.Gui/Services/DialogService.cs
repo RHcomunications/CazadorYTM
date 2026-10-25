@@ -70,14 +70,32 @@ public class DialogService
         return null;
     }
 
+    private static Window? GetActiveOwner() =>
+        Application.Current?.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
+        ?? Application.Current?.MainWindow;
+
     public void ShowMessage(string message, string title = "Cazador YTM", MessageBoxImage icon = MessageBoxImage.Information)
     {
-        MessageBox.Show(message, title, MessageBoxButton.OK, icon);
+        var owner = GetActiveOwner();
+        if (owner != null && owner.IsVisible)
+        {
+            MessageBox.Show(owner, message, title, MessageBoxButton.OK, icon);
+        }
+        else
+        {
+            MessageBox.Show(message, title, MessageBoxButton.OK, icon);
+        }
     }
 
     public bool ShowConfirmation(string message, string? title = null)
     {
-        return MessageBox.Show(message, title ?? LocalizationService.Instance["ConfirmTitle"], MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        var owner = GetActiveOwner();
+        var confirmTitle = title ?? LocalizationService.Instance["ConfirmTitle"];
+        if (owner != null && owner.IsVisible)
+        {
+            return MessageBox.Show(owner, message, confirmTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        }
+        return MessageBox.Show(message, confirmTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
     }
 
     public List<DownloadEntry>? ShowTrackSelectionDialog(string title, string typeDescription, List<DownloadEntry> tracks)
@@ -86,7 +104,7 @@ public class DialogService
         var dialog = new ResultSelectionDialog
         {
             DataContext = vm,
-            Owner = Application.Current?.MainWindow
+            Owner = GetActiveOwner()
         };
 
         if (dialog.ShowDialog() == true)
@@ -100,7 +118,7 @@ public class DialogService
     {
         var dialog = new PlaylistPickerWindow(trackTitle, playlists)
         {
-            Owner = Application.Current?.MainWindow
+            Owner = GetActiveOwner()
         };
 
         return dialog.ShowDialog() == true ? dialog.Selection : null;
@@ -110,7 +128,7 @@ public class DialogService
     {
         var dialog = new DownloadFormatDialog(trackTitle, defaultFormat, defaultBitrate)
         {
-            Owner = Application.Current?.MainWindow
+            Owner = GetActiveOwner()
         };
 
         return dialog.ShowDialog() == true ? dialog.Choice : null;

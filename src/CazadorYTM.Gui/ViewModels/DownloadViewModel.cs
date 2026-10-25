@@ -130,7 +130,7 @@ public partial class DownloadViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(InputText)) return;
 
         InputText = url;
-        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automǭticamente.", NotificationType.Info);
+        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automáticamente.", NotificationType.Info);
     }
 
     public void SetInputFromRadar(string target)

@@ -40,34 +40,15 @@ public class AudioTranscodeCache
 
             var tempWav = Path.Combine(tempDir, $"cache_{Guid.NewGuid():N}.wav");
 
-            var psi = new ProcessStartInfo
+            var args = new[]
             {
-                FileName = ffmpegExe,
-                CreateNoWindow = true,
-                UseShellExecute = false
+                "-y", "-v", "error", "-i", sourcePath,
+                "-vn", "-c:a", "pcm_s16le", tempWav
             };
-            psi.ArgumentList.Add("-y");
-            psi.ArgumentList.Add("-v");
-            psi.ArgumentList.Add("error");
-            psi.ArgumentList.Add("-i");
-            psi.ArgumentList.Add(sourcePath);
-            psi.ArgumentList.Add("-vn");
-            psi.ArgumentList.Add("-c:a");
-            psi.ArgumentList.Add("pcm_s16le");
-            psi.ArgumentList.Add(tempWav);
 
-            using var process = Process.Start(psi);
-            if (process == null) return null;
+            var runResult = ProcessRunner.RunAsync(ffmpegExe, args, timeoutMs: 15000).GetAwaiter().GetResult();
 
-            ProcessTracker.Track(process);
-            var exited = process.WaitForExit(15000);
-            if (!exited)
-            {
-                try { process.Kill(entireProcessTree: true); } catch { }
-                return null;
-            }
-
-            if (process.ExitCode == 0 && File.Exists(tempWav) && new FileInfo(tempWav).Length > 0)
+            if (runResult.Success && File.Exists(tempWav) && new FileInfo(tempWav).Length > 0)
             {
                 lock (_cacheLock)
                 {
@@ -123,5 +104,20 @@ public class AudioTranscodeCache
             _lruOrder.Clear();
             _currentTempWav = null;
         }
+    }
+
+    public static void PurgeStaleTempFiles()
+    {
+        try
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "CazadorYTM_Player");
+            if (!Directory.Exists(tempDir)) return;
+
+            foreach (var wav in Directory.EnumerateFiles(tempDir, "cache_*.wav"))
+            {
+                try { File.Delete(wav); } catch { }
+            }
+        }
+        catch { }
     }
 }

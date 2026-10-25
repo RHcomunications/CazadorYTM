@@ -96,11 +96,12 @@ public partial class App : Application
             ThemeManager.Current.ApplicationTheme = null; // Auto / System
         }
 
-        // Clean up stale temporary binaries (.old, .download) and update folders in background
+        // Clean up stale temporary binaries (.old, .download), transcode cache, and update folders in background
         Task.Run(() =>
         {
             BinaryManager.CleanOldBinaryBackups();
             AppUpdaterService.CleanStaleUpdateArtifacts();
+            AudioTranscodeCache.PurgeStaleTempFiles();
         });
     }
 

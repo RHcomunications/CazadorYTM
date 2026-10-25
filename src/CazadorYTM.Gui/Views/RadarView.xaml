@@ -181,9 +181,17 @@
 
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Width="56" CanUserSort="False" CanUserResize="False">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                <Setter Property="Focusable" Value="False"/>
+                                <Setter Property="IsTabStop" Value="False"/>
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Image Source="{Binding ThumbnailUrl}" Width="40" Height="40" Stretch="UniformToFill"/>
+                                <Image Source="{Binding ThumbnailUrl, Converter={StaticResource ThumbnailImageConverter}}" 
+                                       Width="40" Height="40" Stretch="UniformToFill"
+                                       Focusable="False" IsHitTestVisible="False"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

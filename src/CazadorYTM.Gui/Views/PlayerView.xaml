@@ -50,7 +50,7 @@
                             TickFrequency="1" IsSnapToTickEnabled="False" HorizontalAlignment="Stretch" Margin="0,0,0,6"
                             SmallChange="5" LargeChange="30"
                             AutomationProperties.Name="{Binding AccessiblePositionText}"
-                            AutomationProperties.HelpText="Usa Shift con flechas izquierda o derecha para retroceder o avanzar 5 segundos, Ctrl con Shift para 30 segundos, o Inicio y Fin para ir al principio o final."/>
+                            AutomationProperties.HelpText="{loc:Loc PlayerSeekHelp}"/>
                     <Grid>
                         <TextBlock Text="{Binding CurrentPositionText}" HorizontalAlignment="Left" FontSize="12" 
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
@@ -70,23 +70,23 @@
                     <!-- Open File -->
                     <Button Grid.Column="0" Content="{loc:Loc BtnOpenAudioFile}" Command="{Binding OpenFileCommand}" 
                             HorizontalAlignment="Left" Width="130" Height="40"
-                            AutomationProperties.Name="Abrir archivo de audio local"
-                            AutomationProperties.HelpText="Atajo: Control + O"/>
+                            AutomationProperties.Name="{loc:Loc PlayerOpenLocalAudio}"
+                            AutomationProperties.HelpText="{loc:Loc PlayerOpenLocalAudioHelp}"/>
 
                     <!-- Playback Controls (Shuffle, Prev, Play/Pause, Next, Repeat) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
                         <!-- Shuffle -->
                         <Button Content="🔀" Command="{Binding ToggleShuffleCommand}" Width="44" Height="40" Margin="0,0,6,0"
-                                ToolTip="Modo Aleatorio (Shuffle)"
+                                ToolTip="{loc:Loc PlayerShuffleName}"
                                 AutomationProperties.Name="{loc:Loc PlayerShuffleName}"
                                 AutomationProperties.HelpText="{loc:Loc PlayerShuffleHelp}"/>
 
                         <!-- Previous -->
                         <Button Content="⏮" Command="{Binding PlayPreviousCommand}" Width="48" Height="40" Margin="0,0,6,0"
                                 IsEnabled="{Binding HasPrevious}"
-                                ToolTip="Pista Anterior (Ctrl + Izquierda)"
-                                AutomationProperties.Name="Pista Anterior"
-                                AutomationProperties.HelpText="Atajo: Control + Flecha Izquierda"/>
+                                ToolTip="{loc:Loc PlayerPrevTrack}"
+                                AutomationProperties.Name="{loc:Loc PlayerPrevTrack}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerPrevTrackHelp}"/>
 
                         <!-- Play/Pause -->
                         <Button Content="{loc:Loc BtnPlayPause}" Style="{DynamicResource AccentButtonStyle}" 
@@ -97,20 +97,20 @@
                         <!-- Next -->
                         <Button Content="⏭" Command="{Binding PlayNextCommand}" Width="48" Height="40" Margin="0,0,6,0"
                                 IsEnabled="{Binding HasNext}"
-                                ToolTip="Pista Siguiente (Ctrl + Derecha)"
-                                AutomationProperties.Name="Pista Siguiente"
-                                AutomationProperties.HelpText="Atajo: Control + Flecha Derecha"/>
+                                ToolTip="{loc:Loc PlayerNextTrack}"
+                                AutomationProperties.Name="{loc:Loc PlayerNextTrack}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerNextTrackHelp}"/>
 
                         <!-- Repeat -->
                         <Button Content="🔁" Command="{Binding ToggleRepeatCommand}" Width="44" Height="40" Margin="0,0,6,0"
                                 ToolTip="{Binding RepeatModeText}"
                                 AutomationProperties.Name="{Binding RepeatModeText}"
-                                AutomationProperties.HelpText="Alterna entre Desactivado, Repetir Todo y Repetir Esta Canción"/>
+                                AutomationProperties.HelpText="{loc:Loc PlayerRepeatHelp}"/>
 
                         <!-- Stop -->
                         <Button Content="{loc:Loc BtnStop}" Command="{Binding StopCommand}" Width="80" Height="40"
-                                AutomationProperties.Name="Detener reproducción"
-                                AutomationProperties.HelpText="Atajo: Control + Shift + S"/>
+                                AutomationProperties.Name="{loc:Loc PlayerStopTrack}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerStopTrackHelp}"/>
                     </StackPanel>
 
                     <!-- Volume -->
@@ -119,7 +119,7 @@
                         <Slider x:Name="SldVolume" Minimum="0" Maximum="1" Value="{Binding Volume, Mode=TwoWay}" Width="100" VerticalAlignment="Center"
                                 SmallChange="0.05" LargeChange="0.1"
                                 AutomationProperties.Name="{Binding AccessibleVolumeText}"
-                                AutomationProperties.HelpText="Atajos: Control + Arriba para subir volumen, Control + Abajo para bajar volumen, Control + Shift + Abajo para silenciar."
+                                AutomationProperties.HelpText="{loc:Loc PlayerVolumeHelp}"
                                 ValueChanged="SldVolume_ValueChanged"/>
                     </StackPanel>
                 </Grid>

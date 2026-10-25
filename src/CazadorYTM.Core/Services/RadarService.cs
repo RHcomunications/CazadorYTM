@@ -83,14 +83,15 @@ public static class RadarService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return await FetchRadarItemsFromYtDlpAsync(section, cookiesBrowser, cookiesPath, logger);
+        return await FetchRadarItemsFromYtDlpAsync(section, cookiesBrowser, cookiesPath, logger, cancellationToken);
     }
 
     private static async Task<List<RadarItem>> FetchRadarItemsFromYtDlpAsync(
         RadarSection section,
         string? cookiesBrowser,
         string? cookiesPath,
-        Action<string>? logger)
+        Action<string>? logger,
+        CancellationToken cancellationToken = default)
     {
         var results = new List<RadarItem>();
         try
@@ -127,7 +128,7 @@ public static class RadarService
 
             args.Add(targetUrl);
 
-            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000);
+            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000, cancellationToken: cancellationToken);
 
             if (!runResult.Success)
             {
@@ -227,14 +228,15 @@ public static class RadarService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return await FetchPlaylistTracksFromYtDlpAsync(playlistUrlOrId, cookiesBrowser, cookiesPath, logger);
+        return await FetchPlaylistTracksFromYtDlpAsync(playlistUrlOrId, cookiesBrowser, cookiesPath, logger, cancellationToken);
     }
 
     private static async Task<List<RadarItem>> FetchPlaylistTracksFromYtDlpAsync(
         string playlistUrlOrId,
         string? cookiesBrowser,
         string? cookiesPath,
-        Action<string>? logger)
+        Action<string>? logger,
+        CancellationToken cancellationToken = default)
     {
         var results = new List<RadarItem>();
         try
@@ -267,7 +269,7 @@ public static class RadarService
 
             args.Add(targetUrl);
 
-            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000);
+            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000, cancellationToken: cancellationToken);
 
             if (!runResult.Success)
             {
@@ -376,7 +378,11 @@ public static class RadarService
         return new YouTubeMusicClient(session, language);
     }
 
-    public static async Task<string?> GetStreamUrlAsync(string videoUrlOrId, string? cookiesBrowser = null, string? cookiesPath = null)
+    public static async Task<string?> GetStreamUrlAsync(
+        string videoUrlOrId,
+        string? cookiesBrowser = null,
+        string? cookiesPath = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -398,7 +404,7 @@ public static class RadarService
 
             args.Add(videoUrlOrId);
 
-            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 15000);
+            var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 15000, cancellationToken: cancellationToken);
 
             if (runResult.Success && !string.IsNullOrWhiteSpace(runResult.StandardOutput))
             {
