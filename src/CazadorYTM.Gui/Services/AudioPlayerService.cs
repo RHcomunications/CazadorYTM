@@ -171,7 +171,7 @@ public class AudioPlayerService : IAudioPlayerService
     public void SetQueue(IEnumerable<string> tracks, int startIndex = 0)
     {
         _queue.Clear();
-        _queue.AddRange(tracks.Where(File.Exists));
+        _queue.AddRange(tracks.Where(t => File.Exists(t) || Helpers.IsUrl(t)));
 
         if (_queue.Count > 0)
         {

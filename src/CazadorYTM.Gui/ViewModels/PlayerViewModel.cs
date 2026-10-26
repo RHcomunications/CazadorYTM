@@ -13,6 +13,7 @@ public partial class PlayerViewModel : ObservableObject
 {
     private readonly IAudioPlayerService _player;
     private double _previousVolume = 0.8;
+    private string? _remoteStreamUrl;
 
     [ObservableProperty]
     private string _trackTitle = LocalizationService.Instance.Get("PlayerStatusNoActive", "Sin reproducción activa");
@@ -154,10 +155,18 @@ public partial class PlayerViewModel : ObservableObject
 
         if (!string.IsNullOrEmpty(_player.CurrentFilePath))
         {
-            var filename = Path.GetFileName(_player.CurrentFilePath);
-            var (title, artist) = MetadataHelpers.ExtractTitleArtist(filename);
-            TrackTitle = string.IsNullOrWhiteSpace(title) ? filename : title;
-            TrackArtist = artist;
+            if (_remoteStreamUrl == _player.CurrentFilePath && !string.IsNullOrWhiteSpace(TrackTitle))
+            {
+                // Preserve explicitly provided remote track title and artist
+            }
+            else
+            {
+                _remoteStreamUrl = null;
+                var filename = Path.GetFileName(_player.CurrentFilePath);
+                var (title, artist) = MetadataHelpers.ExtractTitleArtist(filename);
+                TrackTitle = string.IsNullOrWhiteSpace(title) ? filename : title;
+                TrackArtist = artist;
+            }
         }
         else
         {
@@ -327,6 +336,7 @@ public partial class PlayerViewModel : ObservableObject
 
     public void PlayRemoteTrack(string streamUrl, string title, string? artist = null)
     {
+        _remoteStreamUrl = streamUrl;
         TrackTitle = title;
         TrackArtist = artist ?? string.Empty;
         TrackAnnouncement = string.IsNullOrWhiteSpace(TrackArtist)
