@@ -26,7 +26,7 @@ public static class MetadataService
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"CazadorYTM/{Constants.AppVersion} (Windows NT 10.0; Win64; x64)");
     }
 
-    public static string? FetchLyricsLrclib(string trackName, string? artistName = null, int? duration = null)
+    public static async Task<string?> FetchLyricsLrclibAsync(string trackName, string? artistName = null, int? duration = null, System.Threading.CancellationToken cancellationToken = default)
     {
         try
         {
@@ -36,7 +36,7 @@ public static class MetadataService
                 url += $"&artist_name={Uri.EscapeDataString(artistName)}";
             }
 
-            var response = _httpClient.GetStringAsync(url).GetAwaiter().GetResult();
+            var response = await _httpClient.GetStringAsync(url, cancellationToken);
             using var doc = JsonDocument.Parse(response);
             var root = doc.RootElement;
 
@@ -60,21 +60,31 @@ public static class MetadataService
         return null;
     }
 
-    public static bool TryWriteLyrics(string audioFilePath, string trackName, string? artistName = null, int? duration = null)
+    public static string? FetchLyricsLrclib(string trackName, string? artistName = null, int? duration = null)
+    {
+        return FetchLyricsLrclibAsync(trackName, artistName, duration).GetAwaiter().GetResult();
+    }
+
+    public static async Task<bool> TryWriteLyricsAsync(string audioFilePath, string trackName, string? artistName = null, int? duration = null, System.Threading.CancellationToken cancellationToken = default)
     {
         try
         {
-            var lyrics = FetchLyricsLrclib(trackName, artistName, duration);
+            var lyrics = await FetchLyricsLrclibAsync(trackName, artistName, duration, cancellationToken);
             if (!string.IsNullOrEmpty(lyrics))
             {
                 var lrcPath = Path.ChangeExtension(audioFilePath, ".lrc");
-                File.WriteAllText(lrcPath, lyrics, Encoding.UTF8);
+                await File.WriteAllTextAsync(lrcPath, lyrics, Encoding.UTF8, cancellationToken);
                 return true;
             }
         }
         catch { }
 
         return false;
+    }
+
+    public static bool TryWriteLyrics(string audioFilePath, string trackName, string? artistName = null, int? duration = null)
+    {
+        return TryWriteLyricsAsync(audioFilePath, trackName, artistName, duration).GetAwaiter().GetResult();
     }
 
     public static async Task<SearchResult> GetMetadataAsync(string userInput, bool isSearch = false, int limit = 10,

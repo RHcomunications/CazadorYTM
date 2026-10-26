@@ -102,6 +102,7 @@ public partial class DownloadViewModel : ObservableObject
         _isEnumerate = preferences.Enumerate;
         _isClipboardMonitorEnabled = preferences.ClipboardMonitor;
         _destinationFolder = preferences.DestinationFolder;
+        _statusText = LocalizationService.Instance["DownloadStatusReady"];
 
         Directory.CreateDirectory(_destinationFolder);
 
@@ -227,7 +228,7 @@ public partial class DownloadViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusText = "Analizando entrada y buscando metadatos...";
+        StatusText = LocalizationService.Instance["DownloadStatusAnalyzing"];
         LogService.Instance.Info($"Búsqueda iniciada para: {Helpers.SanitizeLogMessage(InputText)}");
 
         var fromRadar = _isRadarImport;
@@ -263,7 +264,7 @@ public partial class DownloadViewModel : ObservableObject
 
                 if (choice == null)
                 {
-                    StatusText = "Operación cancelada por el usuario";
+                    StatusText = LocalizationService.Instance["DownloadStatusOpCanceled"];
                     return;
                 }
 
@@ -288,7 +289,7 @@ public partial class DownloadViewModel : ObservableObject
                 }
                 else
                 {
-                    StatusText = "Operación cancelada por el usuario";
+                    StatusText = LocalizationService.Instance["DownloadStatusOpCanceled"];
                 }
             }
             else if (searchResult.Entries.Count > 1)
@@ -311,7 +312,7 @@ public partial class DownloadViewModel : ObservableObject
                 }
                 else
                 {
-                    StatusText = "Operación cancelada por el usuario";
+                    StatusText = LocalizationService.Instance["DownloadStatusOpCanceled"];
                 }
             }
             else
@@ -394,7 +395,7 @@ public partial class DownloadViewModel : ObservableObject
 
             if (result.Success)
             {
-                StatusText = "¡Descarga completada exitosamente!";
+                StatusText = LocalizationService.Instance["DownloadStatusSuccess"];
                 ProgressPercentage = 100;
                 ProgressDetail = "Completado al 100%";
                 LogService.Instance.Info($"Descarga completada: {result.FilePath}");
@@ -420,7 +421,7 @@ public partial class DownloadViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Descarga cancelada";
+            StatusText = LocalizationService.Instance["DownloadStatusCanceled"];
             LogService.Instance.Warn("Descarga cancelada por el usuario.");
         }
         catch (Exception ex)
@@ -528,18 +529,17 @@ public partial class DownloadViewModel : ObservableObject
                         {
                             if (slot != null)
                             {
-                                if (dict.TryGetValue("percent", out var pctStr) && double.TryParse(pctStr, out var pct))
+                                double pct = 0;
+                                var hasPct = dict.TryGetValue("percent", out var pctStr) && double.TryParse(pctStr, out pct);
+                                var hasSpd = dict.TryGetValue("speed", out var spd);
+                                var hasEta = dict.TryGetValue("eta", out var eta);
+
+                                Application.Current?.Dispatcher.InvokeAsync(() =>
                                 {
-                                    Application.Current?.Dispatcher.Invoke(() => slot.Progress = pct);
-                                }
-                                if (dict.TryGetValue("speed", out var spd))
-                                {
-                                    Application.Current?.Dispatcher.Invoke(() => slot.Speed = spd);
-                                }
-                                if (dict.TryGetValue("eta", out var eta))
-                                {
-                                    Application.Current?.Dispatcher.Invoke(() => slot.Eta = eta);
-                                }
+                                    if (hasPct) slot.Progress = pct;
+                                    if (hasSpd && spd != null) slot.Speed = spd;
+                                    if (hasEta && eta != null) slot.Eta = eta;
+                                }, System.Windows.Threading.DispatcherPriority.Background);
                             }
                         }));
 

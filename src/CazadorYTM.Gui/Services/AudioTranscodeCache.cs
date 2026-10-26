@@ -14,7 +14,7 @@ public class AudioTranscodeCache
 
     private string? _currentTempWav;
 
-    public string? TryTranscodeToTempWav(string sourcePath)
+    public async Task<string?> TryTranscodeToTempWavAsync(string sourcePath, System.Threading.CancellationToken cancellationToken = default)
     {
         try
         {
@@ -46,7 +46,7 @@ public class AudioTranscodeCache
                 "-vn", "-c:a", "pcm_s16le", tempWav
             };
 
-            var runResult = ProcessRunner.RunAsync(ffmpegExe, args, timeoutMs: 15000).GetAwaiter().GetResult();
+            var runResult = await ProcessRunner.RunAsync(ffmpegExe, args, timeoutMs: 15000, cancellationToken: cancellationToken);
 
             if (runResult.Success && File.Exists(tempWav) && new FileInfo(tempWav).Length > 0)
             {
@@ -86,6 +86,11 @@ public class AudioTranscodeCache
             LogService.Instance.Error($"Fallo al decodificar audio con FFmpeg: {ex.Message}");
         }
         return null;
+    }
+
+    public string? TryTranscodeToTempWav(string sourcePath)
+    {
+        return TryTranscodeToTempWavAsync(sourcePath).GetAwaiter().GetResult();
     }
 
     public void CleanupAllTempCache()

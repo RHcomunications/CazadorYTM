@@ -142,7 +142,7 @@ public static class CookieService
         bool asJson = false,
         Action<string>? logger = null)
     {
-        return await Task.Run(() =>
+        return await Task.Run(async () =>
         {
             try
             {
@@ -186,7 +186,7 @@ public static class CookieService
                         "https://www.youtube.com/robots.txt"
                     };
 
-                    var runResult = ProcessRunner.RunAsync(exe, args, timeoutMs: 45000).GetAwaiter().GetResult();
+                    var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 45000);
                     var combinedErr = $"{runResult.StandardOutput}\n{runResult.StandardError}";
 
                     if (combinedErr.Contains("DPAPI", StringComparison.OrdinalIgnoreCase) ||

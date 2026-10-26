@@ -34,19 +34,19 @@ public partial class CookiesManagerViewModel : ObservableObject
     private bool _isExtracting = false;
 
     [ObservableProperty]
-    private string _autoExtractStatus = "Selecciona tu navegador e inicia la extracción.";
+    private string _autoExtractStatus = string.Empty;
 
     [ObservableProperty]
     private string _manualCookiesText = string.Empty;
 
     [ObservableProperty]
-    private string _manualStatus = "Listo para pegar cookies de YouTube.";
+    private string _manualStatus = string.Empty;
 
     [ObservableProperty]
     private string _currentCookiesPath = string.Empty;
 
     [ObservableProperty]
-    private string _statusSummary = "Comprobando estado de cookies...";
+    private string _statusSummary = string.Empty;
 
     [ObservableProperty]
     private bool _hasActiveCookies = false;
@@ -54,6 +54,11 @@ public partial class CookiesManagerViewModel : ObservableObject
     public CookiesManagerViewModel()
     {
         _config = new AppConfig();
+        var loc = LocalizationService.Instance;
+        _autoExtractStatus = loc["CookiesAutoExtractPrompt"];
+        _manualStatus = loc["CookiesManualPrompt"];
+        _statusSummary = loc["CookiesCheckingStatus"];
+
         var savedBrowser = _config.Get("cookies_browser", "Chrome");
         if (Browsers.Contains(savedBrowser))
         {
@@ -65,6 +70,7 @@ public partial class CookiesManagerViewModel : ObservableObject
 
     public void RefreshStatus()
     {
+        var loc = LocalizationService.Instance;
         CurrentCookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
         var status = CookieService.GetCookiesStatus(CurrentCookiesPath);
 
@@ -73,21 +79,22 @@ public partial class CookiesManagerViewModel : ObservableObject
         if (status.Exists)
         {
             var authStr = status.HasYouTubeAuthCookies
-                ? "Sesión de YouTube activa y verificada"
-                : "Cookies presentes, pero sin tokens de sesión detectados";
+                ? loc["CookiesActiveSession"]
+                : loc["CookiesNoSessionTokens"];
             StatusSummary = $"Archivo: {Path.GetFileName(CurrentCookiesPath)} ({status.FormattedSize}, {status.EstimatedCookieCount} cookies)\nEstado: {authStr}";
         }
         else
         {
-            StatusSummary = "No se ha configurado ningún archivo de cookies todavía. Puedes extraerlas automáticamente o pegarlas desde tu navegador.";
+            StatusSummary = loc["CookiesNoFileConfigured"];
         }
     }
 
     [RelayCommand]
     public async Task ExtractFromBrowser()
     {
+        var loc = LocalizationService.Instance;
         IsExtracting = true;
-        AutoExtractStatus = $"Extrayendo cookies de sesión desde {SelectedBrowser}... Por favor espera.";
+        AutoExtractStatus = string.Format(loc["CookiesExtracting"], SelectedBrowser);
 
         try
         {
@@ -106,11 +113,11 @@ public partial class CookiesManagerViewModel : ObservableObject
                 _config.Set("cookies_path", targetPath);
                 _config.Save();
                 RefreshStatus();
-                NotificationService.Instance.Notify("Cookies de YouTube", "Cookies extraídas y guardadas con éxito.", NotificationType.Success);
+                NotificationService.Instance.Notify(loc["CookiesWindowTitle"], loc["CookiesExtractSuccess"], NotificationType.Success);
             }
             else
             {
-                NotificationService.Instance.Notify("Cookies de YouTube", "No se pudieron extraer automáticamente. Prueba con la Vía 2 (Asistente).", NotificationType.Warning);
+                NotificationService.Instance.Notify(loc["CookiesWindowTitle"], loc["CookiesExtractFailed"], NotificationType.Warning);
             }
         }
         catch (Exception ex)
@@ -126,6 +133,7 @@ public partial class CookiesManagerViewModel : ObservableObject
     [RelayCommand]
     public void OpenRobotsUrl()
     {
+        var loc = LocalizationService.Instance;
         try
         {
             Process.Start(new ProcessStartInfo
@@ -133,7 +141,7 @@ public partial class CookiesManagerViewModel : ObservableObject
                 FileName = "https://www.youtube.com/robots.txt",
                 UseShellExecute = true
             });
-            ManualStatus = "Abriendo https://www.youtube.com/robots.txt en tu navegador predeterminado...";
+            ManualStatus = loc["CookiesOpeningRobots"];
         }
         catch (Exception ex)
         {
@@ -155,6 +163,7 @@ public partial class CookiesManagerViewModel : ObservableObject
 
     private static void OpenExternalUrl(string url)
     {
+        var loc = LocalizationService.Instance;
         try
         {
             Process.Start(new ProcessStartInfo
@@ -165,49 +174,52 @@ public partial class CookiesManagerViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            NotificationService.Instance.NotifyError("Cookies de YouTube", $"No se pudo abrir el navegador: {ex.Message}");
+            NotificationService.Instance.NotifyError(loc["CookiesWindowTitle"], $"No se pudo abrir el navegador: {ex.Message}");
         }
     }
 
     [RelayCommand]
     public void PasteClipboard()
     {
+        var loc = LocalizationService.Instance;
         try
         {
             if (Clipboard.ContainsText())
             {
                 var text = Clipboard.GetText();
                 ManualCookiesText = text;
-                ManualStatus = $"Texto pegado desde el portapapeles ({text.Length} caracteres). Pulsa 'Validar y Guardar Cookies'.";
+                ManualStatus = string.Format(loc["CookiesClipboardPasted"], text.Length);
             }
             else
             {
-                ManualStatus = "El portapapeles no contiene texto.";
+                ManualStatus = loc["CookiesClipboardEmpty"];
             }
         }
         catch (Exception ex)
         {
-            ManualStatus = $"Error al leer el portapapeles: {ex.Message}";
+            ManualStatus = string.Format(loc["CookiesClipboardError"], ex.Message);
         }
     }
 
     [RelayCommand]
     public void ClearManualText()
     {
+        var loc = LocalizationService.Instance;
         ManualCookiesText = string.Empty;
-        ManualStatus = "Texto limpiado.";
+        ManualStatus = loc["CookiesTextCleared"];
     }
 
     [RelayCommand]
     public async Task SaveManualCookies()
     {
+        var loc = LocalizationService.Instance;
         if (string.IsNullOrWhiteSpace(ManualCookiesText))
         {
-            ManualStatus = "Por favor pega el contenido de las cookies antes de guardar.";
+            ManualStatus = loc["CookiesPasteRequired"];
             return;
         }
 
-        ManualStatus = "Procesando y validando cookies...";
+        ManualStatus = loc["CookiesValidating"];
         var targetPath = Helpers.GetDefaultCookiesPath();
 
         var result = await CookieService.SaveCookiesFromTextAsync(
@@ -222,20 +234,21 @@ public partial class CookiesManagerViewModel : ObservableObject
             _config.Set("cookies_path", targetPath);
             _config.Save();
             RefreshStatus();
-            NotificationService.Instance.Notify("Cookies de YouTube", "Cookies guardadas y validadas exitosamente.", NotificationType.Success);
+            NotificationService.Instance.Notify(loc["CookiesWindowTitle"], loc["CookiesSavedSuccess"], NotificationType.Success);
         }
         else
         {
-            NotificationService.Instance.NotifyError("Cookies de YouTube", result.Message);
+            NotificationService.Instance.NotifyError(loc["CookiesWindowTitle"], result.Message);
         }
     }
 
     [RelayCommand]
     public async Task ExportCookies()
     {
+        var loc = LocalizationService.Instance;
         if (!File.Exists(CurrentCookiesPath))
         {
-            NotificationService.Instance.NotifyWarning("Exportar Cookies", "No hay cookies guardadas para exportar.");
+            NotificationService.Instance.NotifyWarning(loc["CookiesExportGroup"], loc["CookiesNoneToExport"]);
             return;
         }
 
@@ -253,11 +266,11 @@ public partial class CookiesManagerViewModel : ObservableObject
 
             if (result.Success)
             {
-                NotificationService.Instance.Notify("Exportar Cookies", "Archivo exportado con éxito.", NotificationType.Success);
+                NotificationService.Instance.Notify(loc["CookiesExportGroup"], loc["CookiesExportSuccess"], NotificationType.Success);
             }
             else
             {
-                NotificationService.Instance.NotifyError("Exportar Cookies", result.Message);
+                NotificationService.Instance.NotifyError(loc["CookiesExportGroup"], result.Message);
             }
         }
     }
@@ -265,6 +278,7 @@ public partial class CookiesManagerViewModel : ObservableObject
     [RelayCommand]
     public async Task ImportCookies()
     {
+        var loc = LocalizationService.Instance;
         var dialog = new OpenFileDialog
         {
             Title = "Importar archivo de cookies existente",
@@ -281,11 +295,11 @@ public partial class CookiesManagerViewModel : ObservableObject
                 _config.Set("cookies_path", targetPath);
                 _config.Save();
                 RefreshStatus();
-                NotificationService.Instance.Notify("Importar Cookies", result.Message, NotificationType.Success);
+                NotificationService.Instance.Notify(loc["CookiesImportGroup"], result.Message, NotificationType.Success);
             }
             else
             {
-                NotificationService.Instance.NotifyError("Importar Cookies", result.Message);
+                NotificationService.Instance.NotifyError(loc["CookiesImportGroup"], result.Message);
             }
         }
     }
@@ -312,14 +326,13 @@ public partial class CookiesManagerViewModel : ObservableObject
     public void DeleteCookies()
     {
         if (!File.Exists(CurrentCookiesPath)) return;
+        var loc = LocalizationService.Instance;
 
-        var res = MessageBox.Show(
-            LocalizationService.Instance["CookiesDeleteConfirmMsg"],
-            LocalizationService.Instance["CookiesDeleteConfirmTitle"],
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+        var confirmed = DialogService.Instance.ShowConfirmation(
+            loc["CookiesDeleteConfirmMsg"],
+            loc["CookiesDeleteConfirmTitle"]);
 
-        if (res == MessageBoxResult.Yes)
+        if (confirmed)
         {
             try
             {
@@ -328,7 +341,7 @@ public partial class CookiesManagerViewModel : ObservableObject
                 if (File.Exists(jsonPath)) File.Delete(jsonPath);
 
                 RefreshStatus();
-                NotificationService.Instance.Notify("Cookies de YouTube", "Cookies eliminadas correctamente.", NotificationType.Info);
+                NotificationService.Instance.Notify(loc["CookiesWindowTitle"], loc["CookiesDeleteSuccess"], NotificationType.Info);
             }
             catch (Exception ex)
             {

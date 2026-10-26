@@ -71,6 +71,7 @@ public partial class RadarViewModel : ObservableObject
     public RadarViewModel()
     {
         _config = new AppConfig();
+        _statusText = LocalizationService.Instance["RadarStatusReady"];
         HasSessionConnected = CheckSessionConnected();
     }
 
@@ -152,7 +153,7 @@ public partial class RadarViewModel : ObservableObject
         {
             AllItems.Clear();
             FilteredItems.Clear();
-            StatusText = "Sesión de YouTube no conectada. Conecta tus cookies para acceder a tu historial y biblioteca.";
+            StatusText = LocalizationService.Instance["RadarStatusNoSession"];
             CompleteLoad(cts);
             return;
         }
@@ -165,10 +166,10 @@ public partial class RadarViewModel : ObservableObject
 
         StatusText = section switch
         {
-            RadarSection.History => "Consultando historial reciente de YouTube...",
-            RadarSection.LikedSongs => "Consultando canciones que te gustan (Liked Music)...",
-            RadarSection.Playlists => "Consultando tus listas de reproducción...",
-            _ => "Cargando..."
+            RadarSection.History => LocalizationService.Instance["RadarStatusLoadingHistory"],
+            RadarSection.LikedSongs => LocalizationService.Instance["RadarStatusLoadingLiked"],
+            RadarSection.Playlists => LocalizationService.Instance["RadarStatusLoadingPlaylists"],
+            _ => "..."
         };
 
         try
@@ -293,7 +294,7 @@ public partial class RadarViewModel : ObservableObject
         IsLoading = true;
         HasError = false;
         ErrorMessage = string.Empty;
-        StatusText = $"Abriendo y cargando pistas de '{playlistItem.Title}'...";
+        StatusText = string.Format(LocalizationService.Instance["RadarStatusOpeningPlaylist"], playlistItem.Title);
 
         try
         {
@@ -321,7 +322,7 @@ public partial class RadarViewModel : ObservableObject
 
             ApplyFilter();
             SelectedItem = FilteredItems.FirstOrDefault();
-            StatusText = $"Lista '{playlistItem.Title}' abierta con {AllItems.Count} pistas. Pulsa Enter para reproducir o Flecha Izquierda para volver.";
+            StatusText = string.Format(LocalizationService.Instance["RadarStatusPlaylistOpened"], playlistItem.Title, AllItems.Count);
             HasError = false;
             RequestFocusItem?.Invoke(SelectedItem);
         }
@@ -504,7 +505,7 @@ public partial class RadarViewModel : ObservableObject
             SelectedItem = FilteredItems.FirstOrDefault(i => i.Id == prevId) ?? FilteredItems.FirstOrDefault();
         }
 
-        StatusText = $"De regreso en Mis Listas de Reproducción ({AllItems.Count} listas disponibles).";
+        StatusText = string.Format(LocalizationService.Instance["RadarStatusBackToPlaylists"], AllItems.Count);
         RequestFocusItem?.Invoke(SelectedItem);
     }
 

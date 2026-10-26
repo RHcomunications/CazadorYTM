@@ -124,15 +124,16 @@ public class AudioPlayerService : IAudioPlayerService
             OnTrackEnded();
         };
 
-        _mediaPlayer.MediaFailed += (s, e) =>
+        _mediaPlayer.MediaFailed += async (s, e) =>
         {
-            if (CurrentFilePath != null && !_isFallbackAttempt)
+            var failedPath = CurrentFilePath;
+            if (failedPath != null && !_isFallbackAttempt)
             {
                 _isFallbackAttempt = true;
-                var transcoded = TryTranscodeToTempWav(CurrentFilePath);
-                if (transcoded != null)
+                var transcoded = await _transcodeCache.TryTranscodeToTempWavAsync(failedPath);
+                if (transcoded != null && CurrentFilePath == failedPath)
                 {
-                    LogService.Instance.Info($"Reproduciendo mediante decodificador universal FFmpeg: {Path.GetFileName(CurrentFilePath)}");
+                    LogService.Instance.Info($"Reproduciendo mediante decodificador universal FFmpeg: {Path.GetFileName(failedPath)}");
                     _mediaPlayer.Open(new Uri(transcoded, UriKind.Absolute));
                     _mediaPlayer.Play();
                     return;
@@ -218,7 +219,7 @@ public class AudioPlayerService : IAudioPlayerService
         }
     }
 
-    private void PlayInternal(string filePath)
+    private async void PlayInternal(string filePath)
     {
         try
         {
@@ -233,13 +234,15 @@ public class AudioPlayerService : IAudioPlayerService
             // Direct transcode for formats notoriously unsupported by default Windows Media Foundation (.opus, .ogg, .webm)
             if (!isRemote && (ext == ".opus" || ext == ".ogg" || ext == ".webm"))
             {
-                var transcoded = TryTranscodeToTempWav(filePath);
+                var transcoded = await _transcodeCache.TryTranscodeToTempWavAsync(filePath);
                 if (transcoded != null)
                 {
                     targetUri = transcoded;
                     _isFallbackAttempt = true;
                 }
             }
+
+            if (CurrentFilePath != filePath) return;
 
             _mediaPlayer.Open(new Uri(targetUri, UriKind.Absolute));
             _mediaPlayer.Play();
@@ -358,6 +361,9 @@ public class AudioPlayerService : IAudioPlayerService
     }
 
     public string? TryTranscodeToTempWav(string sourcePath) => _transcodeCache.TryTranscodeToTempWav(sourcePath);
+
+    public async Task<string?> TryTranscodeToTempWavAsync(string sourcePath, System.Threading.CancellationToken cancellationToken = default) =>
+        await _transcodeCache.TryTranscodeToTempWavAsync(sourcePath, cancellationToken);
 
     public void CleanupAllTempCache() => _transcodeCache.CleanupAllTempCache();
 }

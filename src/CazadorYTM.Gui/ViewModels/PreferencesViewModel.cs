@@ -335,8 +335,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
             var msg = LocalizationService.Instance["PrefLanguageChangedMsg"];
             var title = LocalizationService.Instance["PrefLanguageChangedTitle"];
 
-            var result = MessageBox.Show(msg, title, MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result == MessageBoxResult.Yes)
+            if (DialogService.Instance.ShowConfirmation(msg, title))
             {
                 var processPath = Environment.ProcessPath;
                 if (!string.IsNullOrEmpty(processPath) && File.Exists(processPath))
