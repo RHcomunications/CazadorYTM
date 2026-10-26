@@ -147,4 +147,25 @@ public class RadarViewModelTests
         Assert.True(vm.ClearRatingCommand.CanExecute(null));
         Assert.True(vm.AddToPlaylistCommand.CanExecute(null));
     }
+
+    [Fact]
+    public void BackToPlaylists_RaisesRequestFocusItem()
+    {
+        var vm = new RadarViewModel();
+        vm.IsViewingPlaylistDetails = true;
+        vm.CurrentPlaylistTitle = "Mi lista";
+
+        RadarItem? focusedItem = null;
+        var eventRaised = false;
+        vm.RequestFocusItem += item =>
+        {
+            eventRaised = true;
+            focusedItem = item;
+        };
+
+        vm.BackToPlaylists();
+
+        Assert.True(eventRaised);
+        Assert.Equal(vm.SelectedItem, focusedItem);
+    }
 }

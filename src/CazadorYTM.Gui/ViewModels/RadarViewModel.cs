@@ -30,6 +30,7 @@ public partial class RadarViewModel : ObservableObject
     public event Action<DownloadEntry>? SendToDownloadRequested;
     public event Action<string, string, string?>? PlayTrackRequested;
     public event Action? RequestOpenCookiesManager;
+    public event Action<RadarItem?>? RequestFocusItem;
 
     [ObservableProperty]
     private RadarSection _selectedSection = RadarSection.History;
@@ -206,6 +207,7 @@ public partial class RadarViewModel : ObservableObject
             ApplyFilter();
             StatusText = $"{AllItems.Count} elementos cargados en {section}.";
             HasError = false;
+            RequestFocusItem?.Invoke(SelectedItem);
         }
         catch (OperationCanceledException)
         {
@@ -267,6 +269,7 @@ public partial class RadarViewModel : ObservableObject
         ApplyFilter();
         StatusText = $"{AllItems.Count} elementos cargados en {section} (caché).";
         HasError = false;
+        RequestFocusItem?.Invoke(SelectedItem);
         return true;
     }
 
@@ -320,6 +323,7 @@ public partial class RadarViewModel : ObservableObject
             SelectedItem = FilteredItems.FirstOrDefault();
             StatusText = $"Lista '{playlistItem.Title}' abierta con {AllItems.Count} pistas. Pulsa Enter para reproducir o Flecha Izquierda para volver.";
             HasError = false;
+            RequestFocusItem?.Invoke(SelectedItem);
         }
         catch (OperationCanceledException)
         {
@@ -501,6 +505,7 @@ public partial class RadarViewModel : ObservableObject
         }
 
         StatusText = $"De regreso en Mis Listas de Reproducción ({AllItems.Count} listas disponibles).";
+        RequestFocusItem?.Invoke(SelectedItem);
     }
 
     [RelayCommand]

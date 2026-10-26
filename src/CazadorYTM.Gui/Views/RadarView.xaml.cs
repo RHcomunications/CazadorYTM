@@ -1,8 +1,10 @@
 namespace CazadorYTM.Gui.Views;
 
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.ViewModels;
 
 public partial class RadarView : UserControl
@@ -18,12 +20,32 @@ public partial class RadarView : UserControl
         if (e.OldValue is RadarViewModel oldVm)
         {
             oldVm.RequestOpenCookiesManager -= OpenCookiesDialog;
+            oldVm.RequestFocusItem -= FocusGridAndItem;
         }
 
         if (e.NewValue is RadarViewModel newVm)
         {
             newVm.RequestOpenCookiesManager += OpenCookiesDialog;
+            newVm.RequestFocusItem += FocusGridAndItem;
         }
+    }
+
+    private void FocusGridAndItem(RadarItem? item)
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (GridRadar.Visibility != Visibility.Visible) return;
+
+            GridRadar.Focus();
+            var target = item ?? GridRadar.SelectedItem as RadarItem ?? (GridRadar.Items.Count > 0 ? GridRadar.Items[0] as RadarItem : null);
+            if (target != null)
+            {
+                GridRadar.SelectedItem = target;
+                GridRadar.ScrollIntoView(target);
+                var row = (DataGridRow?)GridRadar.ItemContainerGenerator.ContainerFromItem(target);
+                row?.Focus();
+            }
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void OpenCookiesDialog()
@@ -37,14 +59,13 @@ public partial class RadarView : UserControl
 
     private void Category_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter || e.Key == Key.Right)
+        if (e.Key == Key.Enter)
         {
             if (sender is RadioButton rb)
             {
                 rb.IsChecked = true;
                 e.Handled = true;
-                // Move keyboard focus directly to GridRadar so the user can start navigating items immediately
-                GridRadar.Focus();
+                FocusGridAndItem(null);
             }
         }
     }

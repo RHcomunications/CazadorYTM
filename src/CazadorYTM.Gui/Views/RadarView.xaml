@@ -134,7 +134,7 @@
 
             <!-- 3. Active Items DataGrid -->
                 <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
-                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" RowHeight="48"
+                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow" Focusable="True" RowHeight="48"
                       BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                       Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                       AutomationProperties.Name="{loc:Loc RadarGridHint}"
