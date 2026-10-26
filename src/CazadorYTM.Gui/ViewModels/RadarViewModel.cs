@@ -206,7 +206,7 @@ public partial class RadarViewModel : ObservableObject
             }
 
             ApplyFilter();
-            StatusText = $"{AllItems.Count} elementos cargados en {section}.";
+            StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusItemsLoaded", "{0} elementos cargados en {1}."), AllItems.Count, section);
             HasError = false;
             RequestFocusItem?.Invoke(SelectedItem);
         }
@@ -222,7 +222,7 @@ public partial class RadarViewModel : ObservableObject
 
             HasError = true;
             ErrorMessage = ex.Message;
-            StatusText = $"Error al consultar Radar: {ex.Message}";
+            StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusErrorQuery", "Error al consultar Radar: {0}"), ex.Message);
             LogService.Instance.Error($"Error en Radar YTM: {ex.Message}");
         }
         finally
@@ -268,7 +268,7 @@ public partial class RadarViewModel : ObservableObject
         }
 
         ApplyFilter();
-        StatusText = $"{AllItems.Count} elementos cargados en {section} (caché).";
+        StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusItemsLoadedCache", "{0} elementos cargados en {1} (caché)."), AllItems.Count, section);
         HasError = false;
         RequestFocusItem?.Invoke(SelectedItem);
         return true;
@@ -338,7 +338,7 @@ public partial class RadarViewModel : ObservableObject
 
             HasError = true;
             ErrorMessage = ex.Message;
-            StatusText = $"Error al cargar pistas de la lista: {ex.Message}";
+            StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusErrorPlaylistTracks", "Error al cargar pistas de la lista: {0}"), ex.Message);
             LogService.Instance.Error($"Error al abrir lista en Radar: {ex.Message}");
         }
         finally
@@ -467,7 +467,6 @@ public partial class RadarViewModel : ObservableObject
     {
         _sectionCache.Remove(RadarSection.Playlists);
         _sectionCacheAt.Remove(RadarSection.Playlists);
-        _cachedPlaylists.Clear();
     }
 
     private static string Format(string template, params string[] values)
@@ -515,7 +514,7 @@ public partial class RadarViewModel : ObservableObject
         playlistItem ??= SelectedItem ?? CurrentPlaylist;
         if (playlistItem == null) return;
 
-        StatusText = $"Iniciando reproducción de la lista '{playlistItem.Title}'...";
+        StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusStartingPlaylist", "Iniciando reproducción de la lista '{0}'..."), playlistItem.Title);
 
         if (IsViewingPlaylistDetails && FilteredItems.Count > 0)
         {
@@ -540,12 +539,12 @@ public partial class RadarViewModel : ObservableObject
             {
                 var first = tracks[0];
                 await PlayItem(first);
-                StatusText = $"Reproduciendo primer tema de '{playlistItem.Title}': {first.Title}";
+                StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusPlayingFirstTrack", "Reproduciendo primer tema de '{0}': {1}"), playlistItem.Title, first.Title);
             }
             else
             {
-                StatusText = $"No se encontraron canciones en la lista '{playlistItem.Title}'.";
-                NotificationService.Instance.NotifyError("Radar YTM", $"No se pudo reproducir la lista: {playlistItem.Title}");
+                StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusNoTracksInPlaylist", "No se encontraron canciones en la lista '{0}'."), playlistItem.Title);
+                NotificationService.Instance.NotifyError("Radar YTM", StatusText);
             }
         }
         catch (Exception ex)
@@ -588,7 +587,7 @@ public partial class RadarViewModel : ObservableObject
             return;
         }
 
-        StatusText = $"Obteniendo enlace de reproducción para: {item.Title}...";
+        StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusGettingStreamUrl", "Obteniendo enlace de reproducción para: {0}..."), item.Title);
         var browser = _config.Get("cookies_browser", "Ninguno");
         var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
 
@@ -606,12 +605,12 @@ public partial class RadarViewModel : ObservableObject
             if (!string.IsNullOrEmpty(streamUrl))
             {
                 PlayTrackRequested?.Invoke(streamUrl, item.Title, item.Artist);
-                StatusText = $"Reproduciendo: {item.Title}";
+                StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusPlayingTrack", "Reproduciendo: {0}"), item.Title);
             }
             else
             {
-                StatusText = $"No se pudo obtener el stream para {item.Title}.";
-                NotificationService.Instance.NotifyError("Radar YTM", $"No se pudo reproducir en directo: {item.Title}");
+                StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusCannotGetStream", "No se pudo obtener el stream para {0}."), item.Title);
+                NotificationService.Instance.NotifyError("Radar YTM", StatusText);
             }
         }
         catch (OperationCanceledException)
@@ -641,7 +640,7 @@ public partial class RadarViewModel : ObservableObject
 
         var entry = item.ToDownloadEntry();
         SendToDownloadRequested?.Invoke(entry);
-        NotificationService.Instance.Notify("Radar YTM", $"Enviado a Descargas: {item.Title}", NotificationType.Info);
+        NotificationService.Instance.Notify("Radar YTM", string.Format(LocalizationService.Instance.Get("RadarStatusSentToDownloads", "Enviado a Descargas: {0}"), item.Title), NotificationType.Info);
     }
 
     [RelayCommand]
@@ -661,10 +660,11 @@ public partial class RadarViewModel : ObservableObject
     [RelayCommand]
     public void ExportLogs()
     {
+        var loc = LocalizationService.Instance;
         var dialog = new SaveFileDialog
         {
-            Title = "Exportar Registro de Errores de Cazador YTM",
-            Filter = "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*",
+            Title = loc.Get("TitleExportErrorLog", "Exportar Registro de Errores de Cazador YTM"),
+            Filter = loc.Get("LogFilesFilter", "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*"),
             FileName = $"cazador_registro_error_{DateTime.Now:yyyyMMdd_HHmmss}.log"
         };
 
@@ -672,11 +672,11 @@ public partial class RadarViewModel : ObservableObject
         {
             if (LogService.Instance.ExportLogs(dialog.FileName))
             {
-                NotificationService.Instance.Notify("Registro Exportado", $"Registro guardado exitosamente en:\n{dialog.FileName}", NotificationType.Success);
+                NotificationService.Instance.Notify(loc.Get("TitleLogExported", "Registro Exportado"), string.Format(loc.Get("MsgLogExportedSuccess", "Registro guardado exitosamente en:\n{0}"), dialog.FileName), NotificationType.Success);
             }
             else
             {
-                NotificationService.Instance.NotifyError("Exportar Registro", "No se pudo escribir el archivo de registro en el destino seleccionado.");
+                NotificationService.Instance.NotifyError(loc.Get("TitleLogExported", "Registro Exportado"), loc.Get("MsgLogExportFailed", "No se pudo escribir el archivo de registro en el destino seleccionado."));
             }
         }
     }
@@ -694,7 +694,7 @@ public partial class RadarViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            NotificationService.Instance.NotifyError("Soporte Técnico", $"No se pudo abrir el enlace de soporte: {ex.Message}");
+            NotificationService.Instance.NotifyError(LocalizationService.Instance.Get("TitleTechSupport", "Soporte Técnico"), string.Format(LocalizationService.Instance.Get("MsgSupportLinkError", "No se pudo abrir el enlace de soporte: {0}"), ex.Message));
         }
     }
 }

@@ -32,7 +32,7 @@
                          FontSize="14" Height="40" VerticalContentAlignment="Center"
                          ui:ControlHelper.PlaceholderText="{loc:Loc SearchPlaceholder}" 
                          AutomationProperties.LabeledBy="{Binding ElementName=LblInput}"
-                         AutomationProperties.HelpText="Escriba el nombre de la canción o pegue un enlace de YouTube, SoundCloud, TikTok, etc. y pulse Enter"
+                         AutomationProperties.HelpText="{loc:Loc DownloadInputHelpText}"
                          Margin="0,0,10,0">
                     <TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SubmitInputCommand}"/>
@@ -154,19 +154,19 @@
                     BorderThickness="1"
                     Visibility="{Binding HasActiveBatchSlots, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <StackPanel>
-                    <TextBlock Text="Descargas simultáneas activas en curso:" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"
+                    <TextBlock Text="{loc:Loc BatchActiveSlotsTitle}" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"
                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                     <ItemsControl ItemsSource="{Binding ActiveSlots}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="65" />
+                                        <ColumnDefinition Width="75" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="140" />
                                         <ColumnDefinition Width="100" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding SlotNumber, StringFormat='Hilo {0}:'}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="0" Text="{Binding DisplaySlot}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <ProgressBar Grid.Column="2" Minimum="0" Maximum="100" Value="{Binding Progress}" Height="8" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Grid.Column="3" Text="{Binding Speed}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center" TextAlignment="Right"/>

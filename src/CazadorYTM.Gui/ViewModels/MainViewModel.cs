@@ -62,7 +62,8 @@ public partial class MainViewModel : ObservableObject
             OpenOrFocusTab(MainTabType.Downloads);
             var target = !string.IsNullOrWhiteSpace(entry.Url) ? entry.Url : entry.Title ?? "";
             DownloadVM.InputText = target;
-            NotificationService.Instance.Notify("Reintentar Descarga", $"Canción cargada en el panel de descargas: {target}", NotificationType.Info);
+            var loc = LocalizationService.Instance;
+            NotificationService.Instance.Notify(loc.Get("TitleRetryDownload", "Reintentar Descarga"), string.Format(loc.Get("MsgRetryDownloadLoaded", "Canción cargada en el panel de descargas: {0}"), target), NotificationType.Info);
         };
 
         RadarVM.SendToDownloadRequested += (entry) =>
@@ -230,9 +231,10 @@ public partial class MainViewModel : ObservableObject
             var info = await AppUpdaterService.CheckAppUpdateAsync();
             if (info.HasUpdate)
             {
+                var loc = LocalizationService.Instance;
                 NotificationService.Instance.Notify(
-                    "Nueva versión disponible",
-                    $"Cazador YTM v{info.LatestVersion} está disponible para descargar.",
+                    loc.Get("TitleNewVersionAvailable", "Nueva versión disponible"),
+                    string.Format(loc.Get("MsgNewVersionAvailable", "Cazador YTM v{0} está disponible para descargar."), info.LatestVersion),
                     NotificationType.Info);
             }
         }
@@ -263,7 +265,8 @@ public partial class MainViewModel : ObservableObject
                     }
 
                     var baseDir = Helpers.GetBaseDir();
-                    NotificationService.Instance.Notify("Descargando actualización", "La actualización se está descargando en segundo plano...", NotificationType.Info);
+                    var loc = LocalizationService.Instance;
+                    NotificationService.Instance.Notify(loc.Get("TitleDownloadingUpdate", "Descargando actualización"), loc.Get("MsgDownloadingUpdate", "La actualización se está descargando en segundo plano..."), NotificationType.Info);
                     await AppUpdaterService.DownloadAndApplyUpdateAsync(
                         info.AssetDownloadUrl,
                         baseDir,
@@ -292,14 +295,15 @@ public partial class MainViewModel : ObservableObject
             var updatesNeeded = await Task.Run(() => BinaryUpdater.CheckUpdates(baseDir));
             if (updatesNeeded != null && updatesNeeded.Count > 0)
             {
+                var loc = LocalizationService.Instance;
                 var details = string.Join("\n• ", updatesNeeded);
-                var confirmMsg = string.Format(LocalizationService.Instance["MainMsgComponentsFound"], details);
-                if (DialogService.Instance.ShowConfirmation(confirmMsg, LocalizationService.Instance["TitleComponentsUpdate"]))
+                var confirmMsg = string.Format(loc["MainMsgComponentsFound"], details);
+                if (DialogService.Instance.ShowConfirmation(confirmMsg, loc["TitleComponentsUpdate"]))
                 {
-                    NotificationService.Instance.Notify("Actualizando componentes", "Descargando e instalando componentes...", NotificationType.Info);
+                    NotificationService.Instance.Notify(loc.Get("TitleUpdatingComponents", "Actualizando componentes"), loc.Get("MsgUpdatingComponents", "Descargando e instalando componentes..."), NotificationType.Info);
                     await Task.Run(() => BinaryUpdater.UpdateAll(baseDir));
-                    NotificationService.Instance.Notify("Componentes Actualizados", "yt-dlp, FFmpeg y Deno se han actualizado correctamente.", NotificationType.Success);
-                    DialogService.Instance.ShowMessage(LocalizationService.Instance["CommonMsgAllComponentsUpdated"], LocalizationService.Instance["TitleUpdateCompleted"]);
+                    NotificationService.Instance.Notify(loc.Get("TitleComponentsUpdated", "Componentes Actualizados"), loc.Get("MsgComponentsUpdatedSuccess", "yt-dlp, FFmpeg y Deno se han actualizado correctamente."), NotificationType.Success);
+                    DialogService.Instance.ShowMessage(loc["CommonMsgAllComponentsUpdated"], loc["TitleUpdateCompleted"]);
                 }
             }
             else
@@ -346,10 +350,11 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ExportLogs()
     {
+        var loc = LocalizationService.Instance;
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
-            Title = "Exportar Registro de Errores de Cazador YTM",
-            Filter = "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*",
+            Title = loc.Get("TitleExportErrorLog", "Exportar Registro de Errores de Cazador YTM"),
+            Filter = loc.Get("LogFilesFilter", "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*"),
             FileName = $"cazador_registro_{DateTime.Now:yyyyMMdd_HHmmss}.log"
         };
 
@@ -357,11 +362,11 @@ public partial class MainViewModel : ObservableObject
         {
             if (LogService.Instance.ExportLogs(dialog.FileName))
             {
-                NotificationService.Instance.Notify("Registro Exportado", $"Registro guardado exitosamente en:\n{dialog.FileName}", NotificationType.Success);
+                NotificationService.Instance.Notify(loc.Get("TitleLogExported", "Registro Exportado"), string.Format(loc.Get("MsgLogExportedSuccess", "Registro guardado exitosamente en:\n{0}"), dialog.FileName), NotificationType.Success);
             }
             else
             {
-                NotificationService.Instance.NotifyError("Exportar Registro", "No se pudo escribir el archivo de registro.");
+                NotificationService.Instance.NotifyError(loc.Get("TitleLogExported", "Registro Exportado"), loc.Get("MsgLogExportFailed", "No se pudo escribir el archivo de registro en el destino seleccionado."));
             }
         }
     }
@@ -379,7 +384,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            NotificationService.Instance.NotifyError("Soporte Técnico", $"No se pudo abrir el enlace de soporte: {ex.Message}");
+            NotificationService.Instance.NotifyError(LocalizationService.Instance.Get("TitleTechSupport", "Soporte Técnico"), string.Format(LocalizationService.Instance.Get("MsgSupportLinkError", "No se pudo abrir el enlace de soporte: {0}"), ex.Message));
         }
     }
 

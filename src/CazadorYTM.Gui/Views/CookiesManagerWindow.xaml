@@ -117,7 +117,8 @@
                                     AutomationProperties.Name="{loc:Loc CookiesBtnRobotsHint}"/>
                             <Button Content="{loc:Loc CookiesBtnPaste}" Command="{Binding PasteClipboardCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"
                                     AutomationProperties.Name="{loc:Loc CookiesBtnPasteHint}"/>
-                            <Button Content="{loc:Loc CookiesBtnClearText}" Command="{Binding ClearManualTextCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"/>
+                            <Button Content="{loc:Loc CookiesBtnClearText}" Command="{Binding ClearManualTextCommand}" Height="32" Padding="12,0" Margin="0,0,8,6"
+                                    AutomationProperties.Name="{loc:Loc CookiesBtnClearTextHint}"/>
                         </WrapPanel>
 
                         <TextBox Text="{Binding ManualCookiesText, UpdateSourceTrigger=PropertyChanged}"

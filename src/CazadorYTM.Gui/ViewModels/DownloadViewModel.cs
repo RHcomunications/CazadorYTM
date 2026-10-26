@@ -470,7 +470,12 @@ public partial class DownloadViewModel : ObservableObject
             ActiveSlots.Clear();
             for (int i = 0; i < SelectedConcurrent; i++)
             {
-                ActiveSlots.Add(new ActiveDownloadSlot { SlotNumber = i + 1, Title = "En espera...", IsActive = false });
+                ActiveSlots.Add(new ActiveDownloadSlot
+                {
+                    SlotNumber = i + 1,
+                    Title = LocalizationService.Instance.Get("BatchSlotWaiting", "En espera..."),
+                    IsActive = false
+                });
             }
             HasActiveBatchSlots = true;
         });
@@ -627,10 +632,11 @@ public partial class DownloadViewModel : ObservableObject
 public partial class ActiveDownloadSlot : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplaySlot))]
     private int _slotNumber;
 
     [ObservableProperty]
-    private string _title = "En espera...";
+    private string _title = LocalizationService.Instance.Get("BatchSlotWaiting", "En espera...");
 
     [ObservableProperty]
     private double _progress = 0;
@@ -643,4 +649,6 @@ public partial class ActiveDownloadSlot : ObservableObject
 
     [ObservableProperty]
     private bool _isActive = false;
+
+    public string DisplaySlot => string.Format(LocalizationService.Instance.Get("BatchSlotHeaderFormat", "Hilo {0}:"), SlotNumber);
 }

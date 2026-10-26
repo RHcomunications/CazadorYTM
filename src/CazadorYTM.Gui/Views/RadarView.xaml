@@ -119,9 +119,11 @@
                                acc:LiveRegion.Announce="{Binding ErrorMessage}"/>
                     <WrapPanel HorizontalAlignment="Center">
                         <Button Content="{loc:Loc RadarBtnRetry}" Command="{Binding RefreshCurrentSectionCommand}"
-                                Style="{DynamicResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6"/>
+                                Style="{DynamicResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,6"
+                                AutomationProperties.Name="{loc:Loc RadarBtnRetryHint}"/>
                         <Button Content="{loc:Loc RadarBtnManageCookies}" Command="{Binding OpenCookiesManagerCommand}"
-                                Height="34" Padding="14,0" Margin="0,0,8,6"/>
+                                Height="34" Padding="14,0" Margin="0,0,8,6"
+                                AutomationProperties.Name="{loc:Loc RadarBtnManageCookiesHint}"/>
                         <Button Content="{loc:Loc BtnExportLogs}" Command="{Binding ExportLogsCommand}"
                                 Height="34" Padding="14,0" Margin="0,0,8,6"
                                 AutomationProperties.Name="{loc:Loc BtnExportLogsHint}"/>
@@ -135,6 +137,10 @@
             <!-- 3. Active Items DataGrid -->
                 <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
                       AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow" Focusable="True" RowHeight="48"
+                      KeyboardNavigation.TabNavigation="Once"
+                      VirtualizingStackPanel.IsVirtualizing="True"
+                      VirtualizingStackPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True"
                       BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                       Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                       AutomationProperties.Name="{loc:Loc RadarGridHint}"
@@ -160,7 +166,7 @@
                 <DataGrid.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="{loc:Loc RadarMenuPlay}" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
-                        <MenuItem Header="{loc:Loc RadarMenuOpenPlaylist}" InputGestureText="Derecha"
+                        <MenuItem Header="{loc:Loc RadarMenuOpenPlaylist}" InputGestureText="Right"
                                   Command="{Binding OpenPlaylistCommand}"/>
                         <MenuItem Header="{loc:Loc RadarMenuSendDownload}" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
                         <Separator/>
@@ -169,7 +175,7 @@
                         <MenuItem Header="{loc:Loc RadarBtnClearRating}" Command="{Binding ClearRatingCommand}"/>
                         <MenuItem Header="{loc:Loc RadarBtnAddToPlaylist}" InputGestureText="Ctrl+Shift+A" Command="{Binding AddToPlaylistCommand}"/>
                         <Separator/>
-                        <MenuItem Header="{loc:Loc RadarMenuBack}" InputGestureText="Izquierda / Backspace"
+                        <MenuItem Header="{loc:Loc RadarMenuBack}" InputGestureText="Left / Back"
                                   Command="{Binding BackToPlaylistsCommand}"/>
                         <MenuItem Header="{loc:Loc RadarMenuRefresh}" Command="{Binding RefreshCurrentSectionCommand}"/>
                         <Separator/>

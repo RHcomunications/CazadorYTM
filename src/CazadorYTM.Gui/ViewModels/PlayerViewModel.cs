@@ -15,7 +15,7 @@ public partial class PlayerViewModel : ObservableObject
     private double _previousVolume = 0.8;
 
     [ObservableProperty]
-    private string _trackTitle = "Sin reproducción activa";
+    private string _trackTitle = LocalizationService.Instance.Get("PlayerStatusNoActive", "Sin reproducción activa");
 
     [ObservableProperty]
     private string _trackArtist = string.Empty;
@@ -60,7 +60,7 @@ public partial class PlayerViewModel : ObservableObject
     private PlaybackRepeatMode _repeatMode = PlaybackRepeatMode.Off;
 
     [ObservableProperty]
-    private string _repeatModeText = "Repetición: Desactivada";
+    private string _repeatModeText = string.Empty;
 
     [ObservableProperty]
     private bool _hasNext = false;
@@ -81,12 +81,63 @@ public partial class PlayerViewModel : ObservableObject
             _volume = Math.Clamp(savedVol, 0.0, 1.0);
         }
         _player.Volume = _volume;
-        var pct = (int)Math.Round(_volume * 100);
-        _accessibleVolumeText = pct == 0 ? "Silenciado" : $"Volumen {pct} por ciento";
-        _volumeAnnouncement = _accessibleVolumeText;
+        UpdateVolumeTexts(_volume);
+        UpdateRepeatModeText(_repeatMode);
+        UpdatePositionTexts(TimeSpan.Zero, TimeSpan.Zero);
 
         _player.StateChanged += OnPlayerStateChanged;
         _player.PositionChanged += OnPlayerPositionChanged;
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged()
+    {
+        UpdateVolumeTexts(Volume);
+        UpdateRepeatModeText(RepeatMode);
+        UpdateQueueStatusText();
+        UpdatePositionTexts(TimeSpan.FromSeconds(PositionSeconds), TimeSpan.FromSeconds(DurationSeconds));
+        if (string.IsNullOrEmpty(_player.CurrentFilePath))
+        {
+            TrackTitle = LocalizationService.Instance.Get("PlayerStatusNoActive", "Sin reproducción activa");
+        }
+    }
+
+    private void UpdateVolumeTexts(double vol)
+    {
+        var pct = (int)Math.Round(vol * 100);
+        AccessibleVolumeText = pct == 0
+            ? LocalizationService.Instance.Get("PlayerVolumeMuted", "Silenciado")
+            : string.Format(LocalizationService.Instance.Get("PlayerVolumePercent", "Volumen {0} por ciento"), pct);
+        VolumeAnnouncement = AccessibleVolumeText;
+    }
+
+    private void UpdateRepeatModeText(PlaybackRepeatMode mode)
+    {
+        RepeatModeText = mode switch
+        {
+            PlaybackRepeatMode.All => LocalizationService.Instance.Get("PlayerRepeatAll", "Repetir: Toda la lista"),
+            PlaybackRepeatMode.One => LocalizationService.Instance.Get("PlayerRepeatOne", "Repetir: Esta canción"),
+            _ => LocalizationService.Instance.Get("PlayerRepeatOff", "Repetir: Desactivado")
+        };
+    }
+
+    private void UpdateQueueStatusText()
+    {
+        if (_player.Queue.Count > 1)
+        {
+            QueueStatusText = string.Format(LocalizationService.Instance.Get("PlayerTrackQueueStatus", "Pista {0} de {1}"), _player.CurrentQueueIndex + 1, _player.Queue.Count);
+        }
+        else
+        {
+            QueueStatusText = string.Empty;
+        }
+    }
+
+    private void UpdatePositionTexts(TimeSpan pos, TimeSpan dur)
+    {
+        CurrentPositionText = Helpers.FormatDuration((int)pos.TotalSeconds);
+        DurationText = Helpers.FormatDuration((int)dur.TotalSeconds);
+        AccessiblePositionText = string.Format(LocalizationService.Instance.Get("PlayerPositionStatus", "Posición: {0} de {1}"), CurrentPositionText, DurationText);
     }
 
     private void OnPlayerStateChanged()
@@ -98,21 +149,8 @@ public partial class PlayerViewModel : ObservableObject
         IsShuffle = _player.IsShuffle;
         RepeatMode = _player.RepeatMode;
 
-        RepeatModeText = RepeatMode switch
-        {
-            PlaybackRepeatMode.All => "Repetir: Toda la lista",
-            PlaybackRepeatMode.One => "Repetir: Esta canción",
-            _ => "Repetir: Desactivado"
-        };
-
-        if (_player.Queue.Count > 1)
-        {
-            QueueStatusText = $"Pista {_player.CurrentQueueIndex + 1} de {_player.Queue.Count}";
-        }
-        else
-        {
-            QueueStatusText = string.Empty;
-        }
+        UpdateRepeatModeText(RepeatMode);
+        UpdateQueueStatusText();
 
         if (!string.IsNullOrEmpty(_player.CurrentFilePath))
         {
@@ -123,7 +161,7 @@ public partial class PlayerViewModel : ObservableObject
         }
         else
         {
-            TrackTitle = "Sin reproducción activa";
+            TrackTitle = LocalizationService.Instance.Get("PlayerStatusNoActive", "Sin reproducción activa");
             TrackArtist = string.Empty;
         }
 
@@ -134,9 +172,7 @@ public partial class PlayerViewModel : ObservableObject
 
     private void OnPlayerPositionChanged(TimeSpan pos, TimeSpan dur)
     {
-        CurrentPositionText = Helpers.FormatDuration((int)pos.TotalSeconds);
-        DurationText = Helpers.FormatDuration((int)dur.TotalSeconds);
-        AccessiblePositionText = $"Posición: {CurrentPositionText} de {DurationText}";
+        UpdatePositionTexts(pos, dur);
 
         PositionSeconds = pos.TotalSeconds;
         DurationSeconds = dur.TotalSeconds;
@@ -146,9 +182,7 @@ public partial class PlayerViewModel : ObservableObject
     partial void OnVolumeChanged(double value)
     {
         _player.Volume = value;
-        var pct = (int)Math.Round(value * 100);
-        AccessibleVolumeText = pct == 0 ? "Silenciado" : $"Volumen {pct} por ciento";
-        VolumeAnnouncement = AccessibleVolumeText;
+        UpdateVolumeTexts(value);
 
         try
         {
@@ -217,7 +251,8 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     private void OpenFile()
     {
-        var file = DialogService.Instance.SelectFile("Archivos de audio (*.mp3;*.flac;*.m4a;*.opus;*.wav)|*.mp3;*.flac;*.m4a;*.opus;*.wav|Todos los archivos (*.*)|*.*");
+        var filter = LocalizationService.Instance.Get("AudioFilesFilter", "Archivos de audio (*.mp3;*.flac;*.m4a;*.opus;*.wav)|*.mp3;*.flac;*.m4a;*.opus;*.wav|Todos los archivos (*.*)|*.*");
+        var file = DialogService.Instance.SelectFile(filter);
         if (!string.IsNullOrEmpty(file))
         {
             PlayTrack(file);
@@ -242,7 +277,7 @@ public partial class PlayerViewModel : ObservableObject
         _player.Stop();
         CurrentPositionText = "00:00";
         PositionSeconds = 0;
-        AccessiblePositionText = $"Posición: 00:00 de {DurationText}";
+        AccessiblePositionText = string.Format(LocalizationService.Instance.Get("PlayerPositionStatus", "Posición: {0} de {1}"), "00:00", DurationText);
     }
 
     [RelayCommand]
@@ -250,7 +285,7 @@ public partial class PlayerViewModel : ObservableObject
     {
         _player.Seek(TimeSpan.FromSeconds(position));
         CurrentPositionText = Helpers.FormatDuration((int)position);
-        AccessiblePositionText = $"Posición: {CurrentPositionText} de {DurationText}";
+        AccessiblePositionText = string.Format(LocalizationService.Instance.Get("PlayerPositionStatus", "Posición: {0} de {1}"), CurrentPositionText, DurationText);
     }
 
     [RelayCommand]
@@ -282,12 +317,7 @@ public partial class PlayerViewModel : ObservableObject
             _ => PlaybackRepeatMode.Off
         };
         RepeatMode = _player.RepeatMode;
-        RepeatModeText = RepeatMode switch
-        {
-            PlaybackRepeatMode.All => "Repetir: Toda la lista",
-            PlaybackRepeatMode.One => "Repetir: Esta canción",
-            _ => "Repetir: Desactivado"
-        };
+        UpdateRepeatModeText(RepeatMode);
     }
 
     public void PlayTrack(string filePath)
