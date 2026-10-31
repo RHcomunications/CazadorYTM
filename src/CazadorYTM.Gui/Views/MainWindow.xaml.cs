@@ -28,7 +28,11 @@ public partial class MainWindow : Window
         PreviewKeyUp += MainWindow_PreviewKeyUp;
         MainMenu.LostFocus += MainMenu_LostFocus;
         MainMenu.PreviewKeyDown += MainMenu_PreviewKeyDown;
-        Closed += (s, e) => AccessibilityAnnouncer.AnnouncementRequested -= OnAnnouncementRequested;
+        Closed += (s, e) =>
+        {
+            AccessibilityAnnouncer.AnnouncementRequested -= OnAnnouncementRequested;
+            (DataContext as IDisposable)?.Dispose();
+        };
 
         Loaded += (s, e) =>
         {

@@ -408,7 +408,14 @@ public sealed class YouTubeMusicClient
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+            AutomaticDecompression = System.Net.DecompressionMethods.All,
+            AllowAutoRedirect = true
+        };
+        var client = new HttpClient(handler)
         {
             Timeout = TimeSpan.FromSeconds(30)
         };

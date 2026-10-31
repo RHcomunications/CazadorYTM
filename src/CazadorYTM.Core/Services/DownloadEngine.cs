@@ -13,14 +13,50 @@ public static class DownloadEngine
 {
     public delegate int DownloadOperation(CancellationToken? cancelEvent, Action<string>? loggerCallback, Action<Dictionary<string, string>>? progressCallback);
 
-    private static readonly Regex AnsiEscapeRegex = new(@"\x1b\[[0-9;]*[a-zA-ZK]|\x1b\[[0-9;]*[A-Za-z]");
-    private static readonly Regex ProgressRegex = new(@"\[download\]\s+(\d+(?:\.\d+)?)%");
-    private static readonly Regex DetailRegex = new(@"\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)");
-    private static readonly Regex DestRegex = new(@"Destination:\s*""?([^""\n]+)""?");
-    private static readonly Regex AlreadyDownloadedRegex = new(@"\[download\]\s+""?([^""\n]+?)""?\s+has already been downloaded");
-    private static readonly Regex MergingRegex = new(@"(?:\[Merger\]\s+)?Merging formats into\s+""?([^""\n]+)""?");
-    private static readonly Regex AddingThumbnailRegex = new(@"Adding thumbnail to\s*""?([^""\n]+)""?");
+    private static readonly Regex AnsiEscapeRegex = new(@"\x1b\[[0-9;]*[a-zA-ZK]|\x1b\[[0-9;]*[A-Za-z]", RegexOptions.Compiled);
+    private static readonly Regex ProgressRegex = new(@"\[download\]\s+(\d+(?:\.\d+)?)%", RegexOptions.Compiled);
+    private static readonly Regex DetailRegex = new(@"\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)", RegexOptions.Compiled);
+    private static readonly Regex DestRegex = new(@"Destination:\s*""?([^""\n]+)""?", RegexOptions.Compiled);
+    private static readonly Regex AlreadyDownloadedRegex = new(@"\[download\]\s+""?([^""\n]+?)""?\s+has already been downloaded", RegexOptions.Compiled);
+    private static readonly Regex MergingRegex = new(@"(?:\[Merger\]\s+)?Merging formats into\s+""?([^""\n]+)""?", RegexOptions.Compiled);
+    private static readonly Regex AddingThumbnailRegex = new(@"Adding thumbnail to\s*""?([^""\n]+)""?", RegexOptions.Compiled);
     private const int DownloadTimeoutMs = 2 * 60 * 60 * 1000;
+
+    public static string? TryExtractFilePathFromLine(string? cleanLine)
+    {
+        if (string.IsNullOrWhiteSpace(cleanLine)) return null;
+
+        if (cleanLine.StartsWith("[download]", StringComparison.OrdinalIgnoreCase))
+        {
+            if (cleanLine.Contains("Destination:", StringComparison.OrdinalIgnoreCase))
+            {
+                var mDest = DestRegex.Match(cleanLine);
+                if (mDest.Success) return mDest.Groups[1].Value.Trim();
+            }
+            else if (cleanLine.Contains("has already been downloaded", StringComparison.OrdinalIgnoreCase))
+            {
+                var mAlready = AlreadyDownloadedRegex.Match(cleanLine);
+                if (mAlready.Success) return mAlready.Groups[1].Value.Trim();
+            }
+        }
+        else if (cleanLine.StartsWith("[Merger]", StringComparison.OrdinalIgnoreCase))
+        {
+            var mMerge = MergingRegex.Match(cleanLine);
+            if (mMerge.Success) return mMerge.Groups[1].Value.Trim();
+        }
+        else if (cleanLine.StartsWith("[EmbedThumbnail]", StringComparison.OrdinalIgnoreCase))
+        {
+            var mThumb = AddingThumbnailRegex.Match(cleanLine);
+            if (mThumb.Success) return mThumb.Groups[1].Value.Trim();
+        }
+        else if (cleanLine.StartsWith("[ExtractAudio]", StringComparison.OrdinalIgnoreCase))
+        {
+            var mDest = DestRegex.Match(cleanLine);
+            if (mDest.Success) return mDest.Groups[1].Value.Trim();
+        }
+
+        return null;
+    }
 
     private static readonly string[] NonRetryablePatterns =
     {
@@ -157,7 +193,7 @@ public static class DownloadEngine
 
             if (result.Success && File.Exists(tempFilepath) && new FileInfo(tempFilepath).Length > 0)
             {
-                File.Replace(tempFilepath, filepath, null);
+                BinaryUpdateHelpers.SafeReplaceFile(tempFilepath, filepath);
                 return true;
             }
         }
@@ -189,6 +225,21 @@ public static class DownloadEngine
         bool embedLyrics = false, CancellationToken? cancelEvent = null,
         bool trimSilence = false, bool lyricsApiFallback = true, string? cookiesPath = null)
     {
+        return DownloadUrlCore(url, outputTemplate, formatType, bitrate, sponsorblock, cookiesBrowser,
+            playlistItems, rawArgs, loggerCallback, progressCallback, ffmpegLocation, proxy,
+            normalize, embedLyrics, cancelEvent, trimSilence, lyricsApiFallback, cookiesPath, out _);
+    }
+
+    private static int DownloadUrlCore(string url, string outputTemplate, string formatType, string bitrate,
+        bool sponsorblock, string? cookiesBrowser, string? playlistItems,
+        string? rawArgs, Action<string>? loggerCallback,
+        Action<Dictionary<string, string>>? progressCallback,
+        string? ffmpegLocation, string? proxy, bool normalize,
+        bool embedLyrics, CancellationToken? cancelEvent,
+        bool trimSilence, bool lyricsApiFallback, string? cookiesPath,
+        out string resolvedFilePath)
+    {
+        resolvedFilePath = string.Empty;
         CheckCancelled(cancelEvent);
 
         var exe = BinaryManager.GetYtDlpPath();
@@ -224,19 +275,16 @@ public static class DownloadEngine
 
             lock (lineLock)
             {
+                var extracted = TryExtractFilePathFromLine(cleanLine);
+                if (!string.IsNullOrEmpty(extracted))
+                {
+                    finalFilepath = extracted;
+                }
+
                 if (cleanLine.StartsWith("[download]", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (cleanLine.Contains("Destination:", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var mDest = DestRegex.Match(cleanLine);
-                        if (mDest.Success) finalFilepath = mDest.Groups[1].Value.Trim();
-                    }
-                    else if (cleanLine.Contains("has already been downloaded", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var mAlready = AlreadyDownloadedRegex.Match(cleanLine);
-                        if (mAlready.Success) finalFilepath = mAlready.Groups[1].Value.Trim();
-                    }
-                    else
+                    if (!cleanLine.Contains("Destination:", StringComparison.OrdinalIgnoreCase) &&
+                        !cleanLine.Contains("has already been downloaded", StringComparison.OrdinalIgnoreCase))
                     {
                         var mDetail = DetailRegex.Match(cleanLine);
                         if (mDetail.Success && float.TryParse(mDetail.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pct))
@@ -268,27 +316,10 @@ public static class DownloadEngine
                 }
                 else
                 {
-                    var lowerLine = cleanLine.ToLower();
-                    if (NonRetryablePatterns.Any(p => lowerLine.Contains(p)))
+                    if (NonRetryablePatterns.Any(p => cleanLine.Contains(p, StringComparison.OrdinalIgnoreCase)))
                     {
                         nonRetryableFound = true;
                         lastErrorLine = cleanLine;
-                    }
-
-                    if (cleanLine.StartsWith("[Merger]", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var mMerge = MergingRegex.Match(cleanLine);
-                        if (mMerge.Success) finalFilepath = mMerge.Groups[1].Value.Trim();
-                    }
-                    else if (cleanLine.StartsWith("[EmbedThumbnail]", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var mThumb = AddingThumbnailRegex.Match(cleanLine);
-                        if (mThumb.Success) finalFilepath = mThumb.Groups[1].Value.Trim();
-                    }
-                    else if (cleanLine.StartsWith("[ExtractAudio]", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var mDest = DestRegex.Match(cleanLine);
-                        if (mDest.Success) finalFilepath = mDest.Groups[1].Value.Trim();
                     }
 
                     loggerCallback?.Invoke(Helpers.SanitizeLogMessage($"[yt-dlp] {cleanLine}"));
@@ -324,6 +355,15 @@ public static class DownloadEngine
         if (retCode == 0)
         {
             var targetCheck = string.IsNullOrEmpty(finalFilepath) ? outputTemplate : finalFilepath;
+            if (!File.Exists(targetCheck) && !string.IsNullOrEmpty(finalFilepath) && !string.IsNullOrEmpty(formatType))
+            {
+                var candidateWithExt = Path.ChangeExtension(finalFilepath, "." + formatType.ToLowerInvariant());
+                if (File.Exists(candidateWithExt))
+                {
+                    targetCheck = candidateWithExt;
+                }
+            }
+
             if (File.Exists(targetCheck))
             {
                 if (new FileInfo(targetCheck).Length == 0)
@@ -360,6 +400,7 @@ public static class DownloadEngine
             }
         }
 
+        resolvedFilePath = finalFilepath;
         return retCode;
     }
 
@@ -372,6 +413,21 @@ public static class DownloadEngine
         bool trimSilence = false, bool lyricsApiFallback = true, string? cookiesPath = null,
         string searchSource = "YouTube Music")
     {
+        return SearchAndDownloadCore(query, outputTemplate, formatType, bitrate, sponsorblock, cookiesBrowser,
+            playlistItems, rawArgs, loggerCallback, progressCallback, ffmpegLocation, proxy,
+            normalize, embedLyrics, cancelEvent, trimSilence, lyricsApiFallback, cookiesPath, searchSource, out _);
+    }
+
+    private static int SearchAndDownloadCore(string query, string outputTemplate, string formatType, string bitrate,
+        bool sponsorblock, string? cookiesBrowser, string? playlistItems,
+        string? rawArgs, Action<string>? loggerCallback,
+        Action<Dictionary<string, string>>? progressCallback,
+        string? ffmpegLocation, string? proxy, bool normalize,
+        bool embedLyrics, CancellationToken? cancelEvent,
+        bool trimSilence, bool lyricsApiFallback, string? cookiesPath,
+        string searchSource, out string resolvedFilePath)
+    {
+        resolvedFilePath = string.Empty;
         CheckCancelled(cancelEvent);
 
         loggerCallback?.Invoke(Helpers.SanitizeLogMessage($"[SISTEMA] Buscando en {searchSource} para: {query}"));
@@ -396,11 +452,11 @@ public static class DownloadEngine
 
         loggerCallback?.Invoke(Helpers.SanitizeLogMessage($"[SISTEMA] Seleccionado: {bestEntry.Title}"));
 
-        return DownloadUrl(bestEntry.Url ?? "", outputTemplate, formatType, bitrate,
+        return DownloadUrlCore(bestEntry.Url ?? "", outputTemplate, formatType, bitrate,
             sponsorblock, cookiesBrowser, playlistItems, rawArgs,
             loggerCallback, progressCallback, ffmpegLocation, proxy,
             normalize, embedLyrics, cancelEvent, trimSilence, lyricsApiFallback,
-            cookiesPath: cookiesPath);
+            cookiesPath: cookiesPath, out resolvedFilePath);
     }
 
     public static bool DownloadWithRetry(DownloadOperation downloadFunc,
@@ -515,28 +571,47 @@ public static class DownloadEngine
 
         try
         {
-            int exitCode;
-            if (isSearch || !Helpers.IsUrl(queryOrUrl))
+            var resolvedPath = string.Empty;
+            var exitCode = -1;
+            string? lastFailureReason = null;
+
+            var ok = DownloadWithRetry((ct, log, prog) =>
             {
-                exitCode = SearchAndDownload(queryOrUrl, outputTemplate, formatType, bitrate,
-                    sponsorblock, cookiesBrowser, playlistItems, rawArgs, loggerCallback,
-                    progressCallback, ffmpegLocation, proxy, normalize, embedLyrics, cancelEvent,
-                    trimSilence, lyricsApiFallback, cookiesPath, searchSource: searchSource);
-            }
-            else
-            {
-                exitCode = DownloadUrl(queryOrUrl, outputTemplate, formatType, bitrate,
-                    sponsorblock, cookiesBrowser, playlistItems, rawArgs, loggerCallback,
-                    progressCallback, ffmpegLocation, proxy, normalize, embedLyrics, cancelEvent,
-                    trimSilence, lyricsApiFallback, cookiesPath);
-            }
+                try
+                {
+                    if (isSearch || !Helpers.IsUrl(queryOrUrl))
+                    {
+                        exitCode = SearchAndDownloadCore(queryOrUrl, outputTemplate, formatType, bitrate,
+                            sponsorblock, cookiesBrowser, playlistItems, rawArgs, log,
+                            prog, ffmpegLocation, proxy, normalize, embedLyrics, ct,
+                            trimSilence, lyricsApiFallback, cookiesPath, searchSource, out resolvedPath);
+                    }
+                    else
+                    {
+                        exitCode = DownloadUrlCore(queryOrUrl, outputTemplate, formatType, bitrate,
+                            sponsorblock, cookiesBrowser, playlistItems, rawArgs, log,
+                            prog, ffmpegLocation, proxy, normalize, embedLyrics, ct,
+                            trimSilence, lyricsApiFallback, cookiesPath, out resolvedPath);
+                    }
+                    return exitCode;
+                }
+                catch (Exception ex)
+                {
+                    lastFailureReason = ex.Message;
+                    throw;
+                }
+            }, cancelEvent, loggerCallback, progressCallback);
+
+            var finalPath = !string.IsNullOrWhiteSpace(resolvedPath) && File.Exists(resolvedPath)
+                ? resolvedPath
+                : targetFolder;
 
             return new Models.DownloadResult
             {
-                Success = exitCode == 0,
+                Success = ok && exitCode == 0,
                 TargetFolder = targetFolder,
-                FilePath = targetFolder,
-                ErrorMessage = exitCode == 0 ? null : $"Código de salida: {exitCode}"
+                FilePath = finalPath,
+                ErrorMessage = (ok && exitCode == 0) ? null : (lastFailureReason ?? $"Código de salida: {exitCode}")
             };
         }
         catch (Exception ex)
@@ -598,7 +673,7 @@ public static class DownloadEngine
     }
 }
 
-public class DownloadCancelled : Exception
+public class DownloadCancelled : OperationCanceledException
 {
     public DownloadCancelled(string message) : base(message) { }
 }

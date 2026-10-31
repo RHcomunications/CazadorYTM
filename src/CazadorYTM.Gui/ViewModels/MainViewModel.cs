@@ -13,9 +13,10 @@ using CazadorYTM.Core.Models;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly AppConfig _config;
+    private bool _disposed;
 
     public DownloadViewModel DownloadVM { get; }
     public PlayerViewModel PlayerVM { get; }
@@ -325,6 +326,8 @@ public partial class MainViewModel : ObservableObject
             Owner = Application.Current.MainWindow
         };
         win.ShowDialog();
+        DownloadVM.ReloadPreferences();
+        RadarVM.HasSessionConnected = RadarVM.CheckSessionConnected();
     }
 
     [RelayCommand]
@@ -335,6 +338,8 @@ public partial class MainViewModel : ObservableObject
             Owner = Application.Current.MainWindow
         };
         win.ShowDialog();
+        DownloadVM.ReloadPreferences();
+        RadarVM.HasSessionConnected = RadarVM.CheckSessionConnected();
     }
 
     [RelayCommand]
@@ -411,5 +416,15 @@ public partial class MainViewModel : ObservableObject
                 DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["CommonMsgOpenFolderFailed"], ex.Message), LocalizationService.Instance["TitleError"]);
             }
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        DownloadVM.Dispose();
+        HistoryVM.Dispose();
+        PlayerVM.Dispose();
+        RadarVM.Dispose();
     }
 }

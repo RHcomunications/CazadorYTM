@@ -8,6 +8,19 @@ using System.Text.RegularExpressions;
 
 public static class Helpers
 {
+    private static readonly Regex BidiAndSurrogateRegex = new(@"[\ud800-\udfff\u202e\u202a-\u202d\u200e\u200f\u2066-\u2069]", RegexOptions.Compiled);
+    private static readonly Regex InvalidFileCharsRegex = new(@"[\\/*?:""<>|]", RegexOptions.Compiled);
+    private static readonly Regex ControlCharsRegex = new(@"[\x00-\x1f\x7f]", RegexOptions.Compiled);
+    private static readonly Regex LogUrlCredentialsRegex = new(@"(https?://[^:]+:)([^@\s]+)(@[a-zA-Z0-9.-]+)", RegexOptions.Compiled);
+    private static readonly Regex LogSensitiveParamsRegex = new(@"((?:token|key|sig|pass|password|signature|cookies)=)([^&\s#\)'\""]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly HashSet<string> ReservedDeviceNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    };
+
     public static string GetBaseDir()
     {
         var entry = Assembly.GetEntryAssembly();
@@ -21,15 +34,14 @@ public static class Helpers
         if (string.IsNullOrWhiteSpace(name))
             return "pista_audio";
 
-        name = Regex.Replace(name, @"[\ud800-\udfff\u202e\u202a-\u202d\u200e\u200f\u2066-\u2069]", "");
-        name = Regex.Replace(name, @"[\\/*?:""<>|]", "_");
-        name = Regex.Replace(name, @"[\x00-\x1f\x7f]", "");
+        name = BidiAndSurrogateRegex.Replace(name, "");
+        name = InvalidFileCharsRegex.Replace(name, "_");
+        name = ControlCharsRegex.Replace(name, "");
 
         string ext = Path.GetExtension(name);
         string stem = Path.GetFileNameWithoutExtension(name);
 
-        string[] reserved = { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
-        if (reserved.Contains(stem.ToUpperInvariant().Trim()))
+        if (ReservedDeviceNames.Contains(stem.Trim()))
             stem += "_";
 
         stem = stem.Trim().TrimEnd('.');
@@ -50,12 +62,11 @@ public static class Helpers
         if (string.IsNullOrWhiteSpace(name))
             return "Lista_Descargas";
 
-        name = Regex.Replace(name, @"[\ud800-\udfff\u202e\u202a-\u202d\u200e\u200f\u2066-\u2069]", "");
-        name = Regex.Replace(name, @"[\\/*?:""<>|]", "_");
-        name = Regex.Replace(name, @"[\x00-\x1f\x7f]", "");
+        name = BidiAndSurrogateRegex.Replace(name, "");
+        name = InvalidFileCharsRegex.Replace(name, "_");
+        name = ControlCharsRegex.Replace(name, "");
 
-        string[] reserved = { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
-        if (reserved.Contains(name.ToUpperInvariant().Trim()))
+        if (ReservedDeviceNames.Contains(name.Trim()))
             name += "_";
 
         name = name.Trim().TrimEnd('.');
@@ -68,17 +79,12 @@ public static class Helpers
         return name;
     }
 
-    public static bool IsUrl(string text)
+    public static bool IsUrl(string? text)
     {
-        try
-        {
-            var parsed = new Uri(text);
-            return (parsed.Scheme == "http" || parsed.Scheme == "https") && !string.IsNullOrEmpty(parsed.Host);
-        }
-        catch
-        {
-            return false;
-        }
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        return Uri.TryCreate(text, UriKind.Absolute, out var parsed) &&
+               (parsed.Scheme == Uri.UriSchemeHttp || parsed.Scheme == Uri.UriSchemeHttps) &&
+               !string.IsNullOrEmpty(parsed.Host);
     }
 
     public static string FormatDuration(double? seconds)
@@ -138,8 +144,8 @@ public static class Helpers
     {
         if (string.IsNullOrEmpty(msg)) return string.Empty;
         if (msg.Length > 16384) msg = msg[..16384] + "…";
-        msg = Regex.Replace(msg, @"(https?://[^:]+:)([^@\s]+)(@[a-zA-Z0-9.-]+)", "$1********$3");
-        msg = Regex.Replace(msg, @"((?:token|key|sig|pass|password|signature|cookies)=)([^&\s#\)'\""]+)", "$1********", RegexOptions.IgnoreCase);
+        msg = LogUrlCredentialsRegex.Replace(msg, "$1********$3");
+        msg = LogSensitiveParamsRegex.Replace(msg, "$1********");
         return msg;
     }
 }

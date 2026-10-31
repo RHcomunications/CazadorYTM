@@ -119,8 +119,7 @@
                         <Slider x:Name="SldVolume" Minimum="0" Maximum="1" Value="{Binding Volume, Mode=TwoWay}" Width="100" VerticalAlignment="Center"
                                 SmallChange="0.05" LargeChange="0.1"
                                 AutomationProperties.Name="{Binding AccessibleVolumeText}"
-                                AutomationProperties.HelpText="{loc:Loc PlayerVolumeHelp}"
-                                ValueChanged="SldVolume_ValueChanged"/>
+                                AutomationProperties.HelpText="{loc:Loc PlayerVolumeHelp}"/>
                     </StackPanel>
                 </Grid>
 
@@ -140,6 +139,7 @@
                 <TextBlock x:Name="VolumeLiveAnnouncer" 
                            Text="{Binding VolumeAnnouncement}" 
                            AutomationProperties.LiveSetting="Assertive"
+                           acc:LiveRegion.Announce="{Binding VolumeAnnouncement}"
                            Height="1" Width="1" Opacity="0.01" Focusable="False"/>
 
             </StackPanel>

@@ -193,15 +193,49 @@ public class HistoryManager
         }, batchMode);
     }
 
+    private static bool IsSpecificFilePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        if (Directory.Exists(path)) return false;
+        return !string.IsNullOrEmpty(Path.GetExtension(path));
+    }
+
+    private static bool MatchesRecord(DownloadHistoryRecord record, DownloadEntry entry)
+    {
+        if (IsSpecificFilePath(entry.FilePath) && IsSpecificFilePath(record.FilePath) &&
+            string.Equals(record.FilePath, entry.FilePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(entry.Title) && !string.IsNullOrEmpty(entry.Url))
+        {
+            return record.Title == entry.Title && record.Url == entry.Url;
+        }
+
+        if (!string.IsNullOrEmpty(entry.Title) && record.Title == entry.Title)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(entry.Url) && record.Url == entry.Url)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     public void AddEntry(DownloadEntry entry, bool batchMode = false)
     {
         lock (_stateLock)
         {
             var records = EnsureLoaded();
 
-            // Avoid exact duplicate entries
+            // Avoid exact duplicate entries (without matching shared folder paths)
             records.RemoveAll(d =>
-                (!string.IsNullOrEmpty(entry.FilePath) && d.FilePath == entry.FilePath) ||
+                (IsSpecificFilePath(entry.FilePath) && IsSpecificFilePath(d.FilePath) &&
+                 string.Equals(d.FilePath, entry.FilePath, StringComparison.OrdinalIgnoreCase)) ||
                 (!string.IsNullOrEmpty(entry.Title) && d.Title == entry.Title &&
                  !string.IsNullOrEmpty(entry.Url) && d.Url == entry.Url));
 
@@ -240,10 +274,7 @@ public class HistoryManager
         {
             var records = EnsureLoaded();
 
-            records.RemoveAll(d =>
-                (!string.IsNullOrEmpty(entry.Title) && d.Title == entry.Title) ||
-                (!string.IsNullOrEmpty(entry.FilePath) && d.FilePath == entry.FilePath) ||
-                (!string.IsNullOrEmpty(entry.Url) && d.Url == entry.Url));
+            records.RemoveAll(d => MatchesRecord(d, entry));
 
             ScheduleFlush();
         }
@@ -261,11 +292,7 @@ public class HistoryManager
             if (toRemoveList.Count == 0) return 0;
 
             var initialCount = records.Count;
-            records.RemoveAll(d =>
-                toRemoveList.Any(entry =>
-                    (!string.IsNullOrEmpty(entry.Title) && d.Title == entry.Title) ||
-                    (!string.IsNullOrEmpty(entry.FilePath) && d.FilePath == entry.FilePath) ||
-                    (!string.IsNullOrEmpty(entry.Url) && d.Url == entry.Url)));
+            records.RemoveAll(d => toRemoveList.Any(entry => MatchesRecord(d, entry)));
 
             removed = initialCount - records.Count;
             if (removed > 0)

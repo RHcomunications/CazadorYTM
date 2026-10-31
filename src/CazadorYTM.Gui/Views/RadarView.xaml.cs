@@ -42,8 +42,13 @@ public partial class RadarView : UserControl
             {
                 GridRadar.SelectedItem = target;
                 GridRadar.ScrollIntoView(target);
+                GridRadar.UpdateLayout();
                 var row = (DataGridRow?)GridRadar.ItemContainerGenerator.ContainerFromItem(target);
-                row?.Focus();
+                if (row != null)
+                {
+                    row.Focus();
+                    Keyboard.Focus(row);
+                }
             }
         }, System.Windows.Threading.DispatcherPriority.Loaded);
     }
@@ -84,11 +89,57 @@ public partial class RadarView : UserControl
         }
     }
 
+    private void GridRadar_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (GridRadar.SelectedItem != null)
+        {
+            GridRadar.ScrollIntoView(GridRadar.SelectedItem);
+        }
+    }
+
     private void GridRadar_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (DataContext is not RadarViewModel vm) return;
 
-        if (e.Key == Key.Right)
+        if (e.Key == Key.Down)
+        {
+            if (GridRadar.Items.Count > 0)
+            {
+                int nextIndex = GridRadar.SelectedIndex + 1;
+                if (nextIndex < GridRadar.Items.Count)
+                {
+                    GridRadar.SelectedIndex = nextIndex;
+                    var item = GridRadar.SelectedItem;
+                    if (item != null)
+                    {
+                        GridRadar.ScrollIntoView(item);
+                        var row = (DataGridRow?)GridRadar.ItemContainerGenerator.ContainerFromItem(item);
+                        row?.Focus();
+                    }
+                    e.Handled = true;
+                }
+            }
+        }
+        else if (e.Key == Key.Up)
+        {
+            if (GridRadar.Items.Count > 0)
+            {
+                int prevIndex = GridRadar.SelectedIndex - 1;
+                if (prevIndex >= 0)
+                {
+                    GridRadar.SelectedIndex = prevIndex;
+                    var item = GridRadar.SelectedItem;
+                    if (item != null)
+                    {
+                        GridRadar.ScrollIntoView(item);
+                        var row = (DataGridRow?)GridRadar.ItemContainerGenerator.ContainerFromItem(item);
+                        row?.Focus();
+                    }
+                    e.Handled = true;
+                }
+            }
+        }
+        else if (e.Key == Key.Right)
         {
             // Flecha Derecha en lista: abre y carga el contenido de la lista para explorar sus pistas
             if (vm.SelectedItem?.IsPlaylist == true)

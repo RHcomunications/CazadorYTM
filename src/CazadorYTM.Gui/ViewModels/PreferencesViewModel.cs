@@ -128,19 +128,20 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CheckAppUpdate()
     {
+        var loc = LocalizationService.Instance;
         IsCheckingUpdates = true;
-        UpdateStatusText = "Consultando versión de Cazador YTM en GitHub Releases...";
+        UpdateStatusText = loc["PrefStatusCheckingApp"];
 
         try
         {
             var info = await AppUpdaterService.CheckAppUpdateAsync();
             if (info.HasUpdate)
             {
-                UpdateStatusText = $"Nueva versión disponible: v{info.LatestVersion}";
-                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : string.Format(LocalizationService.Instance["MainMsgReleaseNotes"], info.ReleaseNotes);
-                var confirmMsg = string.Format(LocalizationService.Instance["MainMsgNewVersion"], info.CurrentVersion, info.LatestVersion, notesPreview);
+                UpdateStatusText = string.Format(loc["PrefStatusNewAppAvailable"], info.LatestVersion);
+                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : string.Format(loc["MainMsgReleaseNotes"], info.ReleaseNotes);
+                var confirmMsg = string.Format(loc["MainMsgNewVersion"], info.CurrentVersion, info.LatestVersion, notesPreview);
 
-                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, LocalizationService.Instance["TitleAppUpdateAvailable"]);
+                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, loc["TitleAppUpdateAvailable"]);
                 if (accept)
                 {
                     if (string.IsNullOrEmpty(info.AssetDownloadUrl))
@@ -150,17 +151,17 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                         {
                             Process.Start(new ProcessStartInfo(info.HtmlUrl) { UseShellExecute = true });
                         }
-                        UpdateStatusText = "Abriendo página de descargas de GitHub...";
+                        UpdateStatusText = loc["PrefStatusOpeningGitHub"];
                         return;
                     }
 
-                    UpdateStatusText = "Descargando e instalando actualización...";
+                    UpdateStatusText = loc["PrefStatusDownloadingApp"];
                     var baseDir = Helpers.GetBaseDir();
                     await AppUpdaterService.DownloadAndApplyUpdateAsync(
                         info.AssetDownloadUrl,
                         baseDir,
                         msg => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = msg),
-                        pct => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = $"Descargando actualización ({pct}%)..."),
+                        pct => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = string.Format(loc["PrefStatusDownloadingAppPct"], pct)),
                         info.AssetSha256,
                         info.ChecksumDownloadUrl);
 
@@ -168,22 +169,22 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    UpdateStatusText = "Actualización de la aplicación pospuesta por el usuario.";
+                    UpdateStatusText = loc["PrefStatusAppUpdatePostponed"];
                 }
             }
             else
             {
-                UpdateStatusText = $"Cazador YTM está en su versión más reciente (v{Constants.AppVersion}).";
+                UpdateStatusText = string.Format(loc["PrefStatusAppUpToDate"], Constants.AppVersion);
                 DialogService.Instance.ShowMessage(
-                    string.Format(LocalizationService.Instance["PrefMsgAppUpToDate"], Constants.AppVersion),
-                    LocalizationService.Instance["TitleApplicationUpToDate"],
+                    string.Format(loc["PrefMsgAppUpToDate"], Constants.AppVersion),
+                    loc["TitleApplicationUpToDate"],
                     MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
         {
-            UpdateStatusText = $"Error al comprobar versión: {ex.Message}";
-            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["PrefMsgCheckReleasesFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
+            UpdateStatusText = string.Format(loc["PrefStatusCheckAppError"], ex.Message);
+            DialogService.Instance.ShowMessage(string.Format(loc["PrefMsgCheckReleasesFailed"], ex.Message), loc["TitleError"], MessageBoxImage.Error);
         }
         finally
         {
@@ -194,8 +195,9 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CheckUpdates()
     {
+        var loc = LocalizationService.Instance;
         IsCheckingUpdates = true;
-        UpdateStatusText = "Consultando versiones de yt-dlp, FFmpeg y Deno en GitHub...";
+        UpdateStatusText = loc["PrefStatusCheckingEngines"];
 
         try
         {
@@ -205,26 +207,26 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
             if (updatesNeeded != null && updatesNeeded.Count > 0)
             {
                 var details = string.Join("\n• ", updatesNeeded);
-                UpdateStatusText = $"Se encontraron {updatesNeeded.Count} actualizaciones disponibles.";
+                UpdateStatusText = string.Format(loc["PrefStatusUpdatesFound"], updatesNeeded.Count);
 
-                var confirmMessage = string.Format(LocalizationService.Instance["PrefMsgComponentsFound"], details);
-                var accept = DialogService.Instance.ShowConfirmation(confirmMessage, LocalizationService.Instance["TitleUpdatesAvailable"]);
+                var confirmMessage = string.Format(loc["PrefMsgComponentsFound"], details);
+                var accept = DialogService.Instance.ShowConfirmation(confirmMessage, loc["TitleUpdatesAvailable"]);
 
                 if (accept)
                 {
-                    UpdateStatusText = "Descargando e instalando componentes...";
+                    UpdateStatusText = loc["PrefStatusDownloadingEngines"];
                     await Task.Run(() => BinaryUpdater.UpdateAll(baseDir, msg =>
                     {
                         Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = msg);
                     }));
 
-                    UpdateStatusText = "¡Todos los componentes se han actualizado a su versión más reciente!";
-                    DialogService.Instance.ShowMessage(LocalizationService.Instance["CommonMsgAllComponentsUpdated"], LocalizationService.Instance["TitleUpdateCompleted"], MessageBoxImage.Information);
-                    NotificationService.Instance.Notify("Componentes Actualizados", "yt-dlp, FFmpeg y Deno se han actualizado a su versión más reciente.", NotificationType.Success);
+                    UpdateStatusText = loc["PrefStatusAllEnginesUpdated"];
+                    DialogService.Instance.ShowMessage(loc["CommonMsgAllComponentsUpdated"], loc["TitleUpdateCompleted"], MessageBoxImage.Information);
+                    NotificationService.Instance.Notify(loc["TitleComponentsUpdated"], loc["MsgComponentsUpdatedSuccess"], NotificationType.Success);
                 }
                 else
                 {
-                    UpdateStatusText = "Actualización cancelada por el usuario.";
+                    UpdateStatusText = loc["PrefStatusEnginesUpdateCanceled"];
                 }
             }
             else
@@ -233,17 +235,17 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                 var localFf = BinaryUpdater.GetLocalFfmpegVersion(baseDir) ?? "N/D";
                 var localDeno = BinaryUpdater.GetLocalDenoVersion(baseDir) ?? "N/D";
 
-                UpdateStatusText = "Todos los componentes (yt-dlp, FFmpeg, Deno) están en su versión más reciente.";
+                UpdateStatusText = loc["PrefStatusEnginesUpToDate"];
                 DialogService.Instance.ShowMessage(
-                    string.Format(LocalizationService.Instance["AdvMsgEngineUpToDate"], localYt, localFf, localDeno),
-                    LocalizationService.Instance["TitleComponentsUpToDate"],
+                    string.Format(loc["AdvMsgEngineUpToDate"], localYt, localFf, localDeno),
+                    loc["TitleComponentsUpToDate"],
                     MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
         {
-            UpdateStatusText = $"Error al comprobar: {ex.Message}";
-            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["PrefMsgVerifyUpdatesFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
+            UpdateStatusText = string.Format(loc["PrefStatusCheckEnginesError"], ex.Message);
+            DialogService.Instance.ShowMessage(string.Format(loc["PrefMsgVerifyUpdatesFailed"], ex.Message), loc["TitleError"], MessageBoxImage.Error);
         }
         finally
         {
@@ -254,15 +256,16 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RunVerify()
     {
+        var loc = LocalizationService.Instance;
         IsVerifying = true;
-        VerifyStatusText = "Analizando archivos de audio en la carpeta de destino...";
+        VerifyStatusText = loc["PrefStatusVerifyingAudio"];
 
         try
         {
             var targetFolder = DestinationFolder;
             if (!Directory.Exists(targetFolder))
             {
-                VerifyStatusText = "La carpeta de destino no existe.";
+                VerifyStatusText = loc["PrefStatusTargetFolderNotFound"];
                 return;
             }
 
@@ -272,14 +275,14 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
             }));
 
             var (ok, warn, err) = Helpers.SummarizeResults(results);
-            VerifyStatusText = $"Verificación completada: {ok} Correctos, {warn} Avisos, {err} Errores. Reporte guardado.";
+            VerifyStatusText = string.Format(loc["PrefStatusVerifySummary"], ok, warn, err);
 
             NotificationService.Instance.NotifyVerificationComplete(results.Count, err);
         }
         catch (Exception ex)
         {
             VerifyStatusText = $"Error al verificar: {ex.Message}";
-            NotificationService.Instance.NotifyError("Error de Verificación", ex.Message);
+            NotificationService.Instance.NotifyError(loc["TitleVerificationError"], ex.Message);
         }
         finally
         {
@@ -328,6 +331,24 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
 
         _config.Save();
 
+        if (SelectedTheme.Equals("Oscuro", StringComparison.OrdinalIgnoreCase))
+        {
+            ModernWpf.ThemeManager.Current.ApplicationTheme = ModernWpf.ApplicationTheme.Dark;
+        }
+        else if (SelectedTheme.Equals("Claro", StringComparison.OrdinalIgnoreCase))
+        {
+            ModernWpf.ThemeManager.Current.ApplicationTheme = ModernWpf.ApplicationTheme.Light;
+        }
+        else
+        {
+            ModernWpf.ThemeManager.Current.ApplicationTheme = null;
+        }
+
+        if (Application.Current?.MainWindow != null)
+        {
+            Win11ThemeHelper.ApplyWin11Backdrop(Application.Current.MainWindow, isDialog: false);
+        }
+
         RequestClose?.Invoke();
 
         if (languageChanged)
@@ -346,7 +367,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                         UseShellExecute = true
                     });
                 }
-                Application.Current.Shutdown();
+                Application.Current?.Shutdown();
             }
         }
     }

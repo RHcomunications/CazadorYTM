@@ -27,17 +27,67 @@ public partial class HistoryView : UserControl
 
     private void GridHistory_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter || e.Key == Key.Return)
+        if (DataContext is not HistoryViewModel vm) return;
+
+        if (e.Key == Key.Up || e.Key == Key.Down)
         {
-            if (DataContext is HistoryViewModel vm)
+            var count = GridHistory.Items.Count;
+            if (count == 0) return;
+
+            var curIdx = GridHistory.SelectedIndex;
+            var nextIdx = e.Key == Key.Down
+                ? (curIdx < 0 ? 0 : System.Math.Min(curIdx + 1, count - 1))
+                : (curIdx <= 0 ? 0 : curIdx - 1);
+
+            if (nextIdx != curIdx || curIdx < 0)
             {
-                var target = GridHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
-                if (target != null)
+                GridHistory.SelectedIndex = nextIdx;
+                if (GridHistory.Items[nextIdx] is DownloadEntry nextItem)
                 {
-                    vm.PlaySelected(target);
-                    e.Handled = true;
+                    vm.SelectedEntry = nextItem;
+                    GridHistory.ScrollIntoView(nextItem);
                 }
             }
+
+            FocusSelectedRow(nextIdx);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Enter || e.Key == Key.Return)
+        {
+            var target = GridHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
+            if (target != null)
+            {
+                vm.PlaySelected(target);
+                e.Handled = true;
+            }
+        }
+        else if (e.Key == Key.Delete)
+        {
+            var target = GridHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
+            if (target != null)
+            {
+                vm.DeleteSelected(target);
+                e.Handled = true;
+            }
+        }
+        else if (e.Key == Key.F5)
+        {
+            vm.RefreshHistory();
+            e.Handled = true;
+        }
+    }
+
+    private void FocusSelectedRow(int index)
+    {
+        if (index < 0 || index >= GridHistory.Items.Count) return;
+
+        GridHistory.UpdateLayout();
+        if (GridHistory.ItemContainerGenerator.ContainerFromIndex(index) is DataGridRow row)
+        {
+            row.Focus();
+            Keyboard.Focus(row);
         }
     }
 

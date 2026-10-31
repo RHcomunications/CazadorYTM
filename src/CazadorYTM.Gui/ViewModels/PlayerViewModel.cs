@@ -9,11 +9,12 @@ using CazadorYTM.Core;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
-public partial class PlayerViewModel : ObservableObject
+public partial class PlayerViewModel : ObservableObject, IDisposable
 {
     private readonly IAudioPlayerService _player;
     private double _previousVolume = 0.8;
     private string? _remoteStreamUrl;
+    private bool _disposed;
 
     [ObservableProperty]
     private string _trackTitle = LocalizationService.Instance.Get("PlayerStatusNoActive", "Sin reproducción activa");
@@ -101,6 +102,15 @@ public partial class PlayerViewModel : ObservableObject
         {
             TrackTitle = LocalizationService.Instance.Get("PlayerStatusNoActive", "Sin reproducción activa");
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _player.StateChanged -= OnPlayerStateChanged;
+        _player.PositionChanged -= OnPlayerPositionChanged;
+        LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
     }
 
     private void UpdateVolumeTexts(double vol)

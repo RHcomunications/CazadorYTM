@@ -28,6 +28,7 @@ public class RadarItem
     public bool IsPlaylist { get; set; }
 
     public string DisplayDuration => Duration.HasValue ? Helpers.FormatDuration(Duration.Value) : "--:--";
+    public string DisplayText => ToString();
 
     public override string ToString()
     {
@@ -103,7 +104,7 @@ public static class RadarService
                 return results;
             }
 
-            var args = new List<string> { "-J", "--flat-playlist", "--no-warnings" };
+            var args = new List<string> { "--ignore-config", "-J", "--flat-playlist", "--no-warnings" };
 
             // Configurar cookies para acceder a la cuenta autenticada
             if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
@@ -126,6 +127,7 @@ public static class RadarService
                 _ => ":ythistory"
             };
 
+            args.Add("--");
             args.Add(targetUrl);
 
             var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000, cancellationToken: cancellationToken);
@@ -248,7 +250,7 @@ public static class RadarService
                 return results;
             }
 
-            var args = new List<string> { "-J", "--flat-playlist", "--no-warnings" };
+            var args = new List<string> { "--ignore-config", "-J", "--flat-playlist", "--no-warnings" };
 
             if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
             {
@@ -267,6 +269,7 @@ public static class RadarService
                 targetUrl = $"https://music.youtube.com/playlist?list={playlistUrlOrId}";
             }
 
+            args.Add("--");
             args.Add(targetUrl);
 
             var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000, cancellationToken: cancellationToken);
@@ -389,7 +392,7 @@ public static class RadarService
             var exe = BinaryManager.GetYtDlpPath();
             if (!File.Exists(exe)) return null;
 
-            var args = new List<string> { "-g", "-f", "bestaudio/best", "--no-warnings" };
+            var args = new List<string> { "--ignore-config", "-g", "-f", "bestaudio/best", "--no-warnings" };
 
             if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
             {
@@ -402,6 +405,7 @@ public static class RadarService
                 args.Add(cookiesBrowser.ToLower());
             }
 
+            args.Add("--");
             args.Add(videoUrlOrId);
 
             var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 15000, cancellationToken: cancellationToken);

@@ -24,13 +24,16 @@ public partial class LogsViewModel : ObservableObject, IDisposable
     private string _logText = string.Empty;
 
     [ObservableProperty]
-    private string _selectedFilter = "Todos";
+    private string _selectedFilter = string.Empty;
 
-    public ObservableCollection<string> FilterOptions { get; } = new() { "Todos", "INFO", "WARN", "ERROR" };
+    public ObservableCollection<string> FilterOptions { get; } = new();
     public ObservableCollection<string> Entries { get; } = new();
 
     public LogsViewModel()
     {
+        PopulateFilterOptions();
+        LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+
         _updateTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(300)
@@ -70,7 +73,35 @@ public partial class LogsViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         LogService.Instance.OnLogReceived -= _logHandler;
+        LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
         _updateTimer.Stop();
+    }
+
+    private void OnLanguageChanged()
+    {
+        var currentIndex = FilterOptions.IndexOf(SelectedFilter);
+        PopulateFilterOptions();
+        if (currentIndex >= 0 && currentIndex < FilterOptions.Count)
+        {
+            SelectedFilter = FilterOptions[currentIndex];
+        }
+        else
+        {
+            SelectedFilter = FilterOptions.FirstOrDefault() ?? string.Empty;
+        }
+    }
+
+    private void PopulateFilterOptions()
+    {
+        FilterOptions.Clear();
+        FilterOptions.Add(LocalizationService.Instance["LogFilterAll"]);
+        FilterOptions.Add("INFO");
+        FilterOptions.Add("WARN");
+        FilterOptions.Add("ERROR");
+        if (string.IsNullOrEmpty(SelectedFilter) || !FilterOptions.Contains(SelectedFilter))
+        {
+            SelectedFilter = FilterOptions[0];
+        }
     }
 
     partial void OnSelectedFilterChanged(string value)
@@ -86,7 +117,8 @@ public partial class LogsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (SelectedFilter == "Todos")
+        var allOption = FilterOptions.Count > 0 ? FilterOptions[0] : "Todos";
+        if (SelectedFilter == allOption || SelectedFilter == "Todos" || SelectedFilter == "All")
         {
             LogText = string.Join(Environment.NewLine, Entries);
         }

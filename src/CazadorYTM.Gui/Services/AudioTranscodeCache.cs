@@ -88,11 +88,6 @@ public class AudioTranscodeCache
         return null;
     }
 
-    public string? TryTranscodeToTempWav(string sourcePath)
-    {
-        return TryTranscodeToTempWavAsync(sourcePath).GetAwaiter().GetResult();
-    }
-
     public void CleanupAllTempCache()
     {
         lock (_cacheLock)

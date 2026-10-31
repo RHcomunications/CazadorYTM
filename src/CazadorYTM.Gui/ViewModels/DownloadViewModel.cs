@@ -16,12 +16,13 @@ using CazadorYTM.Core.Models;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
-public partial class DownloadViewModel : ObservableObject
+public partial class DownloadViewModel : ObservableObject, IDisposable
 {
     private readonly AppConfig _config;
     private readonly HistoryManager _historyManager;
     private CancellationTokenSource? _downloadCts;
     private bool _isRadarImport;
+    private bool _disposed;
 
     [ObservableProperty]
     private string _inputText = string.Empty;
@@ -131,7 +132,7 @@ public partial class DownloadViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(InputText)) return;
 
         InputText = url;
-        NotificationService.Instance.Notify("Portapapeles", "Enlace detectado y pegado automáticamente.", NotificationType.Info);
+        NotificationService.Instance.Notify(LocalizationService.Instance["TitleClipboard"], LocalizationService.Instance["MsgClipboardLinkPasted"], NotificationType.Info);
     }
 
     public void SetInputFromRadar(string target)
@@ -144,6 +145,36 @@ public partial class DownloadViewModel : ObservableObject
     {
         var path = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
         return !string.IsNullOrWhiteSpace(path) && File.Exists(path) ? path : null;
+    }
+
+    private string? ResolveProxy()
+    {
+        var proxy = _config.Get("proxy", "").Trim();
+        return string.IsNullOrWhiteSpace(proxy) ? null : proxy;
+    }
+
+    public void ReloadPreferences()
+    {
+        _config.Load();
+        var preferences = DownloadPreferences.Load(
+            _config,
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), Constants.MultiDownloadFolder));
+
+        SelectedFormat = preferences.Format;
+        SelectedBitrate = preferences.Bitrate;
+        SelectedConcurrent = preferences.Concurrent;
+        SelectedBrowser = preferences.Browser;
+        IsSponsorBlock = preferences.SponsorBlock;
+        IsNormalize = preferences.Normalize;
+        IsEmbedLyrics = preferences.EmbedLyrics;
+        IsEnumerate = preferences.Enumerate;
+        DestinationFolder = preferences.DestinationFolder;
+        IsClipboardMonitorEnabled = preferences.ClipboardMonitor;
+
+        if (!string.IsNullOrWhiteSpace(DestinationFolder))
+        {
+            try { Directory.CreateDirectory(DestinationFolder); } catch { }
+        }
     }
 
     private void SavePreferences()
@@ -241,6 +272,7 @@ public partial class DownloadViewModel : ObservableObject
                 InputText.Trim(),
                 isSearch: !isUrl,
                 cookiesBrowser: SelectedBrowser,
+                proxy: ResolveProxy(),
                 loggerCallback: msg => LogService.Instance.Info(msg),
                 cookiesPath: ResolveCookiesPath(),
                 searchSource: SelectedSearchSource);
@@ -365,6 +397,10 @@ public partial class DownloadViewModel : ObservableObject
 
         try
         {
+            var proxy = ResolveProxy();
+            var trimSilence = _config.Get("trim_silence", false);
+            var lyricsFallback = _config.Get("lyrics_api_fallback", true);
+
             var result = await Task.Run(() => DownloadEngine.DownloadItem(
                 query,
                 useFormat,
@@ -373,9 +409,12 @@ public partial class DownloadViewModel : ObservableObject
                 isSearch: !Helpers.IsUrl(query),
                 sponsorblock: IsSponsorBlock,
                 cookiesBrowser: SelectedBrowser,
+                proxy: proxy,
                 normalize: IsNormalize,
                 embedLyrics: IsEmbedLyrics,
                 cancelEvent: _downloadCts.Token,
+                trimSilence: trimSilence,
+                lyricsApiFallback: lyricsFallback,
                 loggerCallback: msg => LogService.Instance.Info(msg),
                 cookiesPath: ResolveCookiesPath(),
                 isEnumerate: IsEnumerate,
@@ -392,6 +431,11 @@ public partial class DownloadViewModel : ObservableObject
                         ProgressDetail = $"{pctStr}% | Velocidad: {spd} | ETA: {eta}";
                     }
                 }));
+
+            if (_downloadCts.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(_downloadCts.Token);
+            }
 
             if (result.Success)
             {
@@ -416,7 +460,7 @@ public partial class DownloadViewModel : ObservableObject
             {
                 StatusText = $"Error: {result.ErrorMessage ?? "Fallo en descarga"}";
                 LogService.Instance.Error($"Fallo de descarga: {result.ErrorMessage}");
-                NotificationService.Instance.NotifyError("Error en Descarga", result.ErrorMessage ?? "Fallo al procesar el archivo.");
+                NotificationService.Instance.NotifyError(LocalizationService.Instance["TitleDownloadError"], result.ErrorMessage ?? "Fallo al procesar el archivo.");
             }
         }
         catch (OperationCanceledException)
@@ -428,7 +472,7 @@ public partial class DownloadViewModel : ObservableObject
         {
             StatusText = $"Error: {ex.Message}";
             LogService.Instance.Error($"Error en proceso de descarga: {ex.Message}");
-            NotificationService.Instance.NotifyError("Error en Descarga", ex.Message);
+            NotificationService.Instance.NotifyError(LocalizationService.Instance["TitleDownloadError"], ex.Message);
         }
         finally
         {
@@ -514,6 +558,10 @@ public partial class DownloadViewModel : ObservableObject
                     });
 
                     var query = entry.Url ?? entry.Title ?? "";
+                    var proxy = ResolveProxy();
+                    var trimSilence = _config.Get("trim_silence", false);
+                    var lyricsFallback = _config.Get("lyrics_api_fallback", true);
+
                     var res = await Task.Run(() => DownloadEngine.DownloadItem(
                         query,
                         useFormat,
@@ -522,9 +570,12 @@ public partial class DownloadViewModel : ObservableObject
                         isSearch: !Helpers.IsUrl(query),
                         sponsorblock: IsSponsorBlock,
                         cookiesBrowser: SelectedBrowser,
+                        proxy: proxy,
                         normalize: IsNormalize,
                         embedLyrics: IsEmbedLyrics,
                         cancelEvent: _downloadCts.Token,
+                        trimSilence: trimSilence,
+                        lyricsApiFallback: lyricsFallback,
                         loggerCallback: msg => LogService.Instance.Info(msg),
                         cookiesPath: ResolveCookiesPath(),
                         isEnumerate: IsEnumerate,
@@ -626,6 +677,15 @@ public partial class DownloadViewModel : ObservableObject
             _downloadCts.Cancel();
             StatusText = "Cancelando descarga...";
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _clipboardMonitor.Dispose();
+        _downloadCts?.Cancel();
+        _downloadCts?.Dispose();
     }
 }
 

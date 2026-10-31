@@ -7,6 +7,7 @@
         Width="700" Height="580"
         MinWidth="550" MinHeight="420"
         WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
         AutomationProperties.Name="{loc:Loc ScWindowName}"
         AutomationProperties.HelpText="{loc:Loc ScWindowHelpText}">
 
@@ -30,6 +31,11 @@
                   SelectionMode="Single"
                   FocusVisualStyle="{DynamicResource {x:Static SystemParameters.FocusVisualStyleKey}}"
                   AutomationProperties.Name="{loc:Loc ScListName}">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource {x:Type ListViewItem}}">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding}" />
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="{loc:Loc ScColShortcut}" Width="240">

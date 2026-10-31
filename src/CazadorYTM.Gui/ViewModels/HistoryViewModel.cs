@@ -13,9 +13,10 @@ using CazadorYTM.Core.Models;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
-public partial class HistoryViewModel : ObservableObject
+public partial class HistoryViewModel : ObservableObject, IDisposable
 {
     private readonly HistoryManager _historyManager;
+    private bool _disposed;
 
     public event Action<DownloadEntry>? RetryRequested;
 
@@ -33,10 +34,20 @@ public partial class HistoryViewModel : ObservableObject
         _historyManager = new HistoryManager();
         RefreshHistory();
 
-        HistoryManager.GlobalHistoryChanged += () =>
-        {
-            Application.Current?.Dispatcher.InvokeAsync(RefreshHistory);
-        };
+        HistoryManager.GlobalHistoryChanged += OnGlobalHistoryChanged;
+    }
+
+    private void OnGlobalHistoryChanged()
+    {
+        if (_disposed) return;
+        Application.Current?.Dispatcher.InvokeAsync(RefreshHistory);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        HistoryManager.GlobalHistoryChanged -= OnGlobalHistoryChanged;
     }
 
     partial void OnSearchFilterChanged(string value)
@@ -56,14 +67,20 @@ public partial class HistoryViewModel : ObservableObject
         ApplyFilter();
     }
 
+    private static readonly EnumerationOptions SafeSearchOptions = new()
+    {
+        IgnoreInaccessible = true,
+        RecurseSubdirectories = true
+    };
+
     private void ApplyFilter()
     {
         FilteredEntries.Clear();
-        var query = SearchFilter.Trim().ToLower();
+        var query = SearchFilter.Trim();
         var items = string.IsNullOrEmpty(query)
             ? HistoryEntries
-            : HistoryEntries.Where(e => (e.Title ?? "").ToLower().Contains(query) ||
-                                        (e.FilePath ?? "").ToLower().Contains(query));
+            : HistoryEntries.Where(e => (e.Title ?? "").Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                                        (e.FilePath ?? "").Contains(query, StringComparison.OrdinalIgnoreCase));
 
         foreach (var item in items)
         {
@@ -83,7 +100,13 @@ public partial class HistoryViewModel : ObservableObject
             return target.FilePath;
         }
 
-        // Try searching in configured destination folder
+        // Try searching in target's recorded folder or configured destination folder
+        var searchFolders = new System.Collections.Generic.List<string>(2);
+        if (!string.IsNullOrEmpty(target.FilePath) && Directory.Exists(target.FilePath))
+        {
+            searchFolders.Add(target.FilePath);
+        }
+
         var config = new AppConfig();
         var destFolder = config.Get("destination_folder", "");
         if (string.IsNullOrEmpty(destFolder) || !Directory.Exists(destFolder))
@@ -91,21 +114,33 @@ public partial class HistoryViewModel : ObservableObject
             destFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), Constants.MultiDownloadFolder);
         }
 
-        if (Directory.Exists(destFolder))
+        if (Directory.Exists(destFolder) && !searchFolders.Contains(destFolder, StringComparer.OrdinalIgnoreCase))
         {
-            if (!string.IsNullOrEmpty(target.FilePath))
+            searchFolders.Add(destFolder);
+        }
+
+        foreach (var folder in searchFolders)
+        {
+            if (!string.IsNullOrEmpty(target.FilePath) && !Directory.Exists(target.FilePath))
             {
                 var fname = Path.GetFileName(target.FilePath);
-                var test = Path.Combine(destFolder, fname);
-                if (File.Exists(test)) return test;
+                if (!string.IsNullOrEmpty(fname))
+                {
+                    var test = Path.Combine(folder, fname);
+                    if (File.Exists(test)) return test;
+                }
             }
 
-            if (!string.IsNullOrEmpty(target.Title))
+            if (!string.IsNullOrWhiteSpace(target.Title))
             {
                 try
                 {
-                    var match = Directory.EnumerateFiles(destFolder, $"*{target.Title}*").FirstOrDefault();
-                    if (match != null) return match;
+                    var sanitizedTitle = Helpers.SanitizeFilename(target.Title);
+                    if (!string.IsNullOrWhiteSpace(sanitizedTitle))
+                    {
+                        var match = Directory.EnumerateFiles(folder, $"*{sanitizedTitle}*", SafeSearchOptions).FirstOrDefault();
+                        if (match != null) return match;
+                    }
                 }
                 catch { }
             }
@@ -144,7 +179,7 @@ public partial class HistoryViewModel : ObservableObject
                 AudioPlayerService.Instance.Play(realPath);
             }
 
-            NotificationService.Instance.Notify("Reproductor", $"Reproduciendo: {target.Title}", NotificationType.Info);
+            NotificationService.Instance.Notify(LocalizationService.Instance["TitlePlayer"], string.Format(LocalizationService.Instance["MsgPlayingTrack"], target.Title), NotificationType.Info);
         }
         else
         {
@@ -168,7 +203,7 @@ public partial class HistoryViewModel : ObservableObject
         }
 
         AudioPlayerService.Instance.SetQueue(allTracks, 0);
-        NotificationService.Instance.Notify("Reproductor", $"Reproduciendo toda la biblioteca ({allTracks.Count} pistas)", NotificationType.Info);
+        NotificationService.Instance.Notify(LocalizationService.Instance["TitlePlayer"], string.Format(LocalizationService.Instance["MsgPlayingAllLibrary"], allTracks.Count), NotificationType.Info);
     }
 
     [RelayCommand]
@@ -185,7 +220,7 @@ public partial class HistoryViewModel : ObservableObject
             return;
         }
 
-        var savePath = DialogService.Instance.SaveFile("Cazador_Biblioteca.m3u8", "Lista de reproducción M3U8 (*.m3u8)|*.m3u8|Lista M3U (*.m3u)|*.m3u");
+        var savePath = DialogService.Instance.SaveFile("Cazador_Biblioteca.m3u8", LocalizationService.Instance["M3u8FilesFilter"]);
         if (string.IsNullOrEmpty(savePath)) return;
 
         try
@@ -199,7 +234,7 @@ public partial class HistoryViewModel : ObservableObject
             }
 
             File.WriteAllText(savePath, sb.ToString(), System.Text.Encoding.UTF8);
-            NotificationService.Instance.Notify("Lista Exportada", $"Se exportaron {allTracks.Count} canciones a la lista M3U8.", NotificationType.Success);
+            NotificationService.Instance.Notify(LocalizationService.Instance["TitleListExported"], string.Format(LocalizationService.Instance["MsgListExportedM3u8"], allTracks.Count), NotificationType.Success);
             DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgExportDone"], savePath), LocalizationService.Instance["TitleExportDone"]);
         }
         catch (Exception ex)
@@ -323,7 +358,7 @@ public partial class HistoryViewModel : ObservableObject
         {
             var removed = _historyManager.RemoveEntries(missing);
             RefreshHistory();
-            NotificationService.Instance.Notify("Biblioteca Depurada", $"Se eliminaron {removed} registros obsoletos.", NotificationType.Success);
+            NotificationService.Instance.Notify(LocalizationService.Instance["TitleLibraryCleaned"], string.Format(LocalizationService.Instance["MsgLibraryCleanedCount"], removed), NotificationType.Success);
             LogService.Instance.Info($"Depuración de biblioteca: {removed} registros removidos.");
         }
     }

@@ -11,6 +11,10 @@
              AutomationProperties.Name="{loc:Loc RadarPanelName}"
              KeyboardNavigation.TabNavigation="Cycle">
 
+    <UserControl.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding RefreshCurrentSectionCommand}"/>
+    </UserControl.InputBindings>
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -134,18 +138,35 @@
                 </StackPanel>
             </Border>
 
-            <!-- 3. Active Items DataGrid -->
-                <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
+            <!-- 3. Active Items DataGrid: FullRow Navigation with Single Tab Jump Out and UI Virtualization -->
+            <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
                       AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow" Focusable="True" RowHeight="48"
                       KeyboardNavigation.TabNavigation="Once"
+                      KeyboardNavigation.DirectionalNavigation="Cycle"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                       VirtualizingStackPanel.IsVirtualizing="True"
                       VirtualizingStackPanel.VirtualizationMode="Recycling"
                       ScrollViewer.CanContentScroll="True"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                       BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                       Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                       AutomationProperties.Name="{loc:Loc RadarGridHint}"
                       MouseDoubleClick="GridRadar_MouseDoubleClick"
-                      PreviewKeyDown="GridRadar_PreviewKeyDown">
+                      PreviewKeyDown="GridRadar_PreviewKeyDown"
+                      SelectionChanged="GridRadar_SelectionChanged">
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                        <Setter Property="IsTabStop" Value="False" />
+                        <Setter Property="Focusable" Value="False" />
+                    </Style>
+                </DataGrid.CellStyle>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <Setter Property="Focusable" Value="True" />
+                        <Setter Property="AutomationProperties.Name" Value="{Binding DisplayText}" />
+                    </Style>
+                </DataGrid.RowStyle>
 
                 <!-- Visibility only when connected and no blocking error -->
                 <DataGrid.Style>

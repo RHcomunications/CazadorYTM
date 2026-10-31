@@ -17,7 +17,16 @@ using CazadorYTM.Core.Models;
 
 public static class MetadataService
 {
-    private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly HttpClient _httpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+        ConnectTimeout = TimeSpan.FromSeconds(10),
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+        AllowAutoRedirect = true
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(10)
+    };
     private static readonly YoutubeClient _youtubeClient = new(_httpClient);
     private const int MaxMetadataEntries = 10000;
 
@@ -58,11 +67,6 @@ public static class MetadataService
         catch { }
 
         return null;
-    }
-
-    public static string? FetchLyricsLrclib(string trackName, string? artistName = null, int? duration = null)
-    {
-        return FetchLyricsLrclibAsync(trackName, artistName, duration).GetAwaiter().GetResult();
     }
 
     public static async Task<bool> TryWriteLyricsAsync(string audioFilePath, string trackName, string? artistName = null, int? duration = null, System.Threading.CancellationToken cancellationToken = default)

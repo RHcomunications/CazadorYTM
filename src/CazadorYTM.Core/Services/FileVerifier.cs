@@ -296,7 +296,14 @@ public static class FileVerifier
 
         var ffprobeExe = Path.Combine(ffprobeLoc, Environment.OSVersion.Platform == PlatformID.Win32NT ? "ffprobe.exe" : "ffprobe");
 
-        var archivosAudio = Directory.EnumerateFiles(carpeta, "*.*", SearchOption.AllDirectories)
+        var enumOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            MatchCasing = MatchCasing.CaseInsensitive
+        };
+
+        var archivosAudio = Directory.EnumerateFiles(carpeta, "*.*", enumOptions)
             .Where(f => AudioExtensions.Contains(Path.GetExtension(f).ToLower()))
             .Take(MaxFilesToVerify + 1)
             .ToList();

@@ -4,6 +4,9 @@
              xmlns:ui="http://schemas.modernwpf.com/2019"
              xmlns:loc="clr-namespace:CazadorYTM.Gui.Markup"
              AutomationProperties.Name="{loc:Loc TabLibrary}">
+    <UserControl.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding RefreshHistoryCommand}" />
+    </UserControl.InputBindings>
     <Grid Margin="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -74,15 +77,17 @@
                 <DataGrid.InputBindings>
                     <KeyBinding Key="Enter" Command="{Binding PlaySelectedCommand}" />
                     <KeyBinding Key="Return" Command="{Binding PlaySelectedCommand}" />
+                    <KeyBinding Key="Delete" Command="{Binding DeleteSelectedCommand}" />
+                    <KeyBinding Key="F5" Command="{Binding RefreshHistoryCommand}" />
                 </DataGrid.InputBindings>
                 <DataGrid.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="{loc:Loc BtnPlay}" Command="{Binding PlaySelectedCommand}" />
+                        <MenuItem Header="{loc:Loc BtnPlay}" InputGestureText="Enter" Command="{Binding PlaySelectedCommand}" />
                         <MenuItem Header="{loc:Loc HistoryMenuRetryDownload}" Command="{Binding RetryDownloadCommand}" />
                         <MenuItem Header="{loc:Loc OpenFolder}" Command="{Binding OpenContainingFolderCommand}" />
                         <MenuItem Header="{loc:Loc CopyLink}" Command="{Binding CopyUrlCommand}" />
                         <Separator />
-                        <MenuItem Header="{loc:Loc DeleteFromHistory}" Command="{Binding DeleteSelectedCommand}" />
+                        <MenuItem Header="{loc:Loc DeleteFromHistory}" InputGestureText="Supr / Del" Command="{Binding DeleteSelectedCommand}" />
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>

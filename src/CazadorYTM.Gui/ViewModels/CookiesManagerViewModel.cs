@@ -81,7 +81,7 @@ public partial class CookiesManagerViewModel : ObservableObject
             var authStr = status.HasYouTubeAuthCookies
                 ? loc["CookiesActiveSession"]
                 : loc["CookiesNoSessionTokens"];
-            StatusSummary = $"Archivo: {Path.GetFileName(CurrentCookiesPath)} ({status.FormattedSize}, {status.EstimatedCookieCount} cookies)\nEstado: {authStr}";
+            StatusSummary = string.Format(loc["CookiesStatusSummary"], Path.GetFileName(CurrentCookiesPath), status.FormattedSize, status.EstimatedCookieCount, authStr);
         }
         else
         {

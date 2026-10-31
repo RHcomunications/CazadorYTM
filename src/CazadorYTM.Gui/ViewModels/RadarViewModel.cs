@@ -17,7 +17,7 @@ using CazadorYTM.Core.Models;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
-public partial class RadarViewModel : ObservableObject
+public partial class RadarViewModel : ObservableObject, IDisposable
 {
     private readonly AppConfig _config;
     private readonly List<RadarItem> _cachedPlaylists = new();
@@ -26,6 +26,7 @@ public partial class RadarViewModel : ObservableObject
     private static readonly TimeSpan SectionCacheTtl = TimeSpan.FromMinutes(5);
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _streamCts;
+    private bool _disposed;
 
     public event Action<DownloadEntry>? SendToDownloadRequested;
     public event Action<string, string, string?>? PlayTrackRequested;
@@ -79,6 +80,7 @@ public partial class RadarViewModel : ObservableObject
     {
         try
         {
+            _config.Load();
             var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
             if (File.Exists(cookiesPath))
             {
@@ -558,11 +560,12 @@ public partial class RadarViewModel : ObservableObject
     private void ApplyFilter()
     {
         FilteredItems.Clear();
-        var q = FilterQuery.Trim().ToLower();
+        var q = FilterQuery.Trim();
 
         var queryList = string.IsNullOrWhiteSpace(q)
             ? AllItems
-            : AllItems.Where(i => i.Title.ToLower().Contains(q) || (i.Artist ?? "").ToLower().Contains(q));
+            : AllItems.Where(i => (i.Title ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                  (i.Artist ?? "").Contains(q, StringComparison.OrdinalIgnoreCase));
 
         foreach (var it in queryList)
         {
@@ -620,7 +623,7 @@ public partial class RadarViewModel : ObservableObject
         {
             if (cts.Token.IsCancellationRequested) return;
             StatusText = $"Error al obtener stream: {ex.Message}";
-            NotificationService.Instance.NotifyError("Error de Stream", ex.Message);
+            NotificationService.Instance.NotifyError(LocalizationService.Instance.Get("TitleStreamError", "Error de Stream"), ex.Message);
         }
         finally
         {
@@ -696,5 +699,15 @@ public partial class RadarViewModel : ObservableObject
         {
             NotificationService.Instance.NotifyError(LocalizationService.Instance.Get("TitleTechSupport", "Soporte Técnico"), string.Format(LocalizationService.Instance.Get("MsgSupportLinkError", "No se pudo abrir el enlace de soporte: {0}"), ex.Message));
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _streamCts?.Cancel();
+        _streamCts?.Dispose();
     }
 }

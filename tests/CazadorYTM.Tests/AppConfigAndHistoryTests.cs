@@ -211,5 +211,37 @@ public class HistoryManagerTests : IDisposable
         Assert.Single(entries);
         Assert.Equal("FlushAll Song", entries[0].Title);
     }
+
+    [Fact]
+    public void HistoryManager_AddAndRemove_WithSharedFolderFilePath_DoesNotDeleteUnrelatedTracks()
+    {
+        var sharedDir = Path.GetTempPath();
+        var history = new HistoryManager(_tempHistoryPath);
+
+        var track1 = new DownloadEntry
+        {
+            Title = "Track One",
+            Url = "https://music.youtube.com/watch?v=one",
+            FilePath = sharedDir
+        };
+        var track2 = new DownloadEntry
+        {
+            Title = "Track Two",
+            Url = "https://music.youtube.com/watch?v=two",
+            FilePath = sharedDir
+        };
+
+        history.AddEntry(track1);
+        history.AddEntry(track2);
+
+        var allAfterAdd = history.GetEntries();
+        Assert.Equal(2, allAfterAdd.Count);
+
+        history.RemoveEntry(track1);
+
+        var remaining = history.GetEntries();
+        Assert.Single(remaining);
+        Assert.Equal("Track Two", remaining[0].Title);
+    }
 }
 

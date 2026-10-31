@@ -5,7 +5,10 @@ using System.Windows;
 using System.Windows.Input;
 using CazadorYTM.Core.Services;
 
-public record ShortcutItem(string Shortcut, string Description);
+public record ShortcutItem(string Shortcut, string Description)
+{
+    public override string ToString() => $"{Shortcut}: {Description}";
+}
 
 public partial class ShortcutsDialog : Window
 {

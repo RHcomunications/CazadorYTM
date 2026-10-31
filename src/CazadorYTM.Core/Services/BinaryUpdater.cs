@@ -22,8 +22,10 @@ public class UpdateCheckResult
 public class BinaryUpdater
 {
     private readonly string _baseDir;
-    private static readonly HttpClient HttpClient = new(new HttpClientHandler
+    private static readonly HttpClient HttpClient = new(new SocketsHttpHandler
     {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+        ConnectTimeout = TimeSpan.FromSeconds(15),
         AllowAutoRedirect = true,
         AutomaticDecompression = System.Net.DecompressionMethods.All
     })

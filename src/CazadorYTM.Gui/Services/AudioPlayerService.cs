@@ -61,6 +61,7 @@ public class AudioPlayerService : IAudioPlayerService
     private readonly Random _random = new();
 
     private readonly AudioTranscodeCache _transcodeCache = new();
+    private CancellationTokenSource? _playCts;
 
     private bool _isFallbackAttempt;
 
@@ -221,6 +222,11 @@ public class AudioPlayerService : IAudioPlayerService
 
     private async void PlayInternal(string filePath)
     {
+        _playCts?.Cancel();
+        _playCts?.Dispose();
+        _playCts = new CancellationTokenSource();
+        var ct = _playCts.Token;
+
         try
         {
             _isFallbackAttempt = false;
@@ -234,7 +240,9 @@ public class AudioPlayerService : IAudioPlayerService
             // Direct transcode for formats notoriously unsupported by default Windows Media Foundation (.opus, .ogg, .webm)
             if (!isRemote && (ext == ".opus" || ext == ".ogg" || ext == ".webm"))
             {
-                var transcoded = await _transcodeCache.TryTranscodeToTempWavAsync(filePath);
+                var transcoded = await _transcodeCache.TryTranscodeToTempWavAsync(filePath, ct);
+                if (ct.IsCancellationRequested) return;
+
                 if (transcoded != null)
                 {
                     targetUri = transcoded;
@@ -242,7 +250,7 @@ public class AudioPlayerService : IAudioPlayerService
                 }
             }
 
-            if (CurrentFilePath != filePath) return;
+            if (ct.IsCancellationRequested || CurrentFilePath != filePath) return;
 
             _mediaPlayer.Open(new Uri(targetUri, UriKind.Absolute));
             _mediaPlayer.Play();
@@ -252,10 +260,17 @@ public class AudioPlayerService : IAudioPlayerService
             StateChanged?.Invoke();
             LogService.Instance.Info($"Reproduciendo: {Path.GetFileName(filePath)}");
         }
+        catch (OperationCanceledException)
+        {
+            // Cancelado por cambio rápido de pista
+        }
         catch (Exception ex)
         {
-            LogService.Instance.Error($"No se pudo abrir el archivo de audio: {ex.Message}");
-            Stop();
+            if (!ct.IsCancellationRequested)
+            {
+                LogService.Instance.Error($"No se pudo abrir el archivo de audio: {ex.Message}");
+                Stop();
+            }
         }
     }
 
@@ -335,6 +350,10 @@ public class AudioPlayerService : IAudioPlayerService
 
     public void Stop()
     {
+        _playCts?.Cancel();
+        _playCts?.Dispose();
+        _playCts = null;
+
         try
         {
             _mediaPlayer.Stop();
@@ -359,8 +378,6 @@ public class AudioPlayerService : IAudioPlayerService
             PositionChanged?.Invoke(position, Duration);
         }
     }
-
-    public string? TryTranscodeToTempWav(string sourcePath) => _transcodeCache.TryTranscodeToTempWav(sourcePath);
 
     public async Task<string?> TryTranscodeToTempWavAsync(string sourcePath, System.Threading.CancellationToken cancellationToken = default) =>
         await _transcodeCache.TryTranscodeToTempWavAsync(sourcePath, cancellationToken);

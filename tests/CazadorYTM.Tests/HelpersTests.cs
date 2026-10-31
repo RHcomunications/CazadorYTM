@@ -33,9 +33,16 @@ public class HelpersTests
     [Theory]
     [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ", true)]
     [InlineData("http://music.youtube.com/watch?v=123", true)]
+    [InlineData("   https://music.youtube.com/watch?v=123   ", true)]
     [InlineData("just a search query", false)]
     [InlineData("Artist - Song Title", false)]
-    public void IsUrl_IdentifiesUrlsCorrectly(string input, bool expected)
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    [InlineData("ftp://example.com/audio.mp3", false)]
+    [InlineData("file:///C:/music/audio.mp3", false)]
+    [InlineData("not-a-valid://url", false)]
+    public void IsUrl_IdentifiesUrlsCorrectly(string? input, bool expected)
     {
         var result = Helpers.IsUrl(input);
         Assert.Equal(expected, result);

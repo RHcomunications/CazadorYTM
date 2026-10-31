@@ -90,4 +90,30 @@ public class DownloadEngineAndMetadataTests
         Assert.Equal("https://music.youtube.com/watch?v=mock1", results[0].Url);
         Assert.Equal("https://music.youtube.com/watch?v=mock2", results[1].Url);
     }
+
+    [Theory]
+    [InlineData("[download] Destination: C:\\Music\\Song.webm", "C:\\Music\\Song.webm")]
+    [InlineData("[download] C:\\Music\\Song.mp3 has already been downloaded", "C:\\Music\\Song.mp3")]
+    [InlineData("[ExtractAudio] Destination: C:\\Music\\Song.mp3", "C:\\Music\\Song.mp3")]
+    [InlineData("[EmbedThumbnail] Adding thumbnail to \"C:\\Music\\Song.mp3\"", "C:\\Music\\Song.mp3")]
+    [InlineData("[Merger] Merging formats into \"C:\\Music\\Song.mkv\"", "C:\\Music\\Song.mkv")]
+    public void TryExtractFilePathFromLine_ExtractsResolvedPath(string line, string expectedPath)
+    {
+        var extracted = DownloadEngine.TryExtractFilePathFromLine(line);
+        Assert.Equal(expectedPath, extracted);
+    }
+
+    [Fact]
+    public void DownloadWithRetry_DoesNotRetryNonRetryableError()
+    {
+        int attempts = 0;
+        var ok = DownloadEngine.DownloadWithRetry((ct, log, prog) =>
+        {
+            attempts++;
+            throw new NonRetryableDownloadError("HTTP Error 404: Not Found");
+        });
+
+        Assert.False(ok);
+        Assert.Equal(1, attempts);
+    }
 }
