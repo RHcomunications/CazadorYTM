@@ -3,6 +3,8 @@ namespace CazadorYTM.Gui.Tests;
 using System;
 using System.Threading;
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 internal static class WpfTestHost
@@ -22,6 +24,12 @@ internal static class WpfTestHost
         using var ready = new ManualResetEventSlim(false);
         var thread = new Thread(() =>
         {
+            try
+            {
+                RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+            }
+            catch { }
+
             var application = Application.Current as CazadorYTM.Gui.App;
             if (application is null)
             {
@@ -41,5 +49,17 @@ internal static class WpfTestHost
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         ready.Wait();
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            try
+            {
+                if (_dispatcher != null && !_dispatcher.HasShutdownStarted)
+                {
+                    _dispatcher.InvokeShutdown();
+                }
+            }
+            catch { }
+        };
     }
 }

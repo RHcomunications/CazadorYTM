@@ -23,7 +23,9 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Run Tests
-      run: dotnet test CazadorYTM.slnx --configuration Release
+      env:
+        WPF_DISABLE_HW_ACCELERATION: "1"
+      run: dotnet test CazadorYTM.slnx --configuration Release --blame-hang-timeout 3m
 
     - name: Verify i18n integrity
       shell: pwsh
