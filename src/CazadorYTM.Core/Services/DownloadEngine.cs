@@ -393,9 +393,10 @@ public static class DownloadEngine
                 {
                     loggerCallback?.Invoke($"[SISTEMA] Buscando letras de respaldo en LRCLIB para: {Path.GetFileName(finalFilepath)}");
                     var (titleEx, artistEx) = MetadataHelpers.ExtractTitleArtist(finalFilepath);
-                    MetadataService.TryWriteLyrics(finalFilepath, titleEx, artistEx);
-                    if (loggerCallback != null)
-                        loggerCallback?.Invoke("[SISTEMA] Letras de respaldo incrustadas en archivo .lrc.");
+                    var ct = cancelEvent ?? CancellationToken.None;
+                    var written = MetadataService.TryWriteLyricsAsync(finalFilepath, titleEx, artistEx, cancellationToken: ct).GetAwaiter().GetResult();
+                    if (written && loggerCallback != null)
+                        loggerCallback?.Invoke("[SISTEMA] Letras de respaldo sincronizadas guardadas en archivo .lrc.");
                 }
             }
         }

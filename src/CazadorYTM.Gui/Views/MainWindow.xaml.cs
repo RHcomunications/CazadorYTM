@@ -225,6 +225,8 @@ public partial class MainWindow : Window
                     f.EndsWith(".flac", StringComparison.OrdinalIgnoreCase) ||
                     f.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase) ||
                     f.EndsWith(".opus", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
                     f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)));
 
                 if (audioFiles.Count > 0)

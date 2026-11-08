@@ -26,9 +26,15 @@ public static class ProcessTracker
             TrackedProcesses[process.Id] = process;
             process.EnableRaisingEvents = true;
             process.Exited += (_, _) => TrackedProcesses.TryRemove(process.Id, out _);
+
+            if (process.HasExited)
+            {
+                TrackedProcesses.TryRemove(process.Id, out _);
+            }
         }
         catch
         {
+            try { TrackedProcesses.TryRemove(process.Id, out _); } catch { }
         }
     }
 
