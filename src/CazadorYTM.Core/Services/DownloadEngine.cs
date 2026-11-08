@@ -625,6 +625,7 @@ public static class DownloadEngine
         }
     }
 
+    [Obsolete("Utilice RadarService.GetStreamUrlAsync en su lugar.")]
     public static string? ExtractStreamUrl(string queryOrUrl, string? cookiesBrowser = null)
     {
         var exe = BinaryManager.GetYtDlpPath();

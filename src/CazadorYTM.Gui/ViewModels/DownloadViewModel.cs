@@ -23,6 +23,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _downloadCts;
     private bool _isRadarImport;
     private bool _disposed;
+    private int _operationActive;
 
     [ObservableProperty]
     private string _inputText = string.Empty;
@@ -127,6 +128,37 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         SavePreferences();
     }
 
+    partial void OnIsBusyChanged(bool value)
+    {
+        SearchAndAnalyzeCommand.NotifyCanExecuteChanged();
+        SubmitInputCommand.NotifyCanExecuteChanged();
+        StartDownloadCommand.NotifyCanExecuteChanged();
+        LoadListFileCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanStartOperation() => !IsBusy;
+
+    /// <summary>
+    /// Marca el inicio de una operación de descarga/análisis. Devuelve <c>false</c>
+    /// si ya hay una en curso, evitando que se reemplace el CTS activo.
+    /// </summary>
+    private bool TryBeginOperation()
+    {
+        if (Interlocked.CompareExchange(ref _operationActive, 1, 0) != 0)
+        {
+            return false;
+        }
+
+        IsBusy = true;
+        return true;
+    }
+
+    private void EndOperation()
+    {
+        Interlocked.Exchange(ref _operationActive, 0);
+        IsBusy = false;
+    }
+
     private void OnClipboardLinkDetected(string url)
     {
         if (!string.IsNullOrWhiteSpace(InputText)) return;
@@ -203,7 +235,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
     public async Task LoadListFile()
     {
         var file = DialogService.Instance.SelectFile("Archivos de lista (*.txt;*.csv)|*.txt;*.csv|Todos los archivos (*.*)|*.*");
@@ -214,6 +246,8 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
 
     public async Task LoadListFileFromPath(string file)
     {
+        if (!TryBeginOperation()) return;
+
         try
         {
             if (new FileInfo(file).Length > 10 * 1024 * 1024)
@@ -247,9 +281,13 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         {
             DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["DownloadMsgReadListFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
+        finally
+        {
+            EndOperation();
+        }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
     private async Task SearchAndAnalyze()
     {
         if (string.IsNullOrWhiteSpace(InputText))
@@ -258,7 +296,8 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
             return;
         }
 
-        IsBusy = true;
+        if (!TryBeginOperation()) return;
+
         StatusText = LocalizationService.Instance["DownloadStatusAnalyzing"];
         LogService.Instance.Info($"Búsqueda iniciada para: {Helpers.SanitizeLogMessage(InputText)}");
 
@@ -360,7 +399,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            IsBusy = false;
+            EndOperation();
         }
     }
 
@@ -384,8 +423,8 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
 
     private async Task StartSingleDownloadAsync(DownloadEntry entry, string? format = null, string? bitrate = null)
     {
-        IsBusy = true;
-        _downloadCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        _downloadCts = cts;
         SavePreferences();
 
         var useFormat = format ?? SelectedFormat;
@@ -412,7 +451,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                 proxy: proxy,
                 normalize: IsNormalize,
                 embedLyrics: IsEmbedLyrics,
-                cancelEvent: _downloadCts.Token,
+                cancelEvent: cts.Token,
                 trimSilence: trimSilence,
                 lyricsApiFallback: lyricsFallback,
                 loggerCallback: msg => LogService.Instance.Info(msg),
@@ -432,9 +471,9 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                     }
                 }));
 
-            if (_downloadCts.IsCancellationRequested)
+            if (cts.IsCancellationRequested)
             {
-                throw new OperationCanceledException(_downloadCts.Token);
+                throw new OperationCanceledException(cts.Token);
             }
 
             if (result.Success)
@@ -476,18 +515,19 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            IsBusy = false;
-            var cts = _downloadCts;
-            _downloadCts = null;
-            cts?.Dispose();
+            if (ReferenceEquals(_downloadCts, cts))
+            {
+                _downloadCts = null;
+            }
+            cts.Dispose();
         }
     }
 
     private async Task StartBatchDownloadAsync(List<DownloadEntry> entries, string? playlistTitle = null,
         string? format = null, string? bitrate = null)
     {
-        IsBusy = true;
-        _downloadCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        _downloadCts = cts;
         SavePreferences();
 
         var useFormat = format ?? SelectedFormat;
@@ -529,13 +569,13 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
             var throttler = new SemaphoreSlim(SelectedConcurrent);
             var tasks = entries.Select(async entry =>
             {
-                await throttler.WaitAsync(_downloadCts.Token);
+                await throttler.WaitAsync(cts.Token);
                 var hasSlot = slotPool.TryDequeue(out var slotIdx);
                 var slot = hasSlot && slotIdx < ActiveSlots.Count ? ActiveSlots[slotIdx] : null;
 
                 try
                 {
-                    if (_downloadCts.Token.IsCancellationRequested) return;
+                    if (cts.Token.IsCancellationRequested) return;
 
                     var itemIndex = Interlocked.Increment(ref startedCount);
                     var itemTitle = entry.Title ?? "Canción";
@@ -573,7 +613,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                         proxy: proxy,
                         normalize: IsNormalize,
                         embedLyrics: IsEmbedLyrics,
-                        cancelEvent: _downloadCts.Token,
+                        cancelEvent: cts.Token,
                         trimSilence: trimSilence,
                         lyricsApiFallback: lyricsFallback,
                         loggerCallback: msg => LogService.Instance.Info(msg),
@@ -641,6 +681,14 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
             });
 
             await Task.WhenAll(tasks);
+
+            if (cts.IsCancellationRequested)
+            {
+                StatusText = $"Descarga por lotes cancelada. {successCount} de {total} descargadas antes de cancelar.";
+                ProgressDetail = $"Cancelado: {successCount} exitosas, {total - successCount} pendientes o canceladas";
+                return;
+            }
+
             StatusText = $"Lote completado: {successCount} de {total} descargadas correctamente.";
             ProgressPercentage = 100;
             ProgressDetail = $"Finalizado: {successCount} exitosas, {total - successCount} fallidas";
@@ -657,10 +705,11 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            IsBusy = false;
-            var cts = _downloadCts;
-            _downloadCts = null;
-            cts?.Dispose();
+            if (ReferenceEquals(_downloadCts, cts))
+            {
+                _downloadCts = null;
+            }
+            cts.Dispose();
             Application.Current?.Dispatcher.Invoke(() =>
             {
                 HasActiveBatchSlots = false;

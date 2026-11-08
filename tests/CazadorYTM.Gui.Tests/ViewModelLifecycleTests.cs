@@ -61,6 +61,25 @@ public class ViewModelLifecycleTests
     }
 
     [Fact]
+    public void HistoryViewModel_AsyncCommands_ExecuteWithoutException()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var vm = new HistoryViewModel();
+            Assert.NotNull(vm.PlayAllCommand);
+            Assert.NotNull(vm.PlaySelectedCommand);
+            Assert.NotNull(vm.ExportPlaylistM3U8Command);
+            Assert.NotNull(vm.CleanMissingEntriesCommand);
+
+            vm.PlayAllCommand.Execute(null);
+            vm.PlaySelectedCommand.Execute(null);
+            vm.ExportPlaylistM3U8Command.Execute(null);
+
+            vm.Dispose();
+        });
+    }
+
+    [Fact]
     public void PlayerViewModel_Dispose_UnhooksSuccessfully()
     {
         WpfTestHost.Run(() =>

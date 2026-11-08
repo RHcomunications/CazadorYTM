@@ -45,7 +45,8 @@
                     ToolTip="{loc:Loc HistoryBtnCleanMissingToolTip}"
                     AutomationProperties.Name="{loc:Loc HistoryBtnCleanMissingHint}"/>
 
-            <Button Grid.Column="4" Content="{loc:Loc BtnRefresh}" Command="{Binding RefreshHistoryCommand}" Height="36" Width="100"/>
+            <Button Grid.Column="4" Content="{loc:Loc BtnRefresh}" Command="{Binding RefreshHistoryCommand}" Height="36" Width="100"
+                    AutomationProperties.Name="{loc:Loc BtnRefresh}"/>
         </Grid>
 
         <!-- History DataGrid: FullRow Navigation with Single Tab Jump Out and UI Virtualization -->
@@ -109,11 +110,15 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" Content="{loc:Loc BtnPlay}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding PlaySelectedCommand}" Height="36" Width="130" Margin="0,0,8,0"/>
-            <Button Grid.Column="1" Content="{loc:Loc OpenFolder}" Command="{Binding OpenContainingFolderCommand}" Height="36" Width="140" Margin="0,0,8,0"/>
-            <Button Grid.Column="2" Content="{loc:Loc CopyLink}" Command="{Binding CopyUrlCommand}" Height="36" Width="130" Margin="0,0,8,0"/>
+            <Button Grid.Column="0" Content="{loc:Loc BtnPlay}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding PlaySelectedCommand}" Height="36" Width="130" Margin="0,0,8,0"
+                    AutomationProperties.Name="{loc:Loc BtnPlay}"/>
+            <Button Grid.Column="1" Content="{loc:Loc OpenFolder}" Command="{Binding OpenContainingFolderCommand}" Height="36" Width="140" Margin="0,0,8,0"
+                    AutomationProperties.Name="{loc:Loc OpenFolder}"/>
+            <Button Grid.Column="2" Content="{loc:Loc CopyLink}" Command="{Binding CopyUrlCommand}" Height="36" Width="130" Margin="0,0,8,0"
+                    AutomationProperties.Name="{loc:Loc CopyLink}"/>
 
-            <Button Grid.Column="4" Content="{loc:Loc ClearHistory}" Command="{Binding ClearAllCommand}" Height="36" Width="150"/>
+            <Button Grid.Column="4" Content="{loc:Loc ClearHistory}" Command="{Binding ClearAllCommand}" Height="36" Width="150"
+                    AutomationProperties.Name="{loc:Loc ClearHistory}"/>
         </Grid>
     </Grid>
 </UserControl>

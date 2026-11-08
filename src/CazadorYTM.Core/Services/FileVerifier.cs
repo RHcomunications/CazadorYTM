@@ -124,11 +124,28 @@ public static class FileVerifier
             return r;
         }
 
-        using JsonDocument probeData = JsonDocument.Parse(probeDataStr);
+        JsonDocument probeData;
+        try
+        {
+            probeData = JsonDocument.Parse(probeDataStr);
+        }
+        catch (JsonException)
+        {
+            r.Errores.Add("ffprobe devolvió información no válida para el archivo");
+            return r;
+        }
+
+        using var probeDataScope = probeData;
 
         var root = probeData.RootElement;
         var formatInfo = root.TryGetProperty("format", out var fmt) ? fmt : default;
         var streams = root.TryGetProperty("streams", out var str) ? str : default;
+
+        static bool IsPresent(JsonElement element) =>
+            element.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined);
+
+        static string? ReadString(JsonElement element) =>
+            element.ValueKind == JsonValueKind.String ? element.GetString() : null;
 
         try
         {
@@ -140,31 +157,35 @@ public static class FileVerifier
                 return r;
             }
         }
-        catch (IOException)
+        catch (Exception)
         {
             r.Errores.Add("No se pudo obtener el tamaño del archivo");
             return r;
         }
 
-        var audioStream = streams.ValueKind != JsonValueKind.Null
+        var audioStream = streams.ValueKind == JsonValueKind.Array
             ? streams.EnumerateArray().FirstOrDefault(s =>
-                s.TryGetProperty("codec_type", out var ct) && ct.GetString() == "audio")
+                s.TryGetProperty("codec_type", out var ct) && ReadString(ct) == "audio")
             : default;
 
-        if (audioStream.ValueKind == JsonValueKind.Null)
+        if (!IsPresent(audioStream))
         {
             r.Errores.Add("No se encontró ningún stream de audio en el archivo");
             return r;
         }
 
-        var codecName = audioStream.TryGetProperty("codec_name", out var cn) ? cn.GetString()?.ToUpper() : "DESCONOCIDO";
+        var codecName = audioStream.TryGetProperty("codec_name", out var cn)
+            ? ReadString(cn)?.ToUpperInvariant()
+            : null;
         r.Info["Códec"] = codecName ?? "DESCONOCIDO";
 
         if (audioStream.TryGetProperty("sample_rate", out var sr))
         {
             try
             {
-                var sampleRate = int.Parse(sr.GetString() ?? "0");
+                var sampleRate = sr.ValueKind == JsonValueKind.Number
+                    ? sr.GetInt32()
+                    : int.Parse(ReadString(sr) ?? "0");
                 r.Info["Frecuencia"] = $"{sampleRate} Hz";
                 if (!ValidSampleRates.Contains(sampleRate))
                     r.Advertencias.Add($"Frecuencia de muestreo inusual: {sampleRate} Hz");
@@ -176,8 +197,10 @@ public static class FileVerifier
             r.Advertencias.Add("No se pudo leer la frecuencia de muestreo");
         }
 
-        var channels = audioStream.TryGetProperty("channels", out var ch) ? ch.GetInt32() : 0;
-        var channelLayout = audioStream.TryGetProperty("channel_layout", out var cl) ? cl.GetString() : "";
+        var channels = audioStream.TryGetProperty("channels", out var ch) && ch.ValueKind == JsonValueKind.Number
+            ? ch.GetInt32()
+            : 0;
+        var channelLayout = audioStream.TryGetProperty("channel_layout", out var cl) ? ReadString(cl) : null;
         if (channels == 1)
             r.Info["Canales"] = "1 (Mono)";
         else if (channels == 2)
@@ -187,10 +210,10 @@ public static class FileVerifier
         else
             r.Info["Canales"] = "Desconocido";
 
-        var durStr = formatInfo.ValueKind != JsonValueKind.Null && formatInfo.ValueKind != JsonValueKind.Undefined
-            ? (formatInfo.TryGetProperty("duration", out var dur) ? dur.GetString() : null)
+        var durStr = IsPresent(formatInfo) && formatInfo.TryGetProperty("duration", out var dur)
+            ? ReadString(dur)
             : null;
-        if (string.IsNullOrEmpty(durStr) && streams.ValueKind != JsonValueKind.Null && streams.ValueKind != JsonValueKind.Undefined)
+        if (string.IsNullOrEmpty(durStr) && streams.ValueKind == JsonValueKind.Array)
         {
             foreach (var s in streams.EnumerateArray())
             {
@@ -216,10 +239,10 @@ public static class FileVerifier
             catch { }
         }
 
-        var bitrateStr = formatInfo.ValueKind != JsonValueKind.Null && formatInfo.ValueKind != JsonValueKind.Undefined
-            ? (formatInfo.TryGetProperty("bit_rate", out var br) ? br.GetString() : null)
+        var bitrateStr = IsPresent(formatInfo) && formatInfo.TryGetProperty("bit_rate", out var br)
+            ? ReadString(br)
             : null;
-        if (string.IsNullOrEmpty(bitrateStr) && streams.ValueKind != JsonValueKind.Null && streams.ValueKind != JsonValueKind.Undefined)
+        if (string.IsNullOrEmpty(bitrateStr) && streams.ValueKind == JsonValueKind.Array)
         {
             foreach (var s in streams.EnumerateArray())
             {
@@ -243,11 +266,13 @@ public static class FileVerifier
             catch { }
         }
 
-        if (formatInfo.ValueKind != JsonValueKind.Null && formatInfo.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind != JsonValueKind.Null)
+        if (IsPresent(formatInfo) && formatInfo.TryGetProperty("tags", out var tagsProp) && tagsProp.ValueKind == JsonValueKind.Object)
         {
             var tagsLower = new Dictionary<string, string>();
             foreach (var prop in tagsProp.EnumerateObject())
-                tagsLower[prop.Name.ToLower()] = prop.Value.GetString() ?? "";
+                tagsLower[prop.Name.ToLowerInvariant()] = prop.Value.ValueKind == JsonValueKind.String
+                    ? prop.Value.GetString() ?? ""
+                    : prop.Value.ToString();
 
             var tieneTitulo = tagsLower.ContainsKey("title") && !string.IsNullOrEmpty(tagsLower["title"]);
             var tieneArtista = tagsLower.ContainsKey("artist") && !string.IsNullOrEmpty(tagsLower["artist"]);
@@ -357,14 +382,14 @@ public static class FileVerifier
 
         resultados.Sort((a, b) => string.Compare(a.Nombre, b.Nombre, StringComparison.Ordinal));
 
-            var reporteContent = IntegrityReportFormatter.Build(resultados, carpeta);
+        var reporteContent = IntegrityReportFormatter.Build(resultados, carpeta);
         var reportePath = Path.Combine(carpeta, ReportFilename);
         try
         {
             File.WriteAllText(reportePath, reporteContent, Encoding.UTF8);
             loggerCallback?.Invoke($"[SISTEMA] Reporte de integridad guardado en: {reportePath}");
         }
-        catch (IOException)
+        catch (Exception)
         {
             loggerCallback?.Invoke("[AVISO] No se pudo guardar el archivo de reporte.");
         }

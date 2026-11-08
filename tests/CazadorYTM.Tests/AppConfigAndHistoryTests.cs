@@ -54,6 +54,19 @@ public class AppConfigTests : IDisposable
         Assert.Equal("default_val", config.Get("non_existent", "default_val"));
         Assert.Equal(42, config.Get("missing_int", 42));
     }
+
+    [Fact]
+    public void AppConfig_Save_CleansUpAnyTempFilesAndPersists()
+    {
+        var config = new AppConfig(_tempConfigPath);
+        config.Set("test_key", "test_value");
+        config.Save();
+
+        Assert.True(File.Exists(_tempConfigPath));
+        var dir = Path.GetDirectoryName(_tempConfigPath) ?? "";
+        var leftoverTmp = Directory.GetFiles(dir, $"{Path.GetFileName(_tempConfigPath)}.*.tmp");
+        Assert.Empty(leftoverTmp);
+    }
 }
 
 public class RadarItemTests
@@ -242,6 +255,39 @@ public class HistoryManagerTests : IDisposable
         var remaining = history.GetEntries();
         Assert.Single(remaining);
         Assert.Equal("Track Two", remaining[0].Title);
+    }
+
+    [Fact]
+    public void HistoryManager_TwoInstances_SamePath_ShareState()
+    {
+        var first = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 0);
+        var second = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 0);
+
+        first.Add("Shared Song", "https://youtube.com/watch?v=shared", "mp3", "OK");
+
+        var entries = second.GetEntries();
+        Assert.Single(entries);
+        Assert.Equal("Shared Song", entries[0].Title);
+    }
+
+    [Fact]
+    public void HistoryManager_TwoInstances_BothWrite_DoNotLoseEntries()
+    {
+        var first = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 0);
+        var second = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 0);
+
+        first.AddEntry(new DownloadEntry { Title = "Song A", Url = "urlA", FilePath = "C:/Music/a.mp3" });
+        second.AddEntry(new DownloadEntry { Title = "Song B", Url = "urlB", FilePath = "C:/Music/b.mp3" });
+
+        first.Flush();
+        second.Flush();
+
+        var reloaded = new HistoryManager(_tempHistoryPath, debounceMilliseconds: 0);
+        var entries = reloaded.GetEntries();
+
+        Assert.Equal(2, entries.Count);
+        Assert.Contains(entries, e => e.Title == "Song A");
+        Assert.Contains(entries, e => e.Title == "Song B");
     }
 }
 

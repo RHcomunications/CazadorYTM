@@ -150,7 +150,7 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    public void PlaySelected(DownloadEntry? entry = null)
+    public async Task PlaySelectedAsync(DownloadEntry? entry = null)
     {
         var target = entry ?? SelectedEntry ?? FilteredEntries.FirstOrDefault();
         if (target == null)
@@ -159,42 +159,55 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var realPath = ResolveActualFilePath(target);
-        if (!string.IsNullOrEmpty(realPath) && File.Exists(realPath))
+        var realPath = await Task.Run(() => ResolveActualFilePath(target));
+        if (string.IsNullOrEmpty(realPath) || !File.Exists(realPath))
         {
-            // Populate the queue with all currently displayed/filtered library tracks
-            var allTracks = FilteredEntries
+            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgFileMissing"], target.Title, target.FilePath), LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
+            return;
+        }
+
+        // Iniciar reproducción de la pista seleccionada de inmediato
+        AudioPlayerService.Instance.Play(realPath);
+        NotificationService.Instance.Notify(LocalizationService.Instance["TitlePlayer"], string.Format(LocalizationService.Instance["MsgPlayingTrack"], target.Title), NotificationType.Info);
+
+        // Construir la cola completa en segundo plano sin bloquear la interfaz
+        var snapshot = FilteredEntries.ToList();
+        var allTracks = await Task.Run(() =>
+        {
+            return snapshot
                 .Select(ResolveActualFilePath)
                 .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
                 .Cast<string>()
                 .ToList();
+        });
 
-            var targetIdx = allTracks.IndexOf(realPath);
-            if (targetIdx >= 0)
-            {
-                AudioPlayerService.Instance.SetQueue(allTracks, targetIdx);
-            }
-            else
-            {
-                AudioPlayerService.Instance.Play(realPath);
-            }
-
-            NotificationService.Instance.Notify(LocalizationService.Instance["TitlePlayer"], string.Format(LocalizationService.Instance["MsgPlayingTrack"], target.Title), NotificationType.Info);
-        }
-        else
+        var targetIdx = allTracks.IndexOf(realPath);
+        if (targetIdx >= 0)
         {
-            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgFileMissing"], target.Title, target.FilePath), LocalizationService.Instance["TitleWarning"], MessageBoxImage.Warning);
+            AudioPlayerService.Instance.SetQueue(allTracks, targetIdx);
         }
     }
 
+    public void PlaySelected(DownloadEntry? entry = null) => _ = PlaySelectedAsync(entry);
+
     [RelayCommand]
-    public void PlayAll()
+    public async Task PlayAllAsync()
     {
-        var allTracks = FilteredEntries
-            .Select(ResolveActualFilePath)
-            .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
-            .Cast<string>()
-            .ToList();
+        var snapshot = FilteredEntries.ToList();
+        if (snapshot.Count == 0)
+        {
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgNoAudioToPlay"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
+            return;
+        }
+
+        var allTracks = await Task.Run(() =>
+        {
+            return snapshot
+                .Select(ResolveActualFilePath)
+                .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
+                .Cast<string>()
+                .ToList();
+        });
 
         if (allTracks.Count == 0)
         {
@@ -206,13 +219,25 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
         NotificationService.Instance.Notify(LocalizationService.Instance["TitlePlayer"], string.Format(LocalizationService.Instance["MsgPlayingAllLibrary"], allTracks.Count), NotificationType.Info);
     }
 
+    public void PlayAll() => _ = PlayAllAsync();
+
     [RelayCommand]
-    public void ExportPlaylistM3U8()
+    public async Task ExportPlaylistM3U8Async()
     {
-        var allTracks = FilteredEntries
-            .Select(e => (Entry: e, Path: ResolveActualFilePath(e)))
-            .Where(t => !string.IsNullOrEmpty(t.Path) && File.Exists(t.Path))
-            .ToList();
+        var snapshot = FilteredEntries.ToList();
+        if (snapshot.Count == 0)
+        {
+            DialogService.Instance.ShowMessage(LocalizationService.Instance["HistoryMsgNothingToExport"], LocalizationService.Instance["TitleWarning"], MessageBoxImage.Information);
+            return;
+        }
+
+        var allTracks = await Task.Run(() =>
+        {
+            return snapshot
+                .Select(e => (Entry: e, Path: ResolveActualFilePath(e)))
+                .Where(t => !string.IsNullOrEmpty(t.Path) && File.Exists(t.Path))
+                .ToList();
+        });
 
         if (allTracks.Count == 0)
         {
@@ -225,15 +250,19 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
 
         try
         {
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("#EXTM3U");
-            foreach (var item in allTracks)
+            await Task.Run(() =>
             {
-                sb.AppendLine($"#EXTINF:-1,{item.Entry.Title ?? Path.GetFileNameWithoutExtension(item.Path)}");
-                sb.AppendLine(item.Path);
-            }
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("#EXTM3U");
+                foreach (var item in allTracks)
+                {
+                    sb.AppendLine($"#EXTINF:-1,{item.Entry.Title ?? Path.GetFileNameWithoutExtension(item.Path)}");
+                    sb.AppendLine(item.Path);
+                }
 
-            File.WriteAllText(savePath, sb.ToString(), System.Text.Encoding.UTF8);
+                File.WriteAllText(savePath, sb.ToString(), System.Text.Encoding.UTF8);
+            });
+
             NotificationService.Instance.Notify(LocalizationService.Instance["TitleListExported"], string.Format(LocalizationService.Instance["MsgListExportedM3u8"], allTracks.Count), NotificationType.Success);
             DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgExportDone"], savePath), LocalizationService.Instance["TitleExportDone"]);
         }
@@ -242,6 +271,8 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
             DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["HistoryMsgExportFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
         }
     }
+
+    public void ExportPlaylistM3U8() => _ = ExportPlaylistM3U8Async();
 
     [RelayCommand]
     public void OpenContainingFolder(DownloadEntry? entry = null)
@@ -335,14 +366,17 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    public void CleanMissingEntries()
+    public async Task CleanMissingEntriesAsync()
     {
         var all = HistoryEntries.ToList();
-        var missing = all.Where(e =>
+        var missing = await Task.Run(() =>
         {
-            var path = ResolveActualFilePath(e);
-            return string.IsNullOrEmpty(path) || !File.Exists(path);
-        }).ToList();
+            return all.Where(e =>
+            {
+                var path = ResolveActualFilePath(e);
+                return string.IsNullOrEmpty(path) || !File.Exists(path);
+            }).ToList();
+        });
 
         if (missing.Count == 0)
         {
@@ -362,4 +396,6 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
             LogService.Instance.Info($"Depuración de biblioteca: {removed} registros removidos.");
         }
     }
+
+    public void CleanMissingEntries() => _ = CleanMissingEntriesAsync();
 }

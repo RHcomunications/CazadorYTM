@@ -44,6 +44,44 @@ public static class CookieService
 
     private static readonly UTF8Encoding Utf8NoBom = new(false);
 
+    /// <summary>Cuenta entradas Netscape válidas sin tocar el disco.</summary>
+    private static int CountNetscapeEntries(string netscapeText)
+    {
+        var count = 0;
+        foreach (var rawLine in netscapeText.Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (line.Length == 0) continue;
+            if (line.StartsWith("#") && !line.StartsWith("#HttpOnly_")) continue;
+            if (line.Split('\t').Length >= 7) count++;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Escribe en un temporal único y reemplaza el destino de forma atómica,
+    /// para no destruir un archivo válido si la escritura falla a medias.
+    /// </summary>
+    private static void WriteAllTextAtomic(string path, string content)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        var tempPath = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            File.WriteAllText(tempPath, content, Utf8NoBom);
+            File.Move(tempPath, path, overwrite: true);
+        }
+        finally
+        {
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+        }
+    }
+
     public static bool RepairBomIfNeeded(string? path)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
@@ -51,10 +89,10 @@ public static class CookieService
             return false;
         }
 
+        var tempPath = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
             var header = new byte[3];
-            var tempPath = path + ".tmp";
             using (var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 if (input.Read(header, 0, header.Length) < header.Length ||
@@ -72,7 +110,7 @@ public static class CookieService
         }
         catch
         {
-            try { if (File.Exists(path + ".tmp")) File.Delete(path + ".tmp"); } catch { }
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
         }
 
         return false;
@@ -163,7 +201,7 @@ public static class CookieService
                     Directory.CreateDirectory(dir);
                 }
 
-                var tempCookiesTxt = Path.Combine(Helpers.GetAppDataDir(), "temp_extracted_cookies.txt");
+                var tempCookiesTxt = Path.Combine(Helpers.GetAppDataDir(), $"temp_extracted_cookies_{Guid.NewGuid():N}.txt");
                 try
                 {
                     if (File.Exists(tempCookiesTxt))
@@ -209,10 +247,10 @@ public static class CookieService
                     {
                         var jsonContent = NetscapeToJson(rawNetscape);
                         var jsonPath = Path.ChangeExtension(targetPath, ".json");
-                        File.WriteAllText(jsonPath, jsonContent, Utf8NoBom);
+                        WriteAllTextAtomic(jsonPath, jsonContent);
                     }
 
-                    File.WriteAllText(targetPath, rawNetscape, Utf8NoBom);
+                    WriteAllTextAtomic(targetPath, rawNetscape);
 
                     var status = GetCookiesStatus(targetPath);
                     var authNote = status.HasYouTubeAuthCookies
@@ -263,26 +301,22 @@ public static class CookieService
                     netscapeContent = trimmed;
                 }
 
-                var dir = Path.GetDirectoryName(targetPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                var entryCount = CountNetscapeEntries(netscapeContent);
+                if (entryCount == 0)
                 {
-                    Directory.CreateDirectory(dir);
+                    return (false, "El contenido proporcionado no contiene entradas de cookies válidas en formato Netscape o JSON. No se modificó el archivo existente.", 0);
                 }
 
-                File.WriteAllText(targetPath, netscapeContent, Utf8NoBom);
+                WriteAllTextAtomic(targetPath, netscapeContent);
 
                 if (asJson)
                 {
                     var jsonPath = Path.ChangeExtension(targetPath, ".json");
                     var jsonContent = NetscapeToJson(netscapeContent);
-                    File.WriteAllText(jsonPath, jsonContent, Utf8NoBom);
+                    WriteAllTextAtomic(jsonPath, jsonContent);
                 }
 
                 var status = GetCookiesStatus(targetPath);
-                if (status.EstimatedCookieCount == 0 && !status.HasYouTubeAuthCookies)
-                {
-                    return (false, "El contenido guardado no contiene entradas de cookies válidas en formato Netscape o JSON.", 0);
-                }
 
                 var authNote = status.HasYouTubeAuthCookies
                     ? " (Tokens de sesión de YouTube detectados: " + string.Join(", ", status.DetectedAuthKeys) + ")"
@@ -326,11 +360,11 @@ public static class CookieService
                 if (asJson || destinationPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 {
                     var jsonContent = NetscapeToJson(content);
-                    File.WriteAllText(destinationPath, jsonContent, Utf8NoBom);
+                    WriteAllTextAtomic(destinationPath, jsonContent);
                 }
                 else
                 {
-                    File.WriteAllText(destinationPath, content, Utf8NoBom);
+                    WriteAllTextAtomic(destinationPath, content);
                 }
 
                 return (true, $"Archivo de cookies exportado con éxito a:\n{destinationPath}");
@@ -373,13 +407,13 @@ public static class CookieService
                     netscapeContent = trimmed;
                 }
 
-                var destDir = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                var entryCount = CountNetscapeEntries(netscapeContent);
+                if (entryCount == 0)
                 {
-                    Directory.CreateDirectory(destDir);
+                    return (false, "El archivo importado no contiene cookies válidas en formato Netscape o JSON. No se modificó el archivo existente.");
                 }
 
-                File.WriteAllText(destinationPath, netscapeContent, Utf8NoBom);
+                WriteAllTextAtomic(destinationPath, netscapeContent);
 
                 var status = GetCookiesStatus(destinationPath);
                 return (true, $"Cookies importadas correctamente: {status.EstimatedCookieCount} entradas registradas.");

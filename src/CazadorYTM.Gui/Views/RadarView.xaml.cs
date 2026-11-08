@@ -38,19 +38,45 @@ public partial class RadarView : UserControl
 
             GridRadar.Focus();
             var target = item ?? GridRadar.SelectedItem as RadarItem ?? (GridRadar.Items.Count > 0 ? GridRadar.Items[0] as RadarItem : null);
-            if (target != null)
-            {
-                GridRadar.SelectedItem = target;
-                GridRadar.ScrollIntoView(target);
-                GridRadar.UpdateLayout();
-                var row = (DataGridRow?)GridRadar.ItemContainerGenerator.ContainerFromItem(target);
-                if (row != null)
-                {
-                    row.Focus();
-                    Keyboard.Focus(row);
-                }
-            }
+            if (target == null) return;
+
+            GridRadar.SelectedItem = target;
+            GridRadar.ScrollIntoView(target);
+            FocusRow(GridRadar.Items.IndexOf(target));
         }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void FocusRow(int index)
+    {
+        if (index < 0 || index >= GridRadar.Items.Count) return;
+
+        var item = GridRadar.Items[index];
+        if (TryFocusRow(index)) return;
+
+        // Con virtualización la fila puede generarse después de ScrollIntoView.
+        // Reintentamos solo si el elemento de esa posición sigue siendo el mismo.
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (index >= GridRadar.Items.Count || !ReferenceEquals(GridRadar.Items[index], item)) return;
+            TryFocusRow(index);
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private bool TryFocusRow(int index)
+    {
+        if (index < 0 || index >= GridRadar.Items.Count) return false;
+
+        GridRadar.ScrollIntoView(GridRadar.Items[index]);
+        GridRadar.UpdateLayout();
+
+        if (GridRadar.ItemContainerGenerator.ContainerFromIndex(index) is not DataGridRow row)
+        {
+            return false;
+        }
+
+        row.Focus();
+        Keyboard.Focus(row);
+        return true;
     }
 
     private void OpenCookiesDialog()
@@ -101,63 +127,62 @@ public partial class RadarView : UserControl
     {
         if (DataContext is not RadarViewModel vm) return;
 
-        if (e.Key == Key.Down)
+        var modifiers = Keyboard.Modifiers;
+        var hasNavigationModifier =
+            (modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift)) != 0;
+
+        if (!hasNavigationModifier && e.Key is Key.Up or Key.Down)
         {
-            if (GridRadar.Items.Count > 0)
+            // La cuadrícula debe conservar el foco incluso en el primer/último elemento.
+            // Si no se marca la tecla como manejada, WPF puede mover el foco a la pestaña.
+            e.Handled = true;
+
+            var count = GridRadar.Items.Count;
+            if (count == 0) return;
+
+            var currentIndex = GridRadar.SelectedIndex;
+            var nextIndex = e.Key == Key.Down
+                ? (currentIndex < 0 ? 0 : System.Math.Min(currentIndex + 1, count - 1))
+                : (currentIndex <= 0 ? 0 : currentIndex - 1);
+
+            if (nextIndex != currentIndex || currentIndex < 0)
             {
-                int nextIndex = GridRadar.SelectedIndex + 1;
-                if (nextIndex < GridRadar.Items.Count)
+                GridRadar.SelectedIndex = nextIndex;
+                if (GridRadar.Items[nextIndex] is RadarItem nextItem)
                 {
-                    GridRadar.SelectedIndex = nextIndex;
-                    var item = GridRadar.SelectedItem;
-                    if (item != null)
-                    {
-                        GridRadar.ScrollIntoView(item);
-                        var row = (DataGridRow?)GridRadar.ItemContainerGenerator.ContainerFromItem(item);
-                        row?.Focus();
-                    }
-                    e.Handled = true;
+                    vm.SelectedItem = nextItem;
                 }
             }
+
+            FocusRow(nextIndex);
+            return;
         }
-        else if (e.Key == Key.Up)
+
+        if (!hasNavigationModifier && e.Key == Key.Right)
         {
-            if (GridRadar.Items.Count > 0)
-            {
-                int prevIndex = GridRadar.SelectedIndex - 1;
-                if (prevIndex >= 0)
-                {
-                    GridRadar.SelectedIndex = prevIndex;
-                    var item = GridRadar.SelectedItem;
-                    if (item != null)
-                    {
-                        GridRadar.ScrollIntoView(item);
-                        var row = (DataGridRow?)GridRadar.ItemContainerGenerator.ContainerFromItem(item);
-                        row?.Focus();
-                    }
-                    e.Handled = true;
-                }
-            }
-        }
-        else if (e.Key == Key.Right)
-        {
-            // Flecha Derecha en lista: abre y carga el contenido de la lista para explorar sus pistas
+            // Flecha Derecha en lista: abre y carga el contenido de la lista.
+            // Fuera de una lista, se consume para evitar que el foco salga de la cuadrícula.
+            e.Handled = true;
             if (vm.SelectedItem?.IsPlaylist == true)
             {
-                e.Handled = true;
                 vm.OpenPlaylistCommand.Execute(vm.SelectedItem);
             }
+            return;
         }
-        else if (e.Key == Key.Left || e.Key == Key.Back)
+
+        if (!hasNavigationModifier && (e.Key == Key.Left || e.Key == Key.Back))
         {
-            // Flecha Izquierda o Backspace: si se está dentro de una lista, vuelve a la vista de listas
+            // Flecha Izquierda o Backspace: vuelve a la vista de listas si se está dentro de una.
+            // En la vista principal se consume para mantener el foco en la cuadrícula.
+            e.Handled = true;
             if (vm.IsViewingPlaylistDetails)
             {
-                e.Handled = true;
                 vm.BackToPlaylistsCommand.Execute(null);
             }
+            return;
         }
-        else if (e.Key == Key.Enter)
+
+        if (e.Key == Key.Enter)
         {
             // Las listas se reproducirán con enter, las canciones se reproducen con enter
             if (vm.SelectedItem != null)
@@ -173,7 +198,7 @@ public partial class RadarView : UserControl
                 }
             }
         }
-        else if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) ==
+        else if ((modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) ==
                  (ModifierKeys.Control | ModifierKeys.Shift))
         {
             if (e.Key == Key.L)
@@ -193,8 +218,8 @@ public partial class RadarView : UserControl
             }
         }
         else if (e.Key == Key.D &&
-                 (Keyboard.Modifiers & ModifierKeys.Control) != 0 &&
-                 (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+                 (modifiers & ModifierKeys.Control) != 0 &&
+                 (modifiers & ModifierKeys.Shift) == 0)
         {
             if (vm.SelectedItem != null)
             {

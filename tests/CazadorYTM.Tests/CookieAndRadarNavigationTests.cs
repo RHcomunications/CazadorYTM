@@ -258,4 +258,36 @@ public class CookieAndRadarNavigationTests : IDisposable
         Assert.False(CookieService.RepairBomIfNeeded(Path.Combine(_tempDir, "no_existe.txt")));
         Assert.False(CookieService.RepairBomIfNeeded(null));
     }
+
+    [Fact]
+    public async Task CookieService_SaveCookiesFromTextAsync_InvalidContent_DoesNotOverwriteExistingFile()
+    {
+        var targetFile = Path.Combine(_tempDir, "cookies_saved.txt");
+        var validContent = "# Netscape HTTP Cookie File\n" +
+                           ".youtube.com\tTRUE\t/\tTRUE\t1790000000\tSID\tvalid_sid\n";
+        File.WriteAllText(targetFile, validContent);
+
+        var result = await CookieService.SaveCookiesFromTextAsync("esto no es un archivo de cookies", targetFile);
+
+        Assert.False(result.Success);
+        Assert.Equal(0, result.Count);
+        Assert.Equal(validContent, File.ReadAllText(targetFile));
+    }
+
+    [Fact]
+    public async Task CookieService_ImportCookiesAsync_InvalidFile_DoesNotOverwriteExistingFile()
+    {
+        var sourceFile = Path.Combine(_tempDir, "invalid_source.txt");
+        var targetFile = Path.Combine(_tempDir, "cookies_destination.txt");
+        var validContent = "# Netscape HTTP Cookie File\n" +
+                           ".youtube.com\tTRUE\t/\tTRUE\t1790000000\tSID\tvalid_sid\n";
+
+        File.WriteAllText(sourceFile, "contenido inválido sin columnas");
+        File.WriteAllText(targetFile, validContent);
+
+        var result = await CookieService.ImportCookiesAsync(sourceFile, targetFile);
+
+        Assert.False(result.Success);
+        Assert.Equal(validContent, File.ReadAllText(targetFile));
+    }
 }

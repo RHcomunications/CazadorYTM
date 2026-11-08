@@ -9,15 +9,26 @@ using CazadorYTM.Core.Models;
 
 public class HistoryManager
 {
-    private static readonly object _fileLock = new();
-    private static readonly object _instancesLock = new();
-    private static readonly List<WeakReference<HistoryManager>> _instances = new();
-    private readonly string _path;
+    /// <summary>
+    /// Estado compartido por todas las instancias que apuntan al mismo archivo.
+    /// Evita que dos ViewModels mantengan cachés divergentes y se pisen al guardar.
+    /// </summary>
+    private sealed class SharedState
+    {
+        public readonly object Lock = new();
+        public List<DownloadHistoryRecord>? CachedRecords;
+        public bool HasPendingChanges;
+        public Timer? DebounceTimer;
+    }
 
-    private readonly object _stateLock = new();
-    private List<DownloadHistoryRecord>? _cachedRecords;
-    private bool _hasPendingChanges;
-    private Timer? _debounceTimer;
+    private static readonly object _fileLock = new();
+    private static readonly object _registryLock = new();
+    private static readonly List<WeakReference<HistoryManager>> _instances = new();
+    private static readonly Dictionary<string, SharedState> _sharedStates =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly string _path;
+    private readonly SharedState _state;
     private readonly int _debounceMilliseconds;
 
     public static event Action? GlobalHistoryChanged;
@@ -25,26 +36,79 @@ public class HistoryManager
     public HistoryManager(string? baseDir = null, int debounceMilliseconds = 1500)
     {
         _debounceMilliseconds = debounceMilliseconds;
+        _path = ResolvePath(baseDir);
+
+        lock (_registryLock)
+        {
+            PruneDeadInstances();
+
+            if (!_sharedStates.TryGetValue(_path, out var state))
+            {
+                state = new SharedState();
+                _sharedStates[_path] = state;
+            }
+
+            _state = state;
+            _instances.Add(new WeakReference<HistoryManager>(this));
+        }
+    }
+
+    private static string ResolvePath(string? baseDir)
+    {
+        string path;
         if (baseDir is not null && (File.Exists(baseDir) || baseDir.EndsWith(".json")))
         {
-            _path = baseDir;
+            path = baseDir;
         }
         else
         {
             var appData = Helpers.GetAppDataDir();
-            _path = Path.Combine(appData, Constants.HistoryFilename);
+            path = Path.Combine(appData, Constants.HistoryFilename);
         }
 
-        lock (_instancesLock)
+        try
         {
-            _instances.Add(new WeakReference<HistoryManager>(this));
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return path;
+        }
+    }
+
+    /// <summary>Debe llamarse con <see cref="_registryLock"/> tomado.</summary>
+    private static void PruneDeadInstances()
+    {
+        var livePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var i = _instances.Count - 1; i >= 0; i--)
+        {
+            if (_instances[i].TryGetTarget(out var manager))
+            {
+                livePaths.Add(manager._path);
+            }
+            else
+            {
+                _instances.RemoveAt(i);
+            }
+        }
+
+        if (_sharedStates.Count == 0) return;
+
+        var orphaned = _sharedStates.Keys
+            .Where(path => !livePaths.Contains(path))
+            .ToList();
+
+        foreach (var path in orphaned)
+        {
+            _sharedStates.Remove(path);
         }
     }
 
     public static void FlushAll()
     {
         List<HistoryManager> alive = new();
-        lock (_instancesLock)
+        lock (_registryLock)
         {
             for (var i = _instances.Count - 1; i >= 0; i--)
             {
@@ -65,18 +129,16 @@ public class HistoryManager
         }
     }
 
-    private List<DownloadHistoryRecord> EnsureLoaded()
+    /// <summary>Debe llamarse con <see cref="SharedState"/> (y por tanto su lock) tomado.</summary>
+    private List<DownloadHistoryRecord> EnsureLoadedLocked()
     {
-        lock (_stateLock)
+        if (_state.CachedRecords != null)
         {
-            if (_cachedRecords != null)
-            {
-                return _cachedRecords;
-            }
-
-            _cachedRecords = LoadFromDisk();
-            return _cachedRecords;
+            return _state.CachedRecords;
         }
+
+        _state.CachedRecords = LoadFromDisk();
+        return _state.CachedRecords;
     }
 
     private List<DownloadHistoryRecord> LoadFromDisk()
@@ -110,7 +172,7 @@ public class HistoryManager
     {
         lock (_fileLock)
         {
-            var tmpPath = _path + ".tmp";
+            var tmpPath = $"{_path}.{Guid.NewGuid():N}.tmp";
             try
             {
                 var dir = Path.GetDirectoryName(_path);
@@ -135,22 +197,22 @@ public class HistoryManager
 
     private void ScheduleFlush()
     {
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            _hasPendingChanges = true;
+            _state.HasPendingChanges = true;
             if (_debounceMilliseconds <= 0)
             {
                 FlushInternal();
                 return;
             }
 
-            if (_debounceTimer == null)
+            if (_state.DebounceTimer == null)
             {
-                _debounceTimer = new Timer(_ => FlushInternal(), null, _debounceMilliseconds, Timeout.Infinite);
+                _state.DebounceTimer = new Timer(_ => FlushInternal(), null, _debounceMilliseconds, Timeout.Infinite);
             }
             else
             {
-                _debounceTimer.Change(_debounceMilliseconds, Timeout.Infinite);
+                _state.DebounceTimer.Change(_debounceMilliseconds, Timeout.Infinite);
             }
         }
     }
@@ -158,11 +220,11 @@ public class HistoryManager
     private void FlushInternal()
     {
         List<DownloadHistoryRecord>? toWrite = null;
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            if (!_hasPendingChanges || _cachedRecords == null) return;
-            toWrite = new List<DownloadHistoryRecord>(_cachedRecords);
-            _hasPendingChanges = false;
+            if (!_state.HasPendingChanges || _state.CachedRecords == null) return;
+            toWrite = new List<DownloadHistoryRecord>(_state.CachedRecords);
+            _state.HasPendingChanges = false;
         }
 
         if (toWrite != null)
@@ -173,10 +235,10 @@ public class HistoryManager
 
     public void Flush()
     {
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            _debounceTimer?.Dispose();
-            _debounceTimer = null;
+            _state.DebounceTimer?.Dispose();
+            _state.DebounceTimer = null;
         }
         FlushInternal();
     }
@@ -228,9 +290,9 @@ public class HistoryManager
 
     public void AddEntry(DownloadEntry entry, bool batchMode = false)
     {
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            var records = EnsureLoaded();
+            var records = EnsureLoadedLocked();
 
             // Avoid exact duplicate entries (without matching shared folder paths)
             records.RemoveAll(d =>
@@ -243,7 +305,7 @@ public class HistoryManager
 
             if (records.Count > 500)
             {
-                _cachedRecords = records.GetRange(records.Count - 500, 500);
+                _state.CachedRecords = records.GetRange(records.Count - 500, 500);
             }
 
             ScheduleFlush();
@@ -258,9 +320,9 @@ public class HistoryManager
     public List<DownloadEntry> GetEntries()
     {
         List<DownloadHistoryRecord> snapshot;
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            snapshot = new List<DownloadHistoryRecord>(EnsureLoaded());
+            snapshot = new List<DownloadHistoryRecord>(EnsureLoadedLocked());
         }
 
         var list = snapshot.Select(r => r.ToDownloadEntry()).ToList();
@@ -270,9 +332,9 @@ public class HistoryManager
 
     public void RemoveEntry(DownloadEntry entry)
     {
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            var records = EnsureLoaded();
+            var records = EnsureLoadedLocked();
 
             records.RemoveAll(d => MatchesRecord(d, entry));
 
@@ -285,9 +347,9 @@ public class HistoryManager
     public int RemoveEntries(IEnumerable<DownloadEntry> toRemove)
     {
         int removed;
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            var records = EnsureLoaded();
+            var records = EnsureLoadedLocked();
             var toRemoveList = toRemove.ToList();
             if (toRemoveList.Count == 0) return 0;
 
@@ -310,9 +372,9 @@ public class HistoryManager
 
     public void Clear()
     {
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            _cachedRecords = new List<DownloadHistoryRecord>();
+            _state.CachedRecords = new List<DownloadHistoryRecord>();
             ScheduleFlush();
         }
 
@@ -321,9 +383,9 @@ public class HistoryManager
 
     public List<DownloadHistoryRecord> GetAllRecords()
     {
-        lock (_stateLock)
+        lock (_state.Lock)
         {
-            return new List<DownloadHistoryRecord>(EnsureLoaded());
+            return new List<DownloadHistoryRecord>(EnsureLoadedLocked());
         }
     }
 }

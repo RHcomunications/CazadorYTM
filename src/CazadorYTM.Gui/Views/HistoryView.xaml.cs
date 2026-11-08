@@ -29,8 +29,14 @@ public partial class HistoryView : UserControl
     {
         if (DataContext is not HistoryViewModel vm) return;
 
-        if (e.Key == Key.Up || e.Key == Key.Down)
+        var modifiers = Keyboard.Modifiers;
+        var hasNavigationModifier =
+            (modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift)) != 0;
+
+        if (!hasNavigationModifier && e.Key is Key.Up or Key.Down)
         {
+            e.Handled = true;
+
             var count = GridHistory.Items.Count;
             if (count == 0) return;
 
@@ -50,6 +56,12 @@ public partial class HistoryView : UserControl
             }
 
             FocusSelectedRow(nextIdx);
+            return;
+        }
+
+        if (!hasNavigationModifier && (e.Key is Key.Left or Key.Right))
+        {
+            // Evitar que las flechas horizontales saquen el foco de la fila hacia las pestañas superiores
             e.Handled = true;
             return;
         }

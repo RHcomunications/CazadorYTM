@@ -518,5 +518,9 @@
   "TitleStreamError": "Stream Error",
   "PrefStatusVerifyingAudio": "Analyzing audio files in destination folder...",
   "PrefStatusTargetFolderNotFound": "Destination folder does not exist.",
+  "TitleUpdateIncomplete": "Update Incomplete",
+  "PrefStatusEnginesUpdatePartial": "Incomplete update. Failed: {0}",
+  "PrefMsgComponentsUpdatePartial": "The following components could not be updated: {0}\n\nCheck the log for details.",
+  "MsgComponentsUpdatePartial": "Failed: {0}",
   "PrefStatusVerifySummary": "Verification completed: {0} Clean, {1} Warnings, {2} Errors. Report saved."
 }

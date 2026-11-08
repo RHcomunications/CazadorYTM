@@ -518,5 +518,9 @@
   "TitleStreamError": "Error de Stream",
   "PrefStatusVerifyingAudio": "Analizando archivos de audio en la carpeta de destino...",
   "PrefStatusTargetFolderNotFound": "La carpeta de destino no existe.",
+  "TitleUpdateIncomplete": "Actualización incompleta",
+  "PrefStatusEnginesUpdatePartial": "Actualización incompleta. Fallaron: {0}",
+  "PrefMsgComponentsUpdatePartial": "No se pudieron actualizar los siguientes componentes: {0}\n\nRevisa el registro para más detalles.",
+  "MsgComponentsUpdatePartial": "Fallaron: {0}",
   "PrefStatusVerifySummary": "Verificación completada: {0} Correctos, {1} Avisos, {2} Errores. Reporte guardado."
 }

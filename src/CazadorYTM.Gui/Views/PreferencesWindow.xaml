@@ -170,8 +170,9 @@
         <!-- Bottom Actions -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="{loc:Loc Save}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding SaveCommand}" Width="120" Height="38" Margin="0,0,10,0"
-                    IsDefault="True"/>
-            <Button Content="{loc:Loc BtnCancel}" IsCancel="True" Command="{Binding CancelCommand}" Width="110" Height="38"/>
+                    AutomationProperties.Name="{loc:Loc Save}" IsDefault="True"/>
+            <Button Content="{loc:Loc BtnCancel}" IsCancel="True" Command="{Binding CancelCommand}" Width="110" Height="38"
+                    AutomationProperties.Name="{loc:Loc BtnCancel}"/>
         </StackPanel>
     </Grid>
 </Window>

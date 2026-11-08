@@ -210,18 +210,18 @@ public class AppConfig
         _lock.EnterWriteLock();
         try
         {
-            var tmpPath = _path + ".tmp";
+            var tmpPath = $"{_path}.{Guid.NewGuid():N}.tmp";
             try
             {
                 var dir = Path.GetDirectoryName(_path);
-                if (!string.IsNullOrEmpty(dir))
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
                 var json = JsonHelper.Serialize(_data);
                 File.WriteAllText(tmpPath, json);
                 File.Move(tmpPath, _path, overwrite: true);
             }
-            catch (IOException)
+            catch
             {
                 if (File.Exists(tmpPath))
                 {

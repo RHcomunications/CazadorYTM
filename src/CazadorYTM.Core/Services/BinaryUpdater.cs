@@ -19,6 +19,18 @@ public class UpdateCheckResult
     public bool HasUpdates => UpdatesNeeded.Count > 0;
 }
 
+public class BinaryUpdateResult
+{
+    /// <summary>Componentes que se intentaron actualizar.</summary>
+    public List<string> Requested { get; set; } = new();
+
+    /// <summary>Componentes cuya actualización falló.</summary>
+    public List<string> Failed { get; } = new();
+
+    public bool HadUpdates => Requested.Count > 0;
+    public bool Success => Failed.Count == 0;
+}
+
 public class BinaryUpdater
 {
     private readonly string _baseDir;
@@ -49,12 +61,12 @@ public class BinaryUpdater
         return new UpdateCheckResult { UpdatesNeeded = CheckUpdates(_baseDir) };
     }
 
-    public void UpdateAll(Action<string>? callback = null, Action<int>? progressCallback = null, bool forceFfmpeg = false, Action<string>? loggerCallback = null)
+    public BinaryUpdateResult UpdateAll(Action<string>? callback = null, Action<int>? progressCallback = null, bool forceFfmpeg = false, Action<string>? loggerCallback = null)
     {
         if (loggerCallback is not null && callback is null)
             callback = loggerCallback;
 
-        UpdateAll(_baseDir, callback, progressCallback, forceFfmpeg, loggerCallback);
+        return UpdateAll(_baseDir, callback, progressCallback, forceFfmpeg, loggerCallback);
     }
 
     private static bool DownloadFileRobust(
@@ -501,54 +513,57 @@ public class BinaryUpdater
         return installed;
     }
 
-    public static void UpdateAll(string baseDir, Action<string>? callback = null, Action<int>? progressCallback = null, bool forceFfmpeg = false, Action<string>? loggerCallback = null)
+    public static BinaryUpdateResult UpdateAll(string baseDir, Action<string>? callback = null, Action<int>? progressCallback = null, bool forceFfmpeg = false, Action<string>? loggerCallback = null)
     {
         if (loggerCallback is not null && callback is null)
             callback = loggerCallback;
 
+        var result = new BinaryUpdateResult();
         var updates = CheckUpdates(baseDir);
 
         if (forceFfmpeg && !updates.Any(u => u.Contains("FFmpeg")))
             updates.Add("FFmpeg (Forzado)");
 
+        result.Requested.AddRange(updates);
+
         if (!updates.Any())
         {
             callback?.Invoke("[SISTEMA] Todos los componentes están en su versión más reciente.");
             progressCallback?.Invoke(100);
-            return;
+            return result;
         }
-
-        var failed = new List<string>();
 
         foreach (var u in updates)
         {
             callback?.Invoke($"[INFO] Se actualizará: {u}");
             if (u.Contains("yt-dlp") && !InstallOrUpdateYtdlp(baseDir, callback, progressCallback))
-                failed.Add("yt-dlp");
+                result.Failed.Add("yt-dlp");
         }
 
         if (updates.Any(u => u.Contains("FFmpeg")) &&
             !DownloadFfmpegWithProgress(baseDir, callback, progressCallback))
         {
-            failed.Add("FFmpeg");
+            result.Failed.Add("FFmpeg");
         }
 
         if (updates.Any(u => u.Contains("Deno")) &&
             !DownloadDenoWithProgress(baseDir, callback, progressCallback))
         {
-            failed.Add("Deno");
+            result.Failed.Add("Deno");
         }
 
         BinaryManager.ClearCache();
         progressCallback?.Invoke(100);
 
-        if (failed.Count > 0)
+        if (result.Failed.Count > 0)
         {
-            callback?.Invoke($"[ERROR] Actualización incompleta. Componentes con error: {string.Join(", ", failed)}.");
+            callback?.Invoke($"[ERROR] Actualización incompleta. Componentes con error: {string.Join(", ", result.Failed)}.");
         }
         else
         {
             callback?.Invoke("[SISTEMA] Secuencia de actualización finalizada exitosamente.");
         }
+
+        return result;
     }
 }

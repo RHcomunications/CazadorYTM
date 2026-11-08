@@ -215,14 +215,30 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
                 if (accept)
                 {
                     UpdateStatusText = loc["PrefStatusDownloadingEngines"];
-                    await Task.Run(() => BinaryUpdater.UpdateAll(baseDir, msg =>
+                    var updateResult = await Task.Run(() => BinaryUpdater.UpdateAll(baseDir, msg =>
                     {
                         Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = msg);
                     }));
 
-                    UpdateStatusText = loc["PrefStatusAllEnginesUpdated"];
-                    DialogService.Instance.ShowMessage(loc["CommonMsgAllComponentsUpdated"], loc["TitleUpdateCompleted"], MessageBoxImage.Information);
-                    NotificationService.Instance.Notify(loc["TitleComponentsUpdated"], loc["MsgComponentsUpdatedSuccess"], NotificationType.Success);
+                    if (updateResult.Success)
+                    {
+                        UpdateStatusText = loc["PrefStatusAllEnginesUpdated"];
+                        DialogService.Instance.ShowMessage(loc["CommonMsgAllComponentsUpdated"], loc["TitleUpdateCompleted"], MessageBoxImage.Information);
+                        NotificationService.Instance.Notify(loc["TitleComponentsUpdated"], loc["MsgComponentsUpdatedSuccess"], NotificationType.Success);
+                    }
+                    else
+                    {
+                        var failed = string.Join(", ", updateResult.Failed);
+                        UpdateStatusText = string.Format(
+                            loc.Get("PrefStatusEnginesUpdatePartial", "Actualización incompleta. Fallaron: {0}"), failed);
+                        DialogService.Instance.ShowMessage(
+                            string.Format(loc.Get("PrefMsgComponentsUpdatePartial", "No se pudieron actualizar los siguientes componentes: {0}\n\nRevisa el registro para más detalles."), failed),
+                            loc.Get("TitleUpdateIncomplete", "Actualización incompleta"),
+                            MessageBoxImage.Warning);
+                        NotificationService.Instance.NotifyWarning(
+                            loc.Get("TitleUpdateIncomplete", "Actualización incompleta"),
+                            string.Format(loc.Get("MsgComponentsUpdatePartial", "Fallaron: {0}"), failed));
+                    }
                 }
                 else
                 {
