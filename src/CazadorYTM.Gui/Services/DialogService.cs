@@ -3,6 +3,7 @@ namespace CazadorYTM.Gui.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using Microsoft.Win32;
 using CazadorYTM.Core.Models;
@@ -18,6 +19,9 @@ public class DialogService
 {
     private static readonly Lazy<DialogService> _instance = new(() => new DialogService());
     public static DialogService Instance => _instance.Value;
+
+    public Action<string, string, MessageBoxImage>? MessageHandler { get; set; }
+    public Func<string, string?, bool>? ConfirmationHandler { get; set; }
 
     public string? SelectFolder(string? initialDirectory = null)
     {
@@ -76,6 +80,12 @@ public class DialogService
 
     public void ShowMessage(string message, string title = "Cazador YTM", MessageBoxImage icon = MessageBoxImage.Information)
     {
+        if (MessageHandler != null)
+        {
+            MessageHandler(message, title, icon);
+            return;
+        }
+
         var owner = GetActiveOwner();
         if (owner != null && owner.IsVisible)
         {
@@ -89,6 +99,11 @@ public class DialogService
 
     public bool ShowConfirmation(string message, string? title = null)
     {
+        if (ConfirmationHandler != null)
+        {
+            return ConfirmationHandler(message, title);
+        }
+
         var owner = GetActiveOwner();
         var confirmTitle = title ?? LocalizationService.Instance["ConfirmTitle"];
         if (owner != null && owner.IsVisible)

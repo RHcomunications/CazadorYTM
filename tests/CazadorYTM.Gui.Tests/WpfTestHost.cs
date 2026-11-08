@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using CazadorYTM.Gui.Services;
 
 internal static class WpfTestHost
 {
@@ -36,6 +37,9 @@ internal static class WpfTestHost
                 application = new CazadorYTM.Gui.App();
                 application.InitializeComponent();
             }
+
+            DialogService.Instance.MessageHandler = (_, _, _) => { };
+            DialogService.Instance.ConfirmationHandler = (_, _) => true;
 
             _dispatcher = Dispatcher.CurrentDispatcher;
             ready.Set();
