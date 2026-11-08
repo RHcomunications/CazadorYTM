@@ -64,7 +64,10 @@ public static class FileVerifier
 
     private static string? DecodeCheck(string ffprobePath, string filepath)
     {
-        var ffmpegPath = ffprobePath.Replace("ffprobe.exe", "ffmpeg.exe").Replace("ffprobe", "ffmpeg");
+        var dir = Path.GetDirectoryName(ffprobePath);
+        var ffmpegPath = !string.IsNullOrEmpty(dir)
+            ? Path.Combine(dir, Environment.OSVersion.Platform == PlatformID.Win32NT ? "ffmpeg.exe" : "ffmpeg")
+            : (Environment.OSVersion.Platform == PlatformID.Win32NT ? "ffmpeg.exe" : "ffmpeg");
 
         var args = new[]
         {

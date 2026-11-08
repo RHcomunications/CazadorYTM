@@ -669,13 +669,18 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                         Application.Current?.Dispatcher.Invoke(() =>
                         {
                             slot.IsActive = false;
-                            slot.Title = "En espera";
+                            slot.Title = LocalizationService.Instance.Get("BatchSlotWaiting", "En espera...");
                             slot.Progress = 0;
                             slot.Speed = string.Empty;
                             slot.Eta = string.Empty;
                         });
+                    }
+
+                    if (hasSlot)
+                    {
                         slotPool.Enqueue(slotIdx);
                     }
+
                     throttler.Release();
                 }
             });

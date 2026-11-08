@@ -51,8 +51,8 @@ public static class Helpers
         string result = stem + ext;
         if (result.Length > 120)
         {
-            int extLen = ext.Length;
-            result = stem.Substring(0, 120 - extLen) + ext;
+            int maxStemLen = Math.Max(1, 120 - ext.Length);
+            result = stem.Length > maxStemLen ? stem.Substring(0, maxStemLen) + ext : stem + ext;
         }
         return result.TrimEnd('.');
     }

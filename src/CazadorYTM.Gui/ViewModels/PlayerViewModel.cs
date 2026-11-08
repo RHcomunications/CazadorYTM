@@ -15,6 +15,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     private double _previousVolume = 0.8;
     private string? _remoteStreamUrl;
     private bool _disposed;
+    private System.Threading.Timer? _volumeSaveTimer;
+    private readonly object _volumeSaveLock = new();
 
     [ObservableProperty]
     private string _trackTitle = LocalizationService.Instance.Get("PlayerStatusNoActive", "Sin reproducción activa");
@@ -111,6 +113,12 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _player.StateChanged -= OnPlayerStateChanged;
         _player.PositionChanged -= OnPlayerPositionChanged;
         LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
+
+        lock (_volumeSaveLock)
+        {
+            _volumeSaveTimer?.Dispose();
+            _volumeSaveTimer = null;
+        }
     }
 
     private void UpdateVolumeTexts(double vol)
@@ -203,13 +211,20 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         _player.Volume = value;
         UpdateVolumeTexts(value);
 
-        try
+        lock (_volumeSaveLock)
         {
-            var config = new AppConfig();
-            config.Set("player_volume", value.ToString("F2", CultureInfo.InvariantCulture));
-            config.Save();
+            _volumeSaveTimer?.Dispose();
+            _volumeSaveTimer = new System.Threading.Timer(_ =>
+            {
+                try
+                {
+                    var config = new AppConfig();
+                    config.Set("player_volume", value.ToString("F2", CultureInfo.InvariantCulture));
+                    config.Save();
+                }
+                catch { }
+            }, null, 500, System.Threading.Timeout.Infinite);
         }
-        catch { }
     }
 
     [RelayCommand]
