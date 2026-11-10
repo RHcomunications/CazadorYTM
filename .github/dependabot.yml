@@ -14,6 +14,9 @@ updates:
     labels:
       - "dependencies"
       - "nuget"
+    ignore:
+      - dependency-name: "xunit.runner.visualstudio"
+        update-types: ["version-update:semver-major"]
 
   # Actualizaciones mensuales de acciones de GitHub Actions
   - package-ecosystem: "github-actions"
