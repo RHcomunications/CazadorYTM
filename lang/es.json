@@ -145,6 +145,7 @@
   "RadarBtnSendSupport": "Enviar a Soporte (Telegram)",
   "RadarBtnSendSupportHint": "Abrir chat de soporte técnico en Telegram",
   "RadarGridHint": "Lista de elementos de Radar YTM. Usa Enter para reproducir y Flecha Derecha para explorar listas.",
+  "RadarGridHelpText": "Navega con flechas arriba y abajo entre pistas o listas. Pulsa Enter para reproducir, Flecha Derecha para explorar listas, Flecha Izquierda para volver, Shift+F10 para acciones y Ctrl+D para descargar.",
   "RadarMenuPlay": "Reproducir (Enter)",
   "RadarMenuOpenPlaylist": "Explorar contenido de la lista (Flecha Derecha)",
   "RadarMenuSendDownload": "Enviar a Descargas (Ctrl+D)",

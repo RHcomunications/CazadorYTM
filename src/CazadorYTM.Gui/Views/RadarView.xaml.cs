@@ -51,32 +51,13 @@ public partial class RadarView : UserControl
         if (index < 0 || index >= GridRadar.Items.Count) return;
 
         var item = GridRadar.Items[index];
-        if (TryFocusRow(index)) return;
+        GridRadar.ScrollIntoView(item);
 
-        // Con virtualización la fila puede generarse después de ScrollIntoView.
-        // Reintentamos solo si el elemento de esa posición sigue siendo el mismo.
-        Dispatcher.InvokeAsync(() =>
+        if (GridRadar.ItemContainerGenerator.ContainerFromIndex(index) is DataGridRow row)
         {
-            if (index >= GridRadar.Items.Count || !ReferenceEquals(GridRadar.Items[index], item)) return;
-            TryFocusRow(index);
-        }, System.Windows.Threading.DispatcherPriority.Loaded);
-    }
-
-    private bool TryFocusRow(int index)
-    {
-        if (index < 0 || index >= GridRadar.Items.Count) return false;
-
-        GridRadar.ScrollIntoView(GridRadar.Items[index]);
-        GridRadar.UpdateLayout();
-
-        if (GridRadar.ItemContainerGenerator.ContainerFromIndex(index) is not DataGridRow row)
-        {
-            return false;
+            row.Focus();
+            Keyboard.Focus(row);
         }
-
-        row.Focus();
-        Keyboard.Focus(row);
-        return true;
     }
 
     private void OpenCookiesDialog()
@@ -117,9 +98,9 @@ public partial class RadarView : UserControl
 
     private void GridRadar_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (GridRadar.SelectedItem != null)
+        if (DataContext is RadarViewModel vm && GridRadar.SelectedItem is RadarItem item && !ReferenceEquals(vm.SelectedItem, item))
         {
-            GridRadar.ScrollIntoView(GridRadar.SelectedItem);
+            vm.SelectedItem = item;
         }
     }
 

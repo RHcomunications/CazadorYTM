@@ -145,6 +145,7 @@
   "RadarBtnSendSupport": "Send to Support (Telegram)",
   "RadarBtnSendSupportHint": "Open the technical support chat on Telegram",
   "RadarGridHint": "Radar YTM item list. Press Enter to play and Right Arrow to browse playlists.",
+  "RadarGridHelpText": "Navigate with up and down arrows between tracks or playlists. Press Enter to play, Right Arrow to explore playlists, Left Arrow to go back, Shift+F10 for actions and Ctrl+D to download.",
   "RadarMenuPlay": "Play (Enter)",
   "RadarMenuOpenPlaylist": "Browse playlist contents (Right Arrow)",
   "RadarMenuSendDownload": "Send to Downloads (Ctrl+D)",
