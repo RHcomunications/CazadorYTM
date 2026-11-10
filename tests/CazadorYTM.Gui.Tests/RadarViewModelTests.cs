@@ -168,4 +168,30 @@ public class RadarViewModelTests
         Assert.True(eventRaised);
         Assert.Equal(vm.SelectedItem, focusedItem);
     }
+
+    [Fact]
+    public void SessionExpiredAndEmptyState_InitialProperties_AreCorrect()
+    {
+        var vm = new RadarViewModel();
+
+        Assert.False(vm.IsSessionExpired);
+        Assert.False(vm.IsEmpty);
+    }
+
+    [Fact]
+    public void FilterQuery_WhenNoItems_SetsIsEmptyTrue()
+    {
+        var vm = new RadarViewModel();
+        vm.HasSessionConnected = true;
+        vm.AllItems.Add(Item("1", "Song A", "Artist A"));
+
+        vm.FilterQuery = "no match at all";
+
+        Assert.Empty(vm.FilteredItems);
+        Assert.True(vm.IsEmpty);
+
+        vm.FilterQuery = string.Empty;
+        Assert.Single(vm.FilteredItems);
+        Assert.False(vm.IsEmpty);
+    }
 }

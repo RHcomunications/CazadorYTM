@@ -89,11 +89,24 @@
         <!-- Center Content Area: DataGrid vs Session Prompt vs Error State -->
         <Grid Grid.Row="2">
 
-            <!-- 1. Prompt when session is not connected -->
-            <Border Visibility="{Binding HasSessionConnected, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
-                    Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
+            <!-- 1. Prompt when session is not connected and not expired -->
+            <Border Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
                     BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="28" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding HasSessionConnected}" Value="False" />
+                                    <Condition Binding="{Binding IsSessionExpired}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="{loc:Loc RadarNoSessionTitle}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                     <TextBlock Text="{loc:Loc RadarNoSessionDesc}"
@@ -109,11 +122,50 @@
                 </StackPanel>
             </Border>
 
-            <!-- 2. Error Banner / Card when an error occurs -->
-            <Border Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"
+            <!-- 2. Session Expired / Revoked Card -->
+            <Border Visibility="{Binding IsSessionExpired, Converter={StaticResource BooleanToVisibilityConverter}}"
                     Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
                     BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="28" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="{loc:Loc RadarSessionExpiredTitle}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock Text="{loc:Loc RadarSessionExpiredDesc}"
+                               TextWrapping="Wrap" TextAlignment="Center" FontSize="13" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,20"
+                               AutomationProperties.Name="{loc:Loc RadarSessionExpiredDesc}"
+                               AutomationProperties.LiveSetting="Assertive"
+                               acc:LiveRegion.Announce="{loc:Loc RadarSessionExpiredDesc}"/>
+                    <WrapPanel HorizontalAlignment="Center">
+                        <Button Content="{loc:Loc RadarBtnUpdateCookies}" Command="{Binding OpenCookiesManagerCommand}"
+                                Style="{DynamicResource AccentButtonStyle}" Height="38" Padding="20,0" Margin="0,0,10,8"
+                                AutomationProperties.Name="{loc:Loc RadarBtnUpdateCookiesHint}"/>
+                        <Button Content="{loc:Loc RadarBtnRetry}" Command="{Binding RefreshCurrentSectionCommand}"
+                                Height="38" Padding="16,0" Margin="0,0,10,8"
+                                AutomationProperties.Name="{loc:Loc RadarBtnRetryHint}"/>
+                        <Button Content="{loc:Loc BtnSupportTelegram}" Command="{Binding ContactSupportCommand}"
+                                Height="38" Padding="16,0" Margin="0,0,0,8"
+                                AutomationProperties.Name="{loc:Loc BtnSupportTelegramHint}"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. Error Banner / Card when a general error occurs -->
+            <Border Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
+                    BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="600">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding HasError}" Value="True" />
+                                    <Condition Binding="{Binding IsSessionExpired}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="{loc:Loc RadarErrorTitle}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
@@ -138,7 +190,22 @@
                 </StackPanel>
             </Border>
 
-            <!-- 3. Active Items DataGrid: FullRow Navigation with Single Tab Jump Out and UI Virtualization -->
+            <!-- 4. Empty State Banner when connected and 0 items -->
+            <Border Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
+                    BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="28" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="500">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="{loc:Loc RadarEmptyListTitle}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="{loc:Loc RadarEmptyListDesc}"
+                               TextWrapping="Wrap" TextAlignment="Center" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,16"/>
+                    <Button Content="{loc:Loc BtnRefresh}" Command="{Binding RefreshCurrentSectionCommand}"
+                            Height="34" Padding="16,0" HorizontalAlignment="Center"
+                            AutomationProperties.Name="{loc:Loc RadarBtnRefreshHint}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 5. Active Items DataGrid: FullRow Navigation with Single Tab Jump Out and UI Virtualization -->
             <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
                       AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow" Focusable="True" RowHeight="48"
                       KeyboardNavigation.TabNavigation="Once"
@@ -168,7 +235,7 @@
                     </Style>
                 </DataGrid.RowStyle>
 
-                <!-- Visibility only when connected and no blocking error -->
+                <!-- Visibility only when connected and no blocking error or empty state -->
                 <DataGrid.Style>
                     <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
                         <Setter Property="Visibility" Value="Visible"/>
@@ -177,6 +244,9 @@
                                 <Setter Property="Visibility" Value="Collapsed"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding HasError}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsEmpty}" Value="True">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                             </DataTrigger>
                         </Style.Triggers>

@@ -77,6 +77,11 @@ public static class RadarService
             {
                 throw;
             }
+            catch (YouTubeMusicSessionExpiredException ex)
+            {
+                logger?.Invoke($"[RADAR] Sesión de YouTube Music caducada: {ex.Message}");
+                throw;
+            }
             catch (Exception ex)
             {
                 logger?.Invoke($"[RADAR] YouTube Music no respondió ({ex.Message}); usando yt-dlp.");
@@ -132,15 +137,22 @@ public static class RadarService
 
             var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000, cancellationToken: cancellationToken);
 
+            var err = runResult.StandardError ?? string.Empty;
+            if (err.Contains("cookies are no longer valid", StringComparison.OrdinalIgnoreCase) ||
+                err.Contains("rotated in the browser", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new YouTubeMusicSessionExpiredException(
+                    "Las cookies de YouTube han caducado o fueron rotadas por seguridad. Actualiza las cookies en Sesión.");
+            }
+
             if (!runResult.Success)
             {
-                var err = runResult.StandardError;
                 if (err.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
                     err.Contains("bot", StringComparison.OrdinalIgnoreCase) ||
                     err.Contains("login", StringComparison.OrdinalIgnoreCase) ||
                     err.Contains("authentication", StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new InvalidOperationException("Se requiere iniciar sesión en YouTube con cookies activas para acceder a esta sección.");
+                    throw new YouTubeMusicSessionExpiredException("Se requiere iniciar sesión en YouTube con cookies activas para acceder a esta sección.");
                 }
 
                 logger?.Invoke($"[RADAR] Error al consultar sección {section}: {err}");
@@ -223,6 +235,11 @@ public static class RadarService
             {
                 throw;
             }
+            catch (YouTubeMusicSessionExpiredException ex)
+            {
+                logger?.Invoke($"[RADAR] Sesión de YouTube Music caducada: {ex.Message}");
+                throw;
+            }
             catch (Exception ex)
             {
                 logger?.Invoke($"[RADAR] YouTube Music no respondió ({ex.Message}); usando yt-dlp.");
@@ -274,13 +291,20 @@ public static class RadarService
 
             var runResult = await ProcessRunner.RunAsync(exe, args, timeoutMs: 35000, cancellationToken: cancellationToken);
 
+            var err = runResult.StandardError ?? string.Empty;
+            if (err.Contains("cookies are no longer valid", StringComparison.OrdinalIgnoreCase) ||
+                err.Contains("rotated in the browser", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new YouTubeMusicSessionExpiredException(
+                    "Las cookies de YouTube han caducado o fueron rotadas por seguridad. Actualiza las cookies en Sesión.");
+            }
+
             if (!runResult.Success)
             {
-                var err = runResult.StandardError;
                 if (err.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
                     err.Contains("Private playlist", StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new InvalidOperationException("Esta lista de reproducción requiere sesión de YouTube iniciada para acceder a sus pistas.");
+                    throw new YouTubeMusicSessionExpiredException("Esta lista de reproducción requiere sesión de YouTube iniciada para acceder a sus pistas.");
                 }
 
                 logger?.Invoke($"[RADAR] Error al obtener pistas de la lista: {err}");

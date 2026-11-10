@@ -290,4 +290,15 @@ public class CookieAndRadarNavigationTests : IDisposable
         Assert.False(result.Success);
         Assert.Equal(validContent, File.ReadAllText(targetFile));
     }
+
+    [Fact]
+    public void YouTubeMusicSessionExpiredException_InheritsFromYouTubeMusicException()
+    {
+        var inner = new InvalidOperationException("Inner error");
+        var ex = new YouTubeMusicSessionExpiredException("Sesión caducada", inner);
+
+        Assert.IsAssignableFrom<YouTubeMusicException>(ex);
+        Assert.Equal("Sesión caducada", ex.Message);
+        Assert.Same(inner, ex.InnerException);
+    }
 }

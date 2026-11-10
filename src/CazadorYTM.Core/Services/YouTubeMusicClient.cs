@@ -21,7 +21,9 @@ public sealed class YouTubeMusicClient
     private static readonly HttpClient SharedHttp = CreateHttpClient();
     private static readonly SemaphoreSlim VersionLock = new(1, 1);
     private static readonly Regex ClientVersionRegex = new("\"INNERTUBE_CLIENT_VERSION\":\"([^\"]+)\"", RegexOptions.Compiled);
-    private static readonly Regex LoggedOutRegex = new("\"logged_in\",\"value\":\"0\"", RegexOptions.Compiled);
+    private static readonly Regex LoggedOutRegex = new(
+        @"\""(?:logged_in|yt_li)\""\s*,\s*\""value\""\s*:\s*\""0\""|(?i)\""(?:SIGN_IN|Inicia sesi[oó]n|Sign in to confirm)\""",
+        RegexOptions.Compiled);
     private static string? _cachedClientVersion;
 
     private readonly YouTubeMusicSession _session;
@@ -318,7 +320,7 @@ public sealed class YouTubeMusicClient
 
         if (LoggedOutRegex.IsMatch(body))
         {
-            throw new YouTubeMusicException("La sesión de YouTube Music no está autenticada (cookies vencidas o incompletas).");
+            throw new YouTubeMusicSessionExpiredException("La sesión de YouTube Music no está autenticada (cookies vencidas o incompletas).");
         }
 
         try
@@ -438,6 +440,17 @@ public class YouTubeMusicException : Exception
     }
 
     public YouTubeMusicException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
+}
+
+public class YouTubeMusicSessionExpiredException : YouTubeMusicException
+{
+    public YouTubeMusicSessionExpiredException(string message) : base(message)
+    {
+    }
+
+    public YouTubeMusicSessionExpiredException(string message, Exception innerException) : base(message, innerException)
     {
     }
 }

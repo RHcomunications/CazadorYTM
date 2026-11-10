@@ -61,6 +61,12 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     private bool _hasSessionConnected = false;
 
     [ObservableProperty]
+    private bool _isSessionExpired = false;
+
+    [ObservableProperty]
+    private bool _isEmpty = false;
+
+    [ObservableProperty]
     private bool _hasError = false;
 
     [ObservableProperty]
@@ -127,6 +133,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task RefreshCurrentSection()
     {
+        IsSessionExpired = false;
         HasSessionConnected = CheckSessionConnected();
         if (IsViewingPlaylistDetails && CurrentPlaylist != null)
         {
@@ -144,6 +151,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
 
         IsLoading = true;
         HasError = false;
+        IsEmpty = false;
         ErrorMessage = string.Empty;
         IsViewingPlaylistDetails = false;
         CurrentPlaylist = null;
@@ -208,12 +216,30 @@ public partial class RadarViewModel : ObservableObject, IDisposable
             }
 
             ApplyFilter();
-            StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusItemsLoaded", "{0} elementos cargados en {1}."), AllItems.Count, section);
+            IsSessionExpired = false;
             HasError = false;
+            StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusItemsLoaded", "{0} elementos cargados en {1}."), AllItems.Count, section);
             RequestFocusItem?.Invoke(SelectedItem);
         }
         catch (OperationCanceledException)
         {
+        }
+        catch (YouTubeMusicSessionExpiredException ex)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            AllItems.Clear();
+            FilteredItems.Clear();
+            HasSessionConnected = false;
+            IsSessionExpired = true;
+            HasError = true;
+            IsEmpty = false;
+            ErrorMessage = LocalizationService.Instance["RadarSessionExpiredDesc"];
+            StatusText = LocalizationService.Instance["RadarStatusSessionExpired"];
+            LogService.Instance.Warn($"Sesión de YouTube Music caducada: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -330,6 +356,23 @@ public partial class RadarViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
+        }
+        catch (YouTubeMusicSessionExpiredException ex)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            AllItems.Clear();
+            FilteredItems.Clear();
+            HasSessionConnected = false;
+            IsSessionExpired = true;
+            HasError = true;
+            IsEmpty = false;
+            ErrorMessage = LocalizationService.Instance["RadarSessionExpiredDesc"];
+            StatusText = LocalizationService.Instance["RadarStatusSessionExpired"];
+            LogService.Instance.Warn($"Sesión caducada al abrir lista: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -576,6 +619,8 @@ public partial class RadarViewModel : ObservableObject, IDisposable
         {
             SelectedItem = FilteredItems.FirstOrDefault();
         }
+
+        IsEmpty = HasSessionConnected && !HasError && !IsLoading && FilteredItems.Count == 0;
     }
 
     [RelayCommand]
