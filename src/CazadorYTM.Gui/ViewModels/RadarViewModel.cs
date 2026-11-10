@@ -26,6 +26,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan SectionCacheTtl = TimeSpan.FromMinutes(5);
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _streamCts;
+    private bool _hasLoadedOnce;
     private bool _disposed;
 
     public event Action<DownloadEntry>? SendToDownloadRequested;
@@ -215,6 +216,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
                 _cachedPlaylists.AddRange(items);
             }
 
+            _hasLoadedOnce = true;
             ApplyFilter();
             IsSessionExpired = false;
             HasError = false;
@@ -348,6 +350,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
                 AllItems.Add(trk);
             }
 
+            _hasLoadedOnce = true;
             ApplyFilter();
             SelectedItem = FilteredItems.FirstOrDefault();
             StatusText = string.Format(LocalizationService.Instance["RadarStatusPlaylistOpened"], playlistItem.Title, AllItems.Count);
@@ -620,8 +623,23 @@ public partial class RadarViewModel : ObservableObject, IDisposable
             SelectedItem = FilteredItems.FirstOrDefault();
         }
 
+        UpdateIsEmpty();
+    }
+
+    private void UpdateIsEmpty()
+    {
+        if (!_hasLoadedOnce && AllItems.Count == 0)
+        {
+            IsEmpty = false;
+            return;
+        }
+
         IsEmpty = HasSessionConnected && !HasError && !IsLoading && FilteredItems.Count == 0;
     }
+
+    partial void OnIsLoadingChanged(bool value) => UpdateIsEmpty();
+    partial void OnHasErrorChanged(bool value) => UpdateIsEmpty();
+    partial void OnHasSessionConnectedChanged(bool value) => UpdateIsEmpty();
 
     [RelayCommand]
     public async Task PlayItem(RadarItem? item)

@@ -194,4 +194,21 @@ public class RadarViewModelTests
         Assert.Single(vm.FilteredItems);
         Assert.False(vm.IsEmpty);
     }
+
+    [Fact]
+    public void IsEmpty_UpdatesWhenLoadingCompletesWithZeroItems()
+    {
+        var vm = new RadarViewModel();
+        vm.HasSessionConnected = true;
+        vm.AllItems.Add(Item("1", "Song A", "Artist A"));
+        vm.IsLoading = true;
+
+        vm.FilterQuery = "no match";
+        // While loading, IsEmpty must remain false
+        Assert.False(vm.IsEmpty);
+
+        // When loading finishes, IsEmpty must flip to true if FilteredItems is empty
+        vm.IsLoading = false;
+        Assert.True(vm.IsEmpty);
+    }
 }

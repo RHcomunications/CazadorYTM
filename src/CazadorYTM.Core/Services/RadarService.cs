@@ -148,9 +148,10 @@ public static class RadarService
             if (!runResult.Success)
             {
                 if (err.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
-                    err.Contains("bot", StringComparison.OrdinalIgnoreCase) ||
-                    err.Contains("login", StringComparison.OrdinalIgnoreCase) ||
-                    err.Contains("authentication", StringComparison.OrdinalIgnoreCase))
+                    err.Contains("confirm you're not a bot", StringComparison.OrdinalIgnoreCase) ||
+                    err.Contains("requires authentication", StringComparison.OrdinalIgnoreCase) ||
+                    err.Contains("authentication required", StringComparison.OrdinalIgnoreCase) ||
+                    err.Contains("login required", StringComparison.OrdinalIgnoreCase))
                 {
                     throw new YouTubeMusicSessionExpiredException("Se requiere iniciar sesión en YouTube con cookies activas para acceder a esta sección.");
                 }
