@@ -83,7 +83,8 @@
             <TextBox x:Name="TxtRadarFilter" Text="{Binding FilterQuery, UpdateSourceTrigger=PropertyChanged}" 
                      Height="36" VerticalContentAlignment="Center"
                      ui:ControlHelper.PlaceholderText="{loc:Loc RadarFilterPlaceholder}"
-                     AutomationProperties.Name="{loc:Loc RadarFilterHint}"/>
+                     AutomationProperties.Name="{loc:Loc RadarFilterHint}"
+                     PreviewKeyDown="TxtRadarFilter_PreviewKeyDown"/>
         </Grid>
 
         <!-- Center Content Area: DataGrid vs Session Prompt vs Error State -->
@@ -205,42 +206,10 @@
                 </StackPanel>
             </Border>
 
-            <!-- 5. Active Items DataGrid: FullRow Navigation with Single Tab Jump Out and UI Virtualization -->
-            <DataGrid x:Name="GridRadar" ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
-                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow" Focusable="True" RowHeight="48"
-                      KeyboardNavigation.TabNavigation="Once"
-                      KeyboardNavigation.DirectionalNavigation="Cycle"
-                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                      VirtualizingPanel.IsVirtualizing="True"
-                      VirtualizingPanel.VirtualizationMode="Recycling"
-                      VirtualizingPanel.ScrollUnit="Item"
-                      VirtualizingPanel.IsContainerVirtualizable="True"
-                      ScrollViewer.CanContentScroll="True"
-                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                      BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
-                      Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                      AutomationProperties.Name="{loc:Loc RadarGridHint}"
-                      AutomationProperties.HelpText="{loc:Loc RadarGridHelpText}"
-                      MouseDoubleClick="GridRadar_MouseDoubleClick"
-                      PreviewKeyDown="GridRadar_PreviewKeyDown"
-                      SelectionChanged="GridRadar_SelectionChanged">
-                <DataGrid.CellStyle>
-                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
-                        <Setter Property="IsTabStop" Value="False" />
-                        <Setter Property="Focusable" Value="False" />
-                    </Style>
-                </DataGrid.CellStyle>
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                        <Setter Property="Focusable" Value="True" />
-                        <Setter Property="AutomationProperties.Name" Value="{Binding DisplayText}" />
-                    </Style>
-                </DataGrid.RowStyle>
-
-                <!-- Visibility only when connected and no blocking error or empty state -->
-                <DataGrid.Style>
-                    <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+            <!-- 5. Active Items ListBox: Accessible Native Navigation with UI Virtualization -->
+            <Grid>
+                <Grid.Style>
+                    <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Visible"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding HasSessionConnected}" Value="False">
@@ -254,52 +223,108 @@
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
-                </DataGrid.Style>
+                </Grid.Style>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                <!-- Accessible Context Menu -->
-                <DataGrid.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="{loc:Loc RadarMenuPlay}" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
-                        <MenuItem Header="{loc:Loc RadarMenuOpenPlaylist}" InputGestureText="Right"
-                                  Command="{Binding OpenPlaylistCommand}"/>
-                        <MenuItem Header="{loc:Loc RadarMenuSendDownload}" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
-                        <Separator/>
-                        <MenuItem Header="{loc:Loc RadarBtnLike}" InputGestureText="Ctrl+Shift+L" Command="{Binding LikeSelectedCommand}"/>
-                        <MenuItem Header="{loc:Loc RadarBtnDislike}" InputGestureText="Ctrl+Shift+D" Command="{Binding DislikeSelectedCommand}"/>
-                        <MenuItem Header="{loc:Loc RadarBtnClearRating}" Command="{Binding ClearRatingCommand}"/>
-                        <MenuItem Header="{loc:Loc RadarBtnAddToPlaylist}" InputGestureText="Ctrl+Shift+A" Command="{Binding AddToPlaylistCommand}"/>
-                        <Separator/>
-                        <MenuItem Header="{loc:Loc RadarMenuBack}" InputGestureText="Left / Back"
-                                  Command="{Binding BackToPlaylistsCommand}"/>
-                        <MenuItem Header="{loc:Loc RadarMenuRefresh}" Command="{Binding RefreshCurrentSectionCommand}"/>
-                        <Separator/>
-                        <MenuItem Header="{loc:Loc MenuManageCookies}" Command="{Binding OpenCookiesManagerCommand}"/>
-                        <MenuItem Header="{loc:Loc MenuExportLogs}" Command="{Binding ExportLogsCommand}"/>
-                        <MenuItem Header="{loc:Loc MenuContactSupport}" Command="{Binding ContactSupportCommand}"/>
-                    </ContextMenu>
-                </DataGrid.ContextMenu>
+                <!-- Column Headers Bar -->
+                <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundAltMediumLowBrush}"
+                        BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                        BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="14,8,18,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="48"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="90"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="1" Text="{loc:Loc ColTitle}" FontWeight="SemiBold" FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock Grid.Column="2" Text="{loc:Loc RadarColArtist}" FontWeight="SemiBold" FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock Grid.Column="3" Text="{loc:Loc RadarColDuration}" FontWeight="SemiBold" FontSize="12"
+                                   HorizontalAlignment="Right"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                    </Grid>
+                </Border>
 
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn Width="56" CanUserSort="False" CanUserResize="False">
-                        <DataGridTemplateColumn.CellStyle>
-                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
-                                <Setter Property="Focusable" Value="False"/>
-                                <Setter Property="IsTabStop" Value="False"/>
-                            </Style>
-                        </DataGridTemplateColumn.CellStyle>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Image Source="{Binding ThumbnailUrl, Converter={StaticResource ThumbnailImageConverter}}" 
-                                       Width="40" Height="40" Stretch="UniformToFill"
-                                       Focusable="False" IsHitTestVisible="False"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="{loc:Loc ColTitle}" Binding="{Binding Title}" Width="*" MinWidth="250"/>
-                    <DataGridTextColumn Header="{loc:Loc RadarColArtist}" Binding="{Binding Artist}" Width="200"/>
-                    <DataGridTextColumn Header="{loc:Loc RadarColDuration}" Binding="{Binding DisplayDuration}" Width="90"/>
-                </DataGrid.Columns>
-            </DataGrid>
+                <!-- Accessible Virtualized ListBox -->
+                <ListBox x:Name="ListRadar" Grid.Row="1"
+                         ItemsSource="{Binding FilteredItems}" SelectedItem="{Binding SelectedItem}"
+                         SelectionMode="Single" Focusable="True"
+                         KeyboardNavigation.TabNavigation="Once"
+                         KeyboardNavigation.DirectionalNavigation="Contained"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Item"
+                         VirtualizingPanel.IsContainerVirtualizable="True"
+                         ScrollViewer.CanContentScroll="True"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         BorderThickness="1" BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                         Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                         ui:ControlHelper.CornerRadius="0,0,6,6"
+                         AutomationProperties.Name="{loc:Loc RadarGridHint}"
+                         AutomationProperties.HelpText="{loc:Loc RadarGridHelpText}"
+                         MouseDoubleClick="ListRadar_MouseDoubleClick"
+                         PreviewKeyDown="ListRadar_PreviewKeyDown"
+                         SelectionChanged="ListRadar_SelectionChanged">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="Height" Value="48"/>
+                            <Setter Property="Padding" Value="10,4,14,4"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="AutomationProperties.Name" Value="{Binding DisplayText}"/>
+                            <Setter Property="AutomationProperties.HelpText" Value="{loc:Loc RadarGridHelpText}"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="90"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="38" Height="38" CornerRadius="4" ClipToBounds="True" HorizontalAlignment="Left">
+                                    <Image Source="{Binding ThumbnailUrl, Converter={StaticResource ThumbnailImageConverter}}" 
+                                           Stretch="UniformToFill" Focusable="False" IsHitTestVisible="False"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" VerticalAlignment="Center" FontWeight="Medium"
+                                           TextTrimming="CharacterEllipsis" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Artist}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="3" Text="{Binding DisplayDuration}" VerticalAlignment="Center"
+                                           HorizontalAlignment="Right" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="{loc:Loc RadarMenuPlay}" InputGestureText="Enter" Command="{Binding PlayItemCommand}"/>
+                            <MenuItem Header="{loc:Loc RadarMenuOpenPlaylist}" InputGestureText="Right"
+                                      Command="{Binding OpenPlaylistCommand}"/>
+                            <MenuItem Header="{loc:Loc RadarMenuSendDownload}" InputGestureText="Ctrl+D" Command="{Binding SendToDownloadCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="{loc:Loc RadarBtnLike}" InputGestureText="Ctrl+Shift+L" Command="{Binding LikeSelectedCommand}"/>
+                            <MenuItem Header="{loc:Loc RadarBtnDislike}" InputGestureText="Ctrl+Shift+D" Command="{Binding DislikeSelectedCommand}"/>
+                            <MenuItem Header="{loc:Loc RadarBtnClearRating}" Command="{Binding ClearRatingCommand}"/>
+                            <MenuItem Header="{loc:Loc RadarBtnAddToPlaylist}" InputGestureText="Ctrl+Shift+A" Command="{Binding AddToPlaylistCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="{loc:Loc RadarMenuBack}" InputGestureText="Left / Back"
+                                      Command="{Binding BackToPlaylistsCommand}"/>
+                            <MenuItem Header="{loc:Loc RadarMenuRefresh}" Command="{Binding RefreshCurrentSectionCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="{loc:Loc MenuManageCookies}" Command="{Binding OpenCookiesManagerCommand}"/>
+                            <MenuItem Header="{loc:Loc MenuExportLogs}" Command="{Binding ExportLogsCommand}"/>
+                            <MenuItem Header="{loc:Loc MenuContactSupport}" Command="{Binding ContactSupportCommand}"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+            </Grid>
 
             <!-- 4. Loading overlay -->
             <Border Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
