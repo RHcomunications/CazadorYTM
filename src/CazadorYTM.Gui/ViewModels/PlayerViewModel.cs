@@ -116,8 +116,18 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
         lock (_volumeSaveLock)
         {
-            _volumeSaveTimer?.Dispose();
-            _volumeSaveTimer = null;
+            if (_volumeSaveTimer != null)
+            {
+                _volumeSaveTimer.Dispose();
+                _volumeSaveTimer = null;
+                try
+                {
+                    var config = new AppConfig();
+                    config.Set("player_volume", Volume.ToString("F2", CultureInfo.InvariantCulture));
+                    config.Save();
+                }
+                catch { }
+            }
         }
     }
 

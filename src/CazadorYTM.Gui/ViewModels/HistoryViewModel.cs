@@ -184,7 +184,10 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
         var targetIdx = allTracks.IndexOf(realPath);
         if (targetIdx >= 0)
         {
-            AudioPlayerService.Instance.SetQueue(allTracks, targetIdx);
+            if (AudioPlayerService.Instance.CurrentFilePath == realPath)
+            {
+                AudioPlayerService.Instance.UpdateQueueWithoutRestarting(allTracks, targetIdx);
+            }
         }
     }
 

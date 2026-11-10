@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Diagnóstico y prueba integral de salud para el proyecto Cazador YTM.
 .DESCRIPTION

@@ -34,6 +34,7 @@ public interface IAudioPlayerService
 
     void Play(string filePath);
     void SetQueue(IEnumerable<string> tracks, int startIndex = 0);
+    void UpdateQueueWithoutRestarting(IEnumerable<string> tracks, int currentIndex);
     void PlayNext();
     void PlayPrevious();
     void Pause();
@@ -183,6 +184,22 @@ public class AudioPlayerService : IAudioPlayerService
         {
             CurrentQueueIndex = -1;
             Stop();
+        }
+    }
+
+    public void UpdateQueueWithoutRestarting(IEnumerable<string> tracks, int currentIndex)
+    {
+        _queue.Clear();
+        _queue.AddRange(tracks.Where(t => File.Exists(t) || Helpers.IsUrl(t)));
+
+        if (_queue.Count > 0)
+        {
+            CurrentQueueIndex = Math.Clamp(currentIndex, 0, _queue.Count - 1);
+            StateChanged?.Invoke();
+        }
+        else
+        {
+            CurrentQueueIndex = -1;
         }
     }
 

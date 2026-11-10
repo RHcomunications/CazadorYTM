@@ -153,6 +153,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
         IsLoading = true;
         HasError = false;
         IsEmpty = false;
+        IsSessionExpired = false;
         ErrorMessage = string.Empty;
         IsViewingPlaylistDetails = false;
         CurrentPlaylist = null;
