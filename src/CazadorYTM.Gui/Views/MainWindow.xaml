@@ -132,6 +132,7 @@
                     SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
                     Margin="0"
                     SelectionChanged="MainTabs_SelectionChanged"
+                    PreviewKeyDown="MainTabs_PreviewKeyDown"
                     AutomationProperties.Name="{loc:Loc MainTabsName}"
                     AutomationProperties.HelpText="{loc:Loc MainTabsHelpText}"
                     KeyboardNavigation.TabNavigation="Cycle">

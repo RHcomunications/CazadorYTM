@@ -256,12 +256,44 @@ public class RadarGridAccessibilityTests
     }
 
     [Fact]
-    public void HistoryView_GridHistory_ArrowsNavigateRowsAndHasDeleteAndF5Bindings()
+    public void HistoryView_ListHistory_HasContainedNavigationAndAccessibleItemStyle()
     {
         Exception? error = null;
+        bool directionalContained = false;
+        bool isSingleSelection = false;
+
+        WpfTestHost.Run(() =>
+        {
+            try
+            {
+                var view = new HistoryView();
+                var listField = typeof(HistoryView).GetField("ListHistory", BindingFlags.Instance | BindingFlags.NonPublic);
+                var list = (ListBox?)listField?.GetValue(view) ?? throw new InvalidOperationException("ListHistory no encontrado");
+
+                isSingleSelection = list.SelectionMode == SelectionMode.Single;
+                directionalContained = KeyboardNavigation.GetDirectionalNavigation(list) == KeyboardNavigationMode.Contained;
+
+                Assert.NotNull(list.ItemContainerStyle);
+                Assert.NotNull(list.ItemTemplate);
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+        });
+
+        Assert.Null(error);
+        Assert.True(isSingleSelection, "ListHistory debe tener SelectionMode='Single'");
+        Assert.True(directionalContained, "ListHistory debe tener DirectionalNavigation='Contained'");
+    }
+
+    [Fact]
+    public void HistoryView_ListHistory_ArrowsNavigateItems()
+    {
+        Exception? error = null;
+        int initialIndex = -1;
         int afterDownIndex = -1;
-        bool hasDeleteBinding = false;
-        bool hasF5Binding = false;
+        int afterUpIndex = -1;
 
         WpfTestHost.Run(() =>
         {
@@ -274,33 +306,22 @@ public class RadarGridAccessibilityTests
                 vm.FilteredEntries.Add(new CazadorYTM.Core.Models.DownloadEntry { Title = "Track A", Url = "urlA" });
                 vm.FilteredEntries.Add(new CazadorYTM.Core.Models.DownloadEntry { Title = "Track B", Url = "urlB" });
 
-                var gridField = typeof(HistoryView).GetField("GridHistory", BindingFlags.Instance | BindingFlags.NonPublic);
-                var grid = (DataGrid?)gridField?.GetValue(view) ?? throw new InvalidOperationException("GridHistory no encontrado");
+                var listField = typeof(HistoryView).GetField("ListHistory", BindingFlags.Instance | BindingFlags.NonPublic);
+                var list = (ListBox?)listField?.GetValue(view) ?? throw new InvalidOperationException("ListHistory no encontrado");
 
-                foreach (InputBinding binding in grid.InputBindings)
-                {
-                    if (binding is KeyBinding kb)
-                    {
-                        if (kb.Key == Key.Delete) hasDeleteBinding = true;
-                        if (kb.Key == Key.F5) hasF5Binding = true;
-                    }
-                }
+                list.ItemsSource = vm.FilteredEntries;
+                list.SelectedIndex = 0;
+                initialIndex = list.SelectedIndex;
 
-                grid.ItemsSource = vm.FilteredEntries;
-                grid.SelectedIndex = 0;
+                var previewKeyDownMethod = typeof(HistoryView).GetMethod("ListHistory_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
+                var keyDownArgs = CreatePreviewKeyDownArgs(Key.Down);
+                previewKeyDownMethod?.Invoke(view, new object[] { list, keyDownArgs });
+                afterDownIndex = list.SelectedIndex;
 
-                var previewKeyDownMethod = typeof(HistoryView).GetMethod("GridHistory_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
-                var keyDownArgs = new KeyEventArgs(
-                    Keyboard.PrimaryDevice,
-                    new System.Windows.Interop.HwndSource(0, 0, 0, 0, 0, "", IntPtr.Zero),
-                    0,
-                    Key.Down)
-                {
-                    RoutedEvent = Keyboard.PreviewKeyDownEvent
-                };
+                var keyUpArgs = CreatePreviewKeyDownArgs(Key.Up);
+                previewKeyDownMethod?.Invoke(view, new object[] { list, keyUpArgs });
+                afterUpIndex = list.SelectedIndex;
 
-                previewKeyDownMethod?.Invoke(view, new object[] { grid, keyDownArgs });
-                afterDownIndex = grid.SelectedIndex;
                 vm.Dispose();
             }
             catch (Exception ex)
@@ -310,13 +331,53 @@ public class RadarGridAccessibilityTests
         });
 
         Assert.Null(error);
-        Assert.True(hasDeleteBinding, "GridHistory debe tener KeyBinding para Delete");
-        Assert.True(hasF5Binding, "GridHistory debe tener KeyBinding para F5");
+        Assert.Equal(0, initialIndex);
         Assert.Equal(1, afterDownIndex);
+        Assert.Equal(0, afterUpIndex);
     }
 
     [Fact]
-    public void HistoryView_GridHistory_HorizontalArrowsAreHandledToPreventFocusEscape()
+    public void HistoryView_FilterToHistoryList_DownAndEnterHandled()
+    {
+        Exception? error = null;
+        bool downHandled = false;
+        bool enterHandled = false;
+
+        WpfTestHost.Run(() =>
+        {
+            try
+            {
+                var vm = new HistoryViewModel();
+                var view = new HistoryView { DataContext = vm };
+
+                var filterField = typeof(HistoryView).GetField("TxtSearchHistory", BindingFlags.Instance | BindingFlags.NonPublic);
+                var filter = (TextBox?)filterField?.GetValue(view) ?? throw new InvalidOperationException("TxtSearchHistory no encontrado");
+
+                var filterPreviewKeyDown = typeof(HistoryView).GetMethod("TxtSearchHistory_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                var downArgs = CreatePreviewKeyDownArgs(Key.Down);
+                filterPreviewKeyDown?.Invoke(view, new object[] { filter, downArgs });
+                downHandled = downArgs.Handled;
+
+                var enterArgs = CreatePreviewKeyDownArgs(Key.Enter);
+                filterPreviewKeyDown?.Invoke(view, new object[] { filter, enterArgs });
+                enterHandled = enterArgs.Handled;
+
+                vm.Dispose();
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+        });
+
+        Assert.Null(error);
+        Assert.True(downHandled, "Down en el buscador de biblioteca debe quedar manejado para transferir foco a la lista.");
+        Assert.True(enterHandled, "Enter en el buscador de biblioteca debe quedar manejado para transferir foco a la lista.");
+    }
+
+    [Fact]
+    public void HistoryView_ListHistory_HorizontalArrowsAreHandledToPreventFocusEscape()
     {
         Exception? error = null;
         bool leftHandled = false;
@@ -328,31 +389,17 @@ public class RadarGridAccessibilityTests
             {
                 var vm = new HistoryViewModel();
                 var view = new HistoryView { DataContext = vm };
-                var gridField = typeof(HistoryView).GetField("GridHistory", BindingFlags.Instance | BindingFlags.NonPublic);
-                var grid = (DataGrid?)gridField?.GetValue(view) ?? throw new InvalidOperationException("GridHistory no encontrado");
+                var listField = typeof(HistoryView).GetField("ListHistory", BindingFlags.Instance | BindingFlags.NonPublic);
+                var list = (ListBox?)listField?.GetValue(view) ?? throw new InvalidOperationException("ListHistory no encontrado");
 
-                var previewKeyDownMethod = typeof(HistoryView).GetMethod("GridHistory_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
+                var previewKeyDownMethod = typeof(HistoryView).GetMethod("ListHistory_PreviewKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
 
-                var leftArgs = new KeyEventArgs(
-                    Keyboard.PrimaryDevice,
-                    new System.Windows.Interop.HwndSource(0, 0, 0, 0, 0, "", IntPtr.Zero),
-                    0,
-                    Key.Left)
-                {
-                    RoutedEvent = Keyboard.PreviewKeyDownEvent
-                };
-                previewKeyDownMethod?.Invoke(view, new object[] { grid, leftArgs });
+                var leftArgs = CreatePreviewKeyDownArgs(Key.Left);
+                previewKeyDownMethod?.Invoke(view, new object[] { list, leftArgs });
                 leftHandled = leftArgs.Handled;
 
-                var rightArgs = new KeyEventArgs(
-                    Keyboard.PrimaryDevice,
-                    new System.Windows.Interop.HwndSource(0, 0, 0, 0, 0, "", IntPtr.Zero),
-                    0,
-                    Key.Right)
-                {
-                    RoutedEvent = Keyboard.PreviewKeyDownEvent
-                };
-                previewKeyDownMethod?.Invoke(view, new object[] { grid, rightArgs });
+                var rightArgs = CreatePreviewKeyDownArgs(Key.Right);
+                previewKeyDownMethod?.Invoke(view, new object[] { list, rightArgs });
                 rightHandled = rightArgs.Handled;
 
                 vm.Dispose();

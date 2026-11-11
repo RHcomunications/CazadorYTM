@@ -143,6 +143,78 @@ public partial class MainWindow : Window
         Dispatcher.InvokeAsync(FocusSelectedTab, DispatcherPriority.Loaded);
     }
 
+    private void MainTabs_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Down or Key.Return or Key.Enter)
+        {
+            if (Keyboard.FocusedElement is TabItem)
+            {
+                e.Handled = true;
+                FocusActiveTabContent();
+            }
+        }
+    }
+
+    private void FocusActiveTabContent()
+    {
+        if (MainTabs.SelectedItem is not MainTabItem) return;
+
+        Dispatcher.InvokeAsync(() =>
+        {
+            var contentPresenter = MainTabs.Template?.FindName("PART_SelectedContentHost", MainTabs) as ContentPresenter;
+            if (contentPresenter == null) return;
+
+            var historyView = FindVisualChild<HistoryView>(contentPresenter);
+            if (historyView != null)
+            {
+                historyView.FocusListAndItem(null);
+                return;
+            }
+
+            var radarView = FindVisualChild<RadarView>(contentPresenter);
+            if (radarView != null)
+            {
+                radarView.FocusListAndItem(null);
+                return;
+            }
+
+            var downloadView = FindVisualChild<DownloadView>(contentPresenter);
+            if (downloadView != null)
+            {
+                var input = downloadView.FindName("TxtInput") as UIElement;
+                input?.Focus();
+                return;
+            }
+
+            var playerView = FindVisualChild<PlayerView>(contentPresenter);
+            if (playerView != null)
+            {
+                playerView.Focus();
+                return;
+            }
+        }, DispatcherPriority.Input);
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+        for (var i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+            {
+                return typedChild;
+            }
+
+            var descendant = FindVisualChild<T>(child);
+            if (descendant != null)
+            {
+                return descendant;
+            }
+        }
+        return null;
+    }
+
     private void FocusSelectedTab()
     {
         if (!IsLoaded || MainTabs.SelectedItem is not MainTabItem tab)

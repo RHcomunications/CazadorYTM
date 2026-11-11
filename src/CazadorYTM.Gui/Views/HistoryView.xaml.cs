@@ -11,21 +11,82 @@ public partial class HistoryView : UserControl
     public HistoryView()
     {
         InitializeComponent();
-
-        GridHistory.PreviewKeyDown += GridHistory_PreviewKeyDown;
-        GridHistory.MouseDoubleClick += GridHistory_MouseDoubleClick;
-        GridHistory.SelectionChanged += GridHistory_SelectionChanged;
     }
 
-    private void GridHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    public void FocusListAndItem(DownloadEntry? entry = null)
     {
-        if (DataContext is HistoryViewModel vm && GridHistory.SelectedItem is DownloadEntry entry)
+        Dispatcher.InvokeAsync(() =>
         {
-            vm.SelectedEntry = entry;
+            if (ListHistory.Visibility != Visibility.Visible) return;
+
+            var target = entry ?? ListHistory.SelectedItem as DownloadEntry ?? (ListHistory.Items.Count > 0 ? ListHistory.Items[0] as DownloadEntry : null);
+            if (target == null)
+            {
+                ListHistory.Focus();
+                return;
+            }
+
+            var index = ListHistory.Items.IndexOf(target);
+            if (index < 0) index = 0;
+
+            ListHistory.SelectedIndex = index;
+            FocusItemContainer(index);
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void FocusItemContainer(int index)
+    {
+        if (index < 0 || index >= ListHistory.Items.Count) return;
+
+        var item = ListHistory.Items[index];
+        ListHistory.ScrollIntoView(item);
+
+        if (ListHistory.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem lbi)
+        {
+            lbi.Focus();
+            Keyboard.Focus(lbi);
+        }
+        else
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (index < ListHistory.Items.Count &&
+                    ListHistory.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem retryLbi)
+                {
+                    retryLbi.Focus();
+                    Keyboard.Focus(retryLbi);
+                }
+                else
+                {
+                    ListHistory.Focus();
+                }
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
     }
 
-    private void GridHistory_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void TxtSearchHistory_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Down or Key.Enter)
+        {
+            e.Handled = true;
+            FocusListAndItem(null);
+        }
+    }
+
+    private void ListHistory_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is HistoryViewModel vm && ListHistory.SelectedItem is DownloadEntry entry && !ReferenceEquals(vm.SelectedEntry, entry))
+        {
+            vm.SelectedEntry = entry;
+        }
+
+        if (ListHistory.SelectedIndex >= 0 && ListHistory.IsKeyboardFocusWithin)
+        {
+            FocusItemContainer(ListHistory.SelectedIndex);
+        }
+    }
+
+    private void ListHistory_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (DataContext is not HistoryViewModel vm) return;
 
@@ -37,26 +98,44 @@ public partial class HistoryView : UserControl
         {
             e.Handled = true;
 
-            var count = GridHistory.Items.Count;
+            var count = ListHistory.Items.Count;
             if (count == 0) return;
 
-            var curIdx = GridHistory.SelectedIndex;
-            var nextIdx = e.Key == Key.Down
-                ? (curIdx < 0 ? 0 : System.Math.Min(curIdx + 1, count - 1))
-                : (curIdx <= 0 ? 0 : curIdx - 1);
-
-            if (nextIdx != curIdx || curIdx < 0)
+            var curIdx = ListHistory.SelectedIndex;
+            if (curIdx < 0)
             {
-                GridHistory.SelectedIndex = nextIdx;
-                if (GridHistory.Items[nextIdx] is DownloadEntry nextItem)
-                {
-                    vm.SelectedEntry = nextItem;
-                    GridHistory.ScrollIntoView(nextItem);
-                }
+                ListHistory.SelectedIndex = 0;
+                FocusItemContainer(0);
+                return;
             }
 
-            FocusSelectedRow(nextIdx);
-            return;
+            if (e.Key == Key.Up)
+            {
+                if (curIdx == 0)
+                {
+                    FocusItemContainer(0);
+                    return;
+                }
+
+                var nextIdx = curIdx - 1;
+                ListHistory.SelectedIndex = nextIdx;
+                FocusItemContainer(nextIdx);
+                return;
+            }
+
+            if (e.Key == Key.Down)
+            {
+                if (curIdx >= count - 1)
+                {
+                    FocusItemContainer(count - 1);
+                    return;
+                }
+
+                var nextIdx = curIdx + 1;
+                ListHistory.SelectedIndex = nextIdx;
+                FocusItemContainer(nextIdx);
+                return;
+            }
         }
 
         if (!hasNavigationModifier && (e.Key is Key.Left or Key.Right))
@@ -68,7 +147,7 @@ public partial class HistoryView : UserControl
 
         if (e.Key == Key.Enter || e.Key == Key.Return)
         {
-            var target = GridHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
+            var target = ListHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
             if (target != null)
             {
                 vm.PlaySelected(target);
@@ -77,7 +156,7 @@ public partial class HistoryView : UserControl
         }
         else if (e.Key == Key.Delete)
         {
-            var target = GridHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
+            var target = ListHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
             if (target != null)
             {
                 vm.DeleteSelected(target);
@@ -91,23 +170,11 @@ public partial class HistoryView : UserControl
         }
     }
 
-    private void FocusSelectedRow(int index)
-    {
-        if (index < 0 || index >= GridHistory.Items.Count) return;
-
-        GridHistory.UpdateLayout();
-        if (GridHistory.ItemContainerGenerator.ContainerFromIndex(index) is DataGridRow row)
-        {
-            row.Focus();
-            Keyboard.Focus(row);
-        }
-    }
-
-    private void GridHistory_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private void ListHistory_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is HistoryViewModel vm)
         {
-            var target = GridHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
+            var target = ListHistory.SelectedItem as DownloadEntry ?? vm.SelectedEntry;
             if (target != null)
             {
                 vm.PlaySelected(target);

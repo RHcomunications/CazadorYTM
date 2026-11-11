@@ -30,7 +30,7 @@ public partial class RadarView : UserControl
         }
     }
 
-    private void FocusListAndItem(RadarItem? item)
+    public void FocusListAndItem(RadarItem? item = null)
     {
         Dispatcher.InvokeAsync(() =>
         {
@@ -43,19 +43,42 @@ public partial class RadarView : UserControl
                 return;
             }
 
-            ListRadar.SelectedItem = target;
-            ListRadar.ScrollIntoView(target);
+            var index = ListRadar.Items.IndexOf(target);
+            if (index < 0) index = 0;
 
-            if (ListRadar.ItemContainerGenerator.ContainerFromItem(target) is ListBoxItem lbi)
-            {
-                lbi.Focus();
-                Keyboard.Focus(lbi);
-            }
-            else
-            {
-                ListRadar.Focus();
-            }
+            ListRadar.SelectedIndex = index;
+            FocusItemContainer(index);
         }, System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void FocusItemContainer(int index)
+    {
+        if (index < 0 || index >= ListRadar.Items.Count) return;
+
+        var item = ListRadar.Items[index];
+        ListRadar.ScrollIntoView(item);
+
+        if (ListRadar.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem lbi)
+        {
+            lbi.Focus();
+            Keyboard.Focus(lbi);
+        }
+        else
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (index < ListRadar.Items.Count &&
+                    ListRadar.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem retryLbi)
+                {
+                    retryLbi.Focus();
+                    Keyboard.Focus(retryLbi);
+                }
+                else
+                {
+                    ListRadar.Focus();
+                }
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
     }
 
     private void OpenCookiesDialog()
@@ -114,6 +137,11 @@ public partial class RadarView : UserControl
         {
             vm.SelectedItem = item;
         }
+
+        if (ListRadar.SelectedIndex >= 0 && ListRadar.IsKeyboardFocusWithin)
+        {
+            FocusItemContainer(ListRadar.SelectedIndex);
+        }
     }
 
     private void ListRadar_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -124,17 +152,48 @@ public partial class RadarView : UserControl
         var hasNavigationModifier =
             (modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift)) != 0;
 
-        // Límites de navegación vertical: evitar que las flechas arriba/abajo escapen fuera de la lista
-        if (!hasNavigationModifier && e.Key == Key.Up && ListRadar.SelectedIndex <= 0)
+        if (!hasNavigationModifier && e.Key is Key.Up or Key.Down)
         {
             e.Handled = true;
-            return;
-        }
 
-        if (!hasNavigationModifier && e.Key == Key.Down && ListRadar.SelectedIndex >= ListRadar.Items.Count - 1)
-        {
-            e.Handled = true;
-            return;
+            var count = ListRadar.Items.Count;
+            if (count == 0) return;
+
+            var curIdx = ListRadar.SelectedIndex;
+            if (curIdx < 0)
+            {
+                ListRadar.SelectedIndex = 0;
+                FocusItemContainer(0);
+                return;
+            }
+
+            if (e.Key == Key.Up)
+            {
+                if (curIdx == 0)
+                {
+                    FocusItemContainer(0);
+                    return;
+                }
+
+                var nextIdx = curIdx - 1;
+                ListRadar.SelectedIndex = nextIdx;
+                FocusItemContainer(nextIdx);
+                return;
+            }
+
+            if (e.Key == Key.Down)
+            {
+                if (curIdx >= count - 1)
+                {
+                    FocusItemContainer(count - 1);
+                    return;
+                }
+
+                var nextIdx = curIdx + 1;
+                ListRadar.SelectedIndex = nextIdx;
+                FocusItemContainer(nextIdx);
+                return;
+            }
         }
 
         if (!hasNavigationModifier && e.Key == Key.Right)
