@@ -23,6 +23,11 @@
         <KeyBinding Modifiers="Ctrl+Shift" Key="Up" Command="{Binding MaxVolumeCommand}"/>
         <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding StopCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding OpenFileCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="L" Command="{Binding ToggleLyricsCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="T" Command="{Binding CycleSleepTimerCommand}"/>
+        <KeyBinding Key="OemOpenBrackets" Command="{Binding SpeedDownCommand}"/>
+        <KeyBinding Key="OemCloseBrackets" Command="{Binding SpeedUpCommand}"/>
+        <KeyBinding Key="OemPipe" Command="{Binding ResetSpeedCommand}"/>
         <KeyBinding Key="Home" Command="{Binding SeekToStartCommand}"/>
         <KeyBinding Key="End" Command="{Binding SeekToEndCommand}"/>
     </UserControl.InputBindings>
@@ -123,11 +128,90 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- Auxiliary Controls Bar: Speed, Sleep Timer, Lyrics Toggle -->
+                <Grid Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <!-- Playback Speed Control -->
+                        <Label Target="{Binding ElementName=BtnSpeed}" Content="{loc:Loc PlayerSpeed}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Button x:Name="BtnSpeed" Content="{Binding SpeedRatioText}" Command="{Binding CycleSpeedCommand}"
+                                Height="32" Padding="12,0" Margin="0,0,10,0"
+                                ToolTip="{loc:Loc PlayerSpeedToolTip}"
+                                AutomationProperties.Name="{loc:Loc PlayerSpeedAutomationName}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerSpeedHelp}"/>
+
+                        <!-- Sleep Timer Control -->
+                        <Button x:Name="BtnSleepTimer" Content="{Binding SleepTimerText}" Command="{Binding CycleSleepTimerCommand}"
+                                Height="32" Padding="12,0"
+                                ToolTip="{Binding SleepTimerText}"
+                                AutomationProperties.Name="{Binding SleepTimerText}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerSleepTimerHelp}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- Lyrics Toggle Button -->
+                        <Button x:Name="BtnLyricsToggle" Content="{loc:Loc BtnLyrics}" Command="{Binding ToggleLyricsCommand}"
+                                Height="32" Padding="14,0"
+                                ToolTip="{loc:Loc PlayerLyricsToggleToolTip}"
+                                AutomationProperties.Name="{loc:Loc PlayerLyricsToggleToolTip}"
+                                AutomationProperties.HelpText="{loc:Loc PlayerLyricsToggleHelp}"/>
+                    </StackPanel>
+                </Grid>
+
                 <!-- Queue Status Indicator -->
                 <TextBlock Text="{Binding QueueStatusText}" HorizontalAlignment="Center" FontSize="12" Margin="0,0,0,6"
                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                            AutomationProperties.Name="{Binding QueueStatusText}"
                            AutomationProperties.LiveSetting="Polite"/>
+
+                <!-- Synchronized Lyrics Panel (Modo Karaoke) -->
+                <Border x:Name="LyricsCard" 
+                        Visibility="{Binding IsLyricsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        BorderBrush="{DynamicResource SystemControlStrokeColorCardStrokeBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,8,0,8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{loc:Loc PlayerLyricsPanelTitle}" FontWeight="SemiBold" FontSize="14" Margin="0,0,10,0"/>
+                                <TextBlock Text="{Binding LyricsStatusText}" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"
+                                           AutomationProperties.LiveSetting="Polite"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="🔄" Command="{Binding RefreshLyricsCommand}" Width="32" Height="30" Margin="0,0,6,0"
+                                        ToolTip="{loc:Loc PlayerLyricsRefreshToolTip}"
+                                        AutomationProperties.Name="{loc:Loc PlayerLyricsRefreshToolTip}"
+                                        AutomationProperties.HelpText="{loc:Loc PlayerLyricsRefreshHelp}"/>
+                                <Button Content="✕" Command="{Binding ToggleLyricsCommand}" Width="32" Height="30"
+                                        ToolTip="{loc:Loc PlayerLyricsCloseToolTip}"
+                                        AutomationProperties.Name="{loc:Loc PlayerLyricsCloseToolTip}"
+                                        AutomationProperties.HelpText="{loc:Loc PlayerLyricsCloseHelp}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Lyrics ListBox with Karaoke active highlighting -->
+                        <ListBox x:Name="ListLyrics" Grid.Row="1"
+                                 ItemsSource="{Binding Lyrics}"
+                                 SelectedIndex="{Binding CurrentLyricIndex, Mode=OneWay}"
+                                 MaxHeight="220"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 KeyboardNavigation.DirectionalNavigation="Contained"
+                                 AutomationProperties.Name="{loc:Loc PlayerLyricsPanelTitle}"
+                                 AutomationProperties.HelpText="{loc:Loc PlayerLyricsListHelp}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Text}" FontSize="14" TextWrapping="Wrap" Margin="4,3"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
 
                 <TextBlock x:Name="TrackLiveAnnouncer"
                            Text="{Binding TrackAnnouncement}"
@@ -140,6 +224,13 @@
                            Text="{Binding VolumeAnnouncement}" 
                            AutomationProperties.LiveSetting="Assertive"
                            acc:LiveRegion.Announce="{Binding VolumeAnnouncement}"
+                           Height="1" Width="1" Opacity="0.01" Focusable="False"/>
+
+                <!-- Live Region for polite sleep timer announcements -->
+                <TextBlock x:Name="SleepTimerLiveAnnouncer"
+                           Text="{Binding SleepTimerAnnouncement}"
+                           AutomationProperties.LiveSetting="Polite"
+                           acc:LiveRegion.Announce="{Binding SleepTimerAnnouncement}"
                            Height="1" Width="1" Opacity="0.01" Focusable="False"/>
 
             </StackPanel>

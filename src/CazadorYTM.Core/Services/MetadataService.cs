@@ -91,6 +91,37 @@ public static class MetadataService
         return TryWriteLyricsAsync(audioFilePath, trackName, artistName, duration).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Loads lyrics from a local .lrc sidecar file or retrieves them from the LRCLIB service.
+    /// Returns parsed LyricLine collection ordered chronologically.
+    /// </summary>
+    public static async Task<List<LyricLine>> LoadLyricsAsync(string? audioFilePath, string trackName, string? artistName = null, int? duration = null, System.Threading.CancellationToken cancellationToken = default)
+    {
+        if (!string.IsNullOrEmpty(audioFilePath) && !Helpers.IsUrl(audioFilePath))
+        {
+            try
+            {
+                var lrcPath = Path.ChangeExtension(audioFilePath, ".lrc");
+                if (File.Exists(lrcPath))
+                {
+                    var raw = await File.ReadAllTextAsync(lrcPath, Encoding.UTF8, cancellationToken);
+                    var parsed = LyricLine.ParseLrc(raw);
+                    if (parsed.Count > 0)
+                        return parsed;
+                }
+            }
+            catch { }
+        }
+
+        var onlineRaw = await FetchLyricsLrclibAsync(trackName, artistName, duration, cancellationToken);
+        if (!string.IsNullOrEmpty(onlineRaw))
+        {
+            return LyricLine.ParseLrc(onlineRaw);
+        }
+
+        return new List<LyricLine>();
+    }
+
     public static async Task<SearchResult> GetMetadataAsync(string userInput, bool isSearch = false, int limit = 10,
         string? cookiesBrowser = null, string? proxy = null,
         Action<string>? loggerCallback = null, string? cookiesPath = null, string searchSource = "YouTube Music")

@@ -72,6 +72,32 @@ public static class YouTubeMusicResponseParser
         var videoId = GetString(renderer, "playlistItemData", "videoId");
         if (string.IsNullOrWhiteSpace(videoId))
         {
+            var browseId = GetString(renderer, "navigationEndpoint", "browseEndpoint", "browseId");
+            if (!string.IsNullOrWhiteSpace(browseId))
+            {
+                var titleText = JoinRuns(GetColumn(renderer, "flexColumns", 0));
+                if (string.IsNullOrWhiteSpace(titleText)) return false;
+                var artistText = ArtistFromRuns(GetColumn(renderer, "flexColumns", 1));
+                var thumb = LargestThumbnail(renderer, "thumbnail");
+                var listId = browseId.StartsWith("VL", StringComparison.Ordinal) ? browseId.Substring(2) : browseId;
+                var url = (browseId.StartsWith("VL", StringComparison.Ordinal) || browseId.StartsWith("PL", StringComparison.Ordinal) || browseId.StartsWith("OL", StringComparison.Ordinal))
+                    ? $"https://music.youtube.com/playlist?list={listId}"
+                    : (browseId.StartsWith("UC", StringComparison.Ordinal)
+                        ? $"https://music.youtube.com/channel/{browseId}"
+                        : $"https://music.youtube.com/browse/{browseId}");
+
+                item = new RadarItem
+                {
+                    Id = browseId,
+                    Title = titleText,
+                    Artist = artistText,
+                    Url = url,
+                    ThumbnailUrl = thumb,
+                    IsPlaylist = true,
+                    Section = section
+                };
+                return true;
+            }
             return false;
         }
 
@@ -115,12 +141,18 @@ public static class YouTubeMusicResponseParser
         }
 
         var listId = browseId.StartsWith("VL", StringComparison.Ordinal) ? browseId.Substring(2) : browseId;
+        var url = (browseId.StartsWith("VL", StringComparison.Ordinal) || browseId.StartsWith("PL", StringComparison.Ordinal) || browseId.StartsWith("OL", StringComparison.Ordinal))
+            ? $"https://music.youtube.com/playlist?list={listId}"
+            : (browseId.StartsWith("UC", StringComparison.Ordinal)
+                ? $"https://music.youtube.com/channel/{browseId}"
+                : $"https://music.youtube.com/browse/{browseId}");
+
         item = new RadarItem
         {
             Id = browseId,
             Title = title,
             Artist = NullIfWhiteSpace(JoinRuns(renderer, "subtitle")),
-            Url = $"https://music.youtube.com/playlist?list={listId}",
+            Url = url,
             ThumbnailUrl = LargestThumbnail(renderer, "thumbnailRenderer"),
             IsPlaylist = true,
             Section = section

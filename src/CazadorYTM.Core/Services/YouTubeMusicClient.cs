@@ -49,6 +49,8 @@ public sealed class YouTubeMusicClient
             RadarSection.History => "FEmusic_history",
             RadarSection.LikedSongs => "VLLM",
             RadarSection.Playlists => "FEmusic_liked_playlists",
+            RadarSection.Albums => "FEmusic_liked_albums",
+            RadarSection.Artists => "FEmusic_library_corpus_artists",
             _ => null
         };
 
@@ -86,9 +88,31 @@ public sealed class YouTubeMusicClient
             return listId.StartsWith("VL", StringComparison.Ordinal) ? listId : "VL" + listId;
         }
 
+        if (value.Contains("/browse/", StringComparison.OrdinalIgnoreCase))
+        {
+            var idx = value.IndexOf("/browse/", StringComparison.OrdinalIgnoreCase);
+            var id = value.Substring(idx + "/browse/".Length).Split('?')[0].Trim().TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(id)) return id;
+        }
+
+        if (value.Contains("/channel/", StringComparison.OrdinalIgnoreCase))
+        {
+            var idx = value.IndexOf("/channel/", StringComparison.OrdinalIgnoreCase);
+            var id = value.Substring(idx + "/channel/".Length).Split('?')[0].Trim().TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(id)) return id;
+        }
+
         if (value.Contains("://", StringComparison.Ordinal))
         {
             return null;
+        }
+
+        if (value.StartsWith("MPRE", StringComparison.Ordinal) ||
+            value.StartsWith("MPLA", StringComparison.Ordinal) ||
+            value.StartsWith("UC", StringComparison.Ordinal) ||
+            value.StartsWith("FEmusic", StringComparison.Ordinal))
+        {
+            return value;
         }
 
         return value.StartsWith("VL", StringComparison.Ordinal) ? value : "VL" + value;

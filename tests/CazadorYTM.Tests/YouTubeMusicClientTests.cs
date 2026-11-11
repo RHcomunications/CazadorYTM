@@ -425,6 +425,68 @@ public class YouTubeMusicClientTests : IDisposable
             () => client.SetTrackRatingAsync("abc123", RadarRating.Like));
     }
 
+    [Fact]
+    public async Task Client_FetchSectionAsync_AlbumsAndArtists_UsesExpectedBrowseIds()
+    {
+        var handler = new RecordingHandler("{\"contents\":{}}");
+        var client = CreateClient(handler);
+
+        await client.FetchSectionAsync(RadarSection.Albums);
+        Assert.NotNull(handler.LastBody);
+        using (var doc = JsonDocument.Parse(handler.LastBody!))
+        {
+            Assert.Equal("FEmusic_liked_albums", doc.RootElement.GetProperty("browseId").GetString());
+        }
+
+        await client.FetchSectionAsync(RadarSection.Artists);
+        Assert.NotNull(handler.LastBody);
+        using (var doc = JsonDocument.Parse(handler.LastBody!))
+        {
+            Assert.Equal("FEmusic_library_corpus_artists", doc.RootElement.GetProperty("browseId").GetString());
+        }
+    }
+
+    [Fact]
+    public void ToPlaylistBrowseId_WithAlbumOrArtistBrowseIds_PreservesPrefixWithoutVL()
+    {
+        Assert.Equal("MPREb_12345", YouTubeMusicClient.ToPlaylistBrowseId("MPREb_12345"));
+        Assert.Equal("MPLAUC98765", YouTubeMusicClient.ToPlaylistBrowseId("MPLAUC98765"));
+        Assert.Equal("UC123456789", YouTubeMusicClient.ToPlaylistBrowseId("UC123456789"));
+        Assert.Equal("FEmusic_library_corpus_artists", YouTubeMusicClient.ToPlaylistBrowseId("FEmusic_library_corpus_artists"));
+        Assert.Equal("VLPL12345", YouTubeMusicClient.ToPlaylistBrowseId("PL12345"));
+        Assert.Equal("VLPL12345", YouTubeMusicClient.ToPlaylistBrowseId("VLPL12345"));
+        Assert.Equal("MPREb_12345", YouTubeMusicClient.ToPlaylistBrowseId("https://music.youtube.com/browse/MPREb_12345"));
+        Assert.Equal("MPREb_12345", YouTubeMusicClient.ToPlaylistBrowseId("https://music.youtube.com/browse/MPREb_12345/"));
+        Assert.Equal("UC123456789", YouTubeMusicClient.ToPlaylistBrowseId("https://music.youtube.com/channel/UC123456789"));
+        Assert.Equal("UC123456789", YouTubeMusicClient.ToPlaylistBrowseId("https://music.youtube.com/channel/UC123456789/"));
+    }
+
+    [Fact]
+    public void Parser_TwoRowItemRenderer_ParsesAlbumAndArtistCorrectly()
+    {
+        const string json = """
+        {
+          "musicTwoRowItemRenderer": {
+            "title": { "runs": [ { "text": "Album Fantastico" } ] },
+            "subtitle": { "runs": [ { "text": "Artista Ejemplo" } ] },
+            "navigationEndpoint": {
+              "browseEndpoint": {
+                "browseId": "MPREb_album999"
+              }
+            }
+          }
+        }
+        """;
+
+        var (items, _) = Parse(json, RadarSection.Albums);
+        Assert.Single(items);
+        Assert.Equal("MPREb_album999", items[0].Id);
+        Assert.Equal("Album Fantastico", items[0].Title);
+        Assert.Equal("Artista Ejemplo", items[0].Artist);
+        Assert.True(items[0].IsPlaylist);
+        Assert.Equal(RadarSection.Albums, items[0].Section);
+    }
+
     private YouTubeMusicClient CreateClient(RecordingHandler handler)
     {
         var path = Path.Combine(_tempDir, $"cookies_{Guid.NewGuid():N}.txt");

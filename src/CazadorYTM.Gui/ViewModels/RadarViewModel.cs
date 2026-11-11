@@ -181,6 +181,8 @@ public partial class RadarViewModel : ObservableObject, IDisposable
             RadarSection.History => LocalizationService.Instance["RadarStatusLoadingHistory"],
             RadarSection.LikedSongs => LocalizationService.Instance["RadarStatusLoadingLiked"],
             RadarSection.Playlists => LocalizationService.Instance["RadarStatusLoadingPlaylists"],
+            RadarSection.Albums => LocalizationService.Instance.Get("RadarStatusLoadingAlbums", "Cargando álbumes guardados..."),
+            RadarSection.Artists => LocalizationService.Instance.Get("RadarStatusLoadingArtists", "Cargando artistas seguidos..."),
             _ => "..."
         };
 

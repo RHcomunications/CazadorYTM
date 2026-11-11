@@ -13,7 +13,9 @@ public enum RadarSection
 {
     History,
     LikedSongs,
-    Playlists
+    Playlists,
+    Albums,
+    Artists
 }
 
 public class RadarItem
@@ -129,6 +131,8 @@ public static class RadarService
                 RadarSection.History => ":ythistory",
                 RadarSection.LikedSongs => "https://music.youtube.com/playlist?list=LM", // Liked Music playlist
                 RadarSection.Playlists => "https://www.youtube.com/feed/playlists",
+                RadarSection.Albums => "https://music.youtube.com/library/albums",
+                RadarSection.Artists => "https://music.youtube.com/library/artists",
                 _ => ":ythistory"
             };
 
@@ -192,7 +196,7 @@ public static class RadarService
                                 Url = url,
                                 Duration = dur,
                                 Section = section,
-                                IsPlaylist = section == RadarSection.Playlists
+                                IsPlaylist = section == RadarSection.Playlists || section == RadarSection.Albums || section == RadarSection.Artists
                             });
                         }
                     }

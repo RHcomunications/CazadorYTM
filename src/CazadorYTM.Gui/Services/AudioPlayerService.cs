@@ -24,6 +24,7 @@ public interface IAudioPlayerService
     double Volume { get; set; }
     TimeSpan Position { get; set; }
     TimeSpan Duration { get; }
+    double SpeedRatio { get; set; }
 
     IReadOnlyList<string> Queue { get; }
     int CurrentQueueIndex { get; }
@@ -79,6 +80,22 @@ public class AudioPlayerService : IAudioPlayerService
     public bool IsShuffle { get; set; } = false;
     public PlaybackRepeatMode RepeatMode { get; set; } = PlaybackRepeatMode.Off;
 
+    private double _speedRatio = 1.0;
+    public double SpeedRatio
+    {
+        get => _speedRatio;
+        set
+        {
+            _speedRatio = Math.Clamp(value, 0.25, 4.0);
+            try
+            {
+                _mediaPlayer.SpeedRatio = _speedRatio;
+            }
+            catch { }
+            StateChanged?.Invoke();
+        }
+    }
+
     public bool HasNext => _queue.Count > 0 && (CurrentQueueIndex < _queue.Count - 1 || RepeatMode == PlaybackRepeatMode.All || IsShuffle);
     public bool HasPrevious => _queue.Count > 0 && (CurrentQueueIndex > 0 || RepeatMode == PlaybackRepeatMode.All || Position.TotalSeconds > 3);
 
@@ -117,6 +134,7 @@ public class AudioPlayerService : IAudioPlayerService
 
         _mediaPlayer.MediaOpened += (s, e) =>
         {
+            try { _mediaPlayer.SpeedRatio = _speedRatio; } catch { }
             StateChanged?.Invoke();
             PositionChanged?.Invoke(TimeSpan.Zero, Duration);
         };
