@@ -76,6 +76,47 @@ Third verse line";
     }
 
     [Fact]
+    public void ParseLrc_WithBracketedPlainText_PreservesBracketedLines()
+    {
+        var bracketedPlain = @"[au:Writer Name]
+[la:en]
+[Chorus] Sing along
+Next verse";
+
+        var lines = LyricLine.ParseLrc(bracketedPlain);
+
+        Assert.Equal(2, lines.Count);
+        Assert.All(lines, l => Assert.False(l.IsSynchronized));
+        Assert.Equal("[Chorus] Sing along", lines[0].Text);
+        Assert.Equal("Next verse", lines[1].Text);
+    }
+
+    [Fact]
+    public void ParseLrc_WithPositiveAndNegativeOffset_AdjustsTimestampsAccurately()
+    {
+        // Positive offset moves timestamps earlier (appears sooner)
+        var posOffsetLrc = "[offset:2000]\n[00:10.00] Pos offset line";
+        var posLines = LyricLine.ParseLrc(posOffsetLrc);
+        Assert.Single(posLines);
+        Assert.Equal(TimeSpan.FromSeconds(8), posLines[0].Timestamp);
+        Assert.Equal("Pos offset line", posLines[0].Text);
+
+        // Negative offset moves timestamps later (appears later)
+        var negOffsetLrc = "[offset:-1500]\n[00:10.00] Neg offset line";
+        var negLines = LyricLine.ParseLrc(negOffsetLrc);
+        Assert.Single(negLines);
+        Assert.Equal(TimeSpan.FromSeconds(11.5), negLines[0].Timestamp);
+        Assert.Equal("Neg offset line", negLines[0].Text);
+
+        // Offset exceeding timestamp clamps to zero
+        var excessiveOffsetLrc = "[offset:15000]\n[00:10.00] Clamped line";
+        var clampedLines = LyricLine.ParseLrc(excessiveOffsetLrc);
+        Assert.Single(clampedLines);
+        Assert.Equal(TimeSpan.Zero, clampedLines[0].Timestamp);
+        Assert.Equal("Clamped line", clampedLines[0].Text);
+    }
+
+    [Fact]
     public async Task LoadLyricsAsync_FromLocalLrcFile_ReturnsParsedLyrics()
     {
         var tempAudio = Path.Combine(Path.GetTempPath(), $"test_song_{Guid.NewGuid():N}.mp3");

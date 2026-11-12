@@ -9,6 +9,8 @@ using System.Text.RegularExpressions;
 public class LyricLine
 {
     private static readonly Regex TimestampRegex = new(@"\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]", RegexOptions.Compiled);
+    private static readonly Regex MetadataTagRegex = new(@"^\[(ar|ti|al|au|by|la|offset|re|ve|length|tool):\s*([^\]]*)\]$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex OffsetRegex = new(@"^\[offset:\s*([+-]?\d+)\s*\]$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public TimeSpan Timestamp { get; set; }
     public string Text { get; set; } = string.Empty;
@@ -25,7 +27,7 @@ public class LyricLine
 
     /// <summary>
     /// Parses LRC or plain text lyrics into an ordered list of LyricLine instances.
-    /// Handles single timestamps, multiple timestamps per line, and plain text fallback.
+    /// Handles single timestamps, multiple timestamps per line, offset tags, and plain text fallback.
     /// </summary>
     public static List<LyricLine> ParseLrc(string? rawLyrics)
     {
@@ -35,16 +37,22 @@ public class LyricLine
 
         var lines = rawLyrics.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
         var hasAnyTimestamp = false;
+        var totalOffsetMs = 0;
 
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
             if (string.IsNullOrWhiteSpace(trimmed)) continue;
 
-            // Check if this line is LRC metadata (e.g., [ar:Artist], [ti:Title], [al:Album], [by:...], [offset:...])
-            if (trimmed.StartsWith('[') && !char.IsDigit(trimmed.Length > 1 ? trimmed[1] : ' '))
+            // Check if this line is an LRC metadata tag (e.g., [ar:Artist], [ti:Title], [al:Album], [by:...], [offset:...])
+            var metaMatch = MetadataTagRegex.Match(trimmed);
+            if (metaMatch.Success)
             {
-                // Metadata header tag, ignore for lyric presentation
+                var offsetMatch = OffsetRegex.Match(trimmed);
+                if (offsetMatch.Success && int.TryParse(offsetMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var offsetVal))
+                {
+                    totalOffsetMs += offsetVal;
+                }
                 continue;
             }
 
@@ -78,16 +86,25 @@ public class LyricLine
             }
             else if (!hasAnyTimestamp)
             {
-                // Potential plain lyric line before any timestamp is encountered
+                // Potential plain lyric line before any timestamp is encountered (preserves [Chorus], [Verse], etc.)
                 result.Add(new LyricLine(TimeSpan.Zero, trimmed, isSynchronized: false));
             }
         }
 
         if (hasAnyTimestamp)
         {
-            // Filter out any unsynchronized lines collected before the first timestamp and sort chronologically
+            // Filter out any unsynchronized lines collected before the first timestamp, apply offset, and sort chronologically
             return result
                 .Where(l => l.IsSynchronized)
+                .Select(l =>
+                {
+                    if (totalOffsetMs != 0)
+                    {
+                        var adjusted = l.Timestamp - TimeSpan.FromMilliseconds(totalOffsetMs);
+                        l.Timestamp = adjusted < TimeSpan.Zero ? TimeSpan.Zero : adjusted;
+                    }
+                    return l;
+                })
                 .OrderBy(l => l.Timestamp)
                 .ToList();
         }

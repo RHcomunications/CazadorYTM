@@ -3,6 +3,7 @@ namespace CazadorYTM.Gui.Views;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using CazadorYTM.Gui.ViewModels;
 
 public partial class PlayerView : UserControl
@@ -15,6 +16,27 @@ public partial class PlayerView : UserControl
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         DataContextChanged += OnDataContextChanged;
+    }
+
+    public void FocusDefaultControl()
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (BtnPlayPause != null && BtnPlayPause.IsVisible && BtnPlayPause.IsEnabled)
+            {
+                BtnPlayPause.Focus();
+                Keyboard.Focus(BtnPlayPause);
+            }
+            else if (SldPosition != null && SldPosition.IsVisible)
+            {
+                SldPosition.Focus();
+                Keyboard.Focus(SldPosition);
+            }
+            else
+            {
+                Focus();
+            }
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

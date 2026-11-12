@@ -189,7 +189,7 @@ public partial class MainWindow : Window
             var playerView = FindVisualChild<PlayerView>(contentPresenter);
             if (playerView != null)
             {
-                playerView.Focus();
+                playerView.FocusDefaultControl();
                 return;
             }
         }, DispatcherPriority.Input);

@@ -94,7 +94,7 @@
                                 AutomationProperties.HelpText="{loc:Loc PlayerPrevTrackHelp}"/>
 
                         <!-- Play/Pause -->
-                        <Button Content="{loc:Loc BtnPlayPause}" Style="{DynamicResource AccentButtonStyle}" 
+                        <Button x:Name="BtnPlayPause" Content="{loc:Loc BtnPlayPause}" Style="{DynamicResource AccentButtonStyle}" 
                                 Command="{Binding PlayPauseCommand}" Width="150" Height="40" Margin="0,0,6,0"
                                 AutomationProperties.Name="{loc:Loc BtnPlayPause}"
                                 AutomationProperties.HelpText="{loc:Loc PlayerPlayPauseHelp}"/>
