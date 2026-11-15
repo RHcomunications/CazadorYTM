@@ -133,9 +133,12 @@ public partial class MainWindow : Window
         }
     }
 
+    public static bool ShouldHandleTabSelectionChanged(bool isLoaded, object? originalSource, object mainTabs) =>
+        isLoaded && ReferenceEquals(originalSource, mainTabs);
+
     private void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!IsLoaded || e.Source != MainTabs)
+        if (!ShouldHandleTabSelectionChanged(IsLoaded, e.OriginalSource, MainTabs))
         {
             return;
         }

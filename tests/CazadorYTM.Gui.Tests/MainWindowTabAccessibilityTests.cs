@@ -101,6 +101,18 @@ public class MainWindowTabAccessibilityTests
         Assert.Null(error);
     }
 
+    [Fact]
+    public void ShouldHandleTabSelectionChanged_IgnoresChildSelectorEvents()
+    {
+        var mainTabs = new object();
+        var childListBox = new object();
+
+        Assert.False(MainWindow.ShouldHandleTabSelectionChanged(isLoaded: false, originalSource: mainTabs, mainTabs));
+        Assert.False(MainWindow.ShouldHandleTabSelectionChanged(isLoaded: true, originalSource: childListBox, mainTabs));
+        Assert.False(MainWindow.ShouldHandleTabSelectionChanged(isLoaded: true, originalSource: null, mainTabs));
+        Assert.True(MainWindow.ShouldHandleTabSelectionChanged(isLoaded: true, originalSource: mainTabs, mainTabs));
+    }
+
     private static T? FindChild<T>(DependencyObject root) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
