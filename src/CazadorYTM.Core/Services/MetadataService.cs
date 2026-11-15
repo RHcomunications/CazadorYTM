@@ -32,39 +32,120 @@ public static class MetadataService
 
     static MetadataService()
     {
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"CazadorYTM/{Constants.AppVersion} (Windows NT 10.0; Win64; x64)");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"CazadorYTM/{Constants.AppVersion} (https://github.com/{Constants.GitHubRepo})");
+    }
+
+    public static List<string> BuildLrclibCandidateUrls(string trackName, string? artistName = null, int? duration = null)
+    {
+        var urls = new List<string>();
+        var trimmedTrack = trackName?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(trimmedTrack))
+        {
+            return urls;
+        }
+
+        var trimmedArtist = string.IsNullOrWhiteSpace(artistName) ? null : artistName.Trim();
+
+        // LRCLIB /api/get requires both track_name and artist_name; duration (1..3600s) enables +-2s exact matching.
+        if (trimmedArtist != null && duration is >= 1 and <= 3600)
+        {
+            urls.Add($"https://lrclib.net/api/get?track_name={Uri.EscapeDataString(trimmedTrack)}&artist_name={Uri.EscapeDataString(trimmedArtist)}&duration={duration.Value}");
+        }
+
+        // LRCLIB /api/search: omit 'q' when using structured track_name + artist_name because 'q' overrides structured parameters.
+        if (trimmedArtist != null)
+        {
+            urls.Add($"https://lrclib.net/api/search?track_name={Uri.EscapeDataString(trimmedTrack)}&artist_name={Uri.EscapeDataString(trimmedArtist)}");
+            urls.Add($"https://lrclib.net/api/search?q={Uri.EscapeDataString($"{trimmedTrack} {trimmedArtist}")}");
+        }
+        else
+        {
+            urls.Add($"https://lrclib.net/api/search?q={Uri.EscapeDataString(trimmedTrack)}");
+        }
+
+        return urls;
+    }
+
+    public static string? ExtractLyricsFromLrclibJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            return ExtractLyricsFromRecord(root);
+        }
+
+        if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
+        {
+            string? plainFallback = null;
+            foreach (var item in root.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object) continue;
+                if (item.TryGetProperty("syncedLyrics", out var synced) && synced.ValueKind == JsonValueKind.String)
+                {
+                    var s = synced.GetString();
+                    if (!string.IsNullOrEmpty(s)) return s;
+                }
+                if (plainFallback == null && item.TryGetProperty("plainLyrics", out var plain) && plain.ValueKind == JsonValueKind.String)
+                {
+                    var p = plain.GetString();
+                    if (!string.IsNullOrEmpty(p)) plainFallback = p;
+                }
+            }
+            return plainFallback;
+        }
+
+        return null;
+    }
+
+    private static string? ExtractLyricsFromRecord(JsonElement record)
+    {
+        if (record.TryGetProperty("syncedLyrics", out var synced) && synced.ValueKind == JsonValueKind.String)
+        {
+            var s = synced.GetString();
+            if (!string.IsNullOrEmpty(s)) return s;
+        }
+        if (record.TryGetProperty("plainLyrics", out var plain) && plain.ValueKind == JsonValueKind.String)
+        {
+            var p = plain.GetString();
+            if (!string.IsNullOrEmpty(p)) return p;
+        }
+        return null;
     }
 
     public static async Task<string?> FetchLyricsLrclibAsync(string trackName, string? artistName = null, int? duration = null, System.Threading.CancellationToken cancellationToken = default)
     {
-        try
+        var candidateUrls = BuildLrclibCandidateUrls(trackName, artistName, duration);
+        foreach (var url in candidateUrls)
         {
-            var url = $"https://lrclib.net/api/search?q={Uri.EscapeDataString(trackName)}";
-            if (!string.IsNullOrEmpty(artistName))
+            try
             {
-                url += $"&artist_name={Uri.EscapeDataString(artistName)}";
-            }
-
-            var response = await _httpClient.GetStringAsync(url, cancellationToken);
-            using var doc = JsonDocument.Parse(response);
-            var root = doc.RootElement;
-
-            if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
-            {
-                foreach (var item in root.EnumerateArray())
+                using var response = await _httpClient.GetAsync(url, cancellationToken);
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    if (item.TryGetProperty("syncedLyrics", out var synced) && !string.IsNullOrEmpty(synced.GetString()))
-                    {
-                        return synced.GetString();
-                    }
-                    if (item.TryGetProperty("plainLyrics", out var plain) && !string.IsNullOrEmpty(plain.GetString()))
-                    {
-                        return plain.GetString();
-                    }
+                    break;
+                }
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                var lyrics = ExtractLyricsFromLrclibJson(content);
+                if (!string.IsNullOrEmpty(lyrics))
+                {
+                    return lyrics;
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch { }
         }
-        catch { }
 
         return null;
     }

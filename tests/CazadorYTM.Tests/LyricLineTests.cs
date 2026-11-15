@@ -138,4 +138,43 @@ Next verse";
             if (File.Exists(tempLrc)) File.Delete(tempLrc);
         }
     }
+
+    [Fact]
+    public void BuildLrclibCandidateUrls_WithArtistAndDuration_UsesGetThenStructuredSearch()
+    {
+        var urls = MetadataService.BuildLrclibCandidateUrls("Still Alive", "Jonathan Coulton", 176);
+
+        Assert.Equal(3, urls.Count);
+        Assert.Equal("https://lrclib.net/api/get?track_name=Still%20Alive&artist_name=Jonathan%20Coulton&duration=176", urls[0]);
+        Assert.Equal("https://lrclib.net/api/search?track_name=Still%20Alive&artist_name=Jonathan%20Coulton", urls[1]);
+        Assert.DoesNotContain("q=", urls[1]);
+        Assert.Equal("https://lrclib.net/api/search?q=Still%20Alive%20Jonathan%20Coulton", urls[2]);
+    }
+
+    [Fact]
+    public void BuildLrclibCandidateUrls_WithoutArtist_UsesBroadQueryOnly()
+    {
+        var urls = MetadataService.BuildLrclibCandidateUrls("Still Alive");
+
+        Assert.Single(urls);
+        Assert.Equal("https://lrclib.net/api/search?q=Still%20Alive", urls[0]);
+    }
+
+    [Fact]
+    public void ExtractLyricsFromLrclibJson_PrefersSyncedLyricsAcrossObjectAndArray()
+    {
+        var singleObj = """{"id":1,"plainLyrics":"Plain line","syncedLyrics":"[00:01.00] Synced line"}""";
+        Assert.Equal("[00:01.00] Synced line", MetadataService.ExtractLyricsFromLrclibJson(singleObj));
+
+        var arrayJson = """
+        [
+          {"id":1,"plainLyrics":"Only plain","syncedLyrics":null},
+          {"id":2,"plainLyrics":"Plain 2","syncedLyrics":"[00:02.00] Synced 2"}
+        ]
+        """;
+        Assert.Equal("[00:02.00] Synced 2", MetadataService.ExtractLyricsFromLrclibJson(arrayJson));
+
+        var plainOnlyArray = """[{"id":1,"plainLyrics":"Only plain","syncedLyrics":""}]""";
+        Assert.Equal("Only plain", MetadataService.ExtractLyricsFromLrclibJson(plainOnlyArray));
+    }
 }

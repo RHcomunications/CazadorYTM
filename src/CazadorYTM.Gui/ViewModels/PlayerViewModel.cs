@@ -66,6 +66,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
     // Sleep Timer fields
     private DispatcherTimer? _sleepTimer;
+    private DateTime _sleepDeadlineUtc;
     private TimeSpan _sleepRemaining = TimeSpan.Zero;
     private double _preFadeVolume = 0.8;
     private bool _sleepFadeApplied;
@@ -551,6 +552,8 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
             if (ct.IsCancellationRequested) return;
 
+            CurrentLyricIndex = -1;
+            CurrentLyricLineText = string.Empty;
             Lyrics.Clear();
             foreach (var line in result)
             {
@@ -690,6 +693,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             IsSleepTimerActive = true;
             _preFadeVolume = Volume;
             _sleepRemaining = TimeSpan.FromMinutes((int)value);
+            _sleepDeadlineUtc = DateTime.UtcNow.Add(_sleepRemaining);
             UpdateSleepTimerText();
             SleepTimerAnnouncement = string.Format(LocalizationService.Instance.Get("PlayerSleepTimerStarted", "Temporizador activado por {0} minutos"), (int)value);
 
@@ -710,13 +714,12 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _sleepRemaining = _sleepRemaining.Subtract(TimeSpan.FromSeconds(1));
+        _sleepRemaining = _sleepDeadlineUtc - DateTime.UtcNow;
         if (_sleepRemaining <= TimeSpan.FromSeconds(5) && _sleepRemaining > TimeSpan.Zero)
         {
             if (!_sleepFadeApplied) _preFadeVolume = Volume;
             _sleepFadeApplied = true;
-            var step = _preFadeVolume / 5.0;
-            Volume = Math.Max(0.0, Volume - step);
+            Volume = Math.Min(Volume, _preFadeVolume * (_sleepRemaining.TotalSeconds / 5.0));
         }
         else if (_sleepRemaining <= TimeSpan.Zero)
         {

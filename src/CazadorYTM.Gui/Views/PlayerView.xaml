@@ -161,7 +161,8 @@
                 <TextBlock Text="{Binding QueueStatusText}" HorizontalAlignment="Center" FontSize="12" Margin="0,0,0,6"
                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                            AutomationProperties.Name="{Binding QueueStatusText}"
-                           AutomationProperties.LiveSetting="Polite"/>
+                           AutomationProperties.LiveSetting="Polite"
+                           acc:LiveRegion.Announce="{Binding QueueStatusText}"/>
 
                 <!-- Synchronized Lyrics Panel (Modo Karaoke) -->
                 <Border x:Name="LyricsCard" 
@@ -180,7 +181,8 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="{loc:Loc PlayerLyricsPanelTitle}" FontWeight="SemiBold" FontSize="14" Margin="0,0,10,0"/>
                                 <TextBlock Text="{Binding LyricsStatusText}" FontSize="12" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"
-                                           AutomationProperties.LiveSetting="Polite"/>
+                                           AutomationProperties.LiveSetting="Polite"
+                                           acc:LiveRegion.Announce="{Binding LyricsStatusText}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button Content="🔄" Command="{Binding RefreshLyricsCommand}" Width="32" Height="30" Margin="0,0,6,0"

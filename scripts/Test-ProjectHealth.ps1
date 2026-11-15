@@ -71,7 +71,9 @@ if (Test-Path $i18nScript) {
     $i18nOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $i18nScript
     $i18nExit = $LASTEXITCODE
     if ($i18nExit -eq 0) {
-        Write-Host "  [OK] Internacionalización al 100% (521 claves en paridad)." -ForegroundColor Green
+        $keyMatch = [regex]::Match(($i18nOutput -join "`n"), '(\d+)\s+claves')
+        $keyCountText = if ($keyMatch.Success) { "$($keyMatch.Groups[1].Value) claves en paridad" } else { "paridad verificada" }
+        Write-Host "  [OK] Internacionalización al 100% ($keyCountText)." -ForegroundColor Green
     } else {
         Write-Host "  [FALLO] Error en verificación i18n:" -ForegroundColor Red
         $i18nOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkRed }

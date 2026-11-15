@@ -569,7 +569,12 @@ public partial class RadarViewModel : ObservableObject, IDisposable
 
         if (IsViewingPlaylistDetails && FilteredItems.Count > 0)
         {
-            var firstTrack = FilteredItems.First();
+            var firstTrack = FilteredItems.FirstOrDefault(i => !i.IsPlaylist);
+            if (firstTrack == null)
+            {
+                StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusNoTracksInPlaylist", "No se encontraron canciones en la lista '{0}'."), playlistItem.Title);
+                return;
+            }
             await PlayItem(firstTrack);
             return;
         }
