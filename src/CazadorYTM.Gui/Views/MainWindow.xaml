@@ -30,7 +30,7 @@
         <KeyBinding Modifiers="Ctrl" Key="D4" Command="{Binding NavigateToTabCommand}" CommandParameter="3"/>
         <KeyBinding Modifiers="Ctrl" Key="R" Command="{Binding NavigateToTabCommand}" CommandParameter="3"/>
         <KeyBinding Modifiers="Ctrl" Key="W" Command="{Binding CloseCurrentTabCommand}"/>
-        <KeyBinding Modifiers="Ctrl" Key="L" Command="{Binding ShowShortcutsCommand}"/>
+        <KeyBinding Key="F2" Command="{Binding ShowShortcutsCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="OemComma" Command="{Binding OpenPreferencesCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="K" Command="{Binding OpenCookiesManagerCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding DownloadVM.LoadListFileCommand}"/>
@@ -135,7 +135,7 @@
                     PreviewKeyDown="MainTabs_PreviewKeyDown"
                     AutomationProperties.Name="{loc:Loc MainTabsName}"
                     AutomationProperties.HelpText="{loc:Loc MainTabsHelpText}"
-                    KeyboardNavigation.TabNavigation="Cycle">
+                    KeyboardNavigation.TabNavigation="Continue">
             <TabControl.ItemContainerStyle>
                 <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
                     <Setter Property="AutomationProperties.Name" Value="{Binding Header}"/>

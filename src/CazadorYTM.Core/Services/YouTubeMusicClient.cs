@@ -25,6 +25,7 @@ public sealed class YouTubeMusicClient
         @"\""(?:logged_in|yt_li)\""\s*,\s*\""value\""\s*:\s*\""0\""|(?i)\""(?:SIGN_IN|Inicia sesi[oó]n|Sign in to confirm)\""",
         RegexOptions.Compiled);
     private static string? _cachedClientVersion;
+    private static DateTime _versionRetryAfterUtc = DateTime.MinValue;
 
     private readonly YouTubeMusicSession _session;
     private readonly string _language;
@@ -394,6 +395,10 @@ public sealed class YouTubeMusicClient
         {
             return _cachedClientVersion;
         }
+        if (DateTime.UtcNow < _versionRetryAfterUtc)
+        {
+            return FallbackClientVersion;
+        }
 
         await VersionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -401,6 +406,10 @@ public sealed class YouTubeMusicClient
             if (_cachedClientVersion != null)
             {
                 return _cachedClientVersion;
+            }
+            if (DateTime.UtcNow < _versionRetryAfterUtc)
+            {
+                return FallbackClientVersion;
             }
 
             try
@@ -413,18 +422,19 @@ public sealed class YouTubeMusicClient
                     if (match.Success)
                     {
                         _cachedClientVersion = match.Groups[1].Value;
+                        return _cachedClientVersion;
                     }
                 }
             }
             catch (HttpRequestException)
             {
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
             }
 
-            _cachedClientVersion ??= FallbackClientVersion;
-            return _cachedClientVersion;
+            _versionRetryAfterUtc = DateTime.UtcNow.AddMinutes(5);
+            return FallbackClientVersion;
         }
         finally
         {

@@ -4,9 +4,9 @@
 ![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6.svg)
 ![WCAG](https://img.shields.io/badge/accessibility-WCAG%202.2%20AA-green.svg)
-![Fluent Design](https://img.shields.io/badge/UI-WinUI%203%20%2F%20Fluent%20Mica-blueviolet.svg)
+![Fluent Design](https://img.shields.io/badge/UI-WPF%20%2F%20ModernWpfUI%20Mica-blueviolet.svg)
 
-> **Cazador YTM** es un gestor de descargas multimedia, reproductor de audio integrado y centro de exploración de **YouTube Music** para Windows. Combina la potencia de `yt-dlp` con una interfaz **WinUI 3 / Fluent Design (Mica)** y accesibilidad de primer nivel.
+> **Cazador YTM** es un gestor de descargas multimedia, reproductor de audio integrado y centro de exploración de **YouTube Music** para Windows. Combina la potencia de `yt-dlp` con una interfaz **WPF / ModernWpfUI (Fluent Design Mica)** y accesibilidad de primer nivel.
 
 Desarrollado por **narayan project's**.
 
@@ -22,13 +22,15 @@ Desarrollado por **narayan project's**.
 - **Normalización de volumen EBU R128**, integración con **SponsorBlock** y letras sincronizadas en `.lrc` (con respaldo vía LRCLIB).
 
 ### 📡 Radar YTM
-- Explora tu **Historial**, tus **Canciones que te gustan** y tus **Listas de reproducción** sin salir de la app.
+- Explora tu **Historial**, tus **Canciones que te gustan**, tus **Listas de reproducción**, tus **Álbumes guardados** y tus **Artistas seguidos** sin salir de la app.
 - Datos obtenidos directamente de YouTube Music mediante su API interna (InnerTube) y respaldo automático a `yt-dlp`.
 - Abre cualquier lista para ver sus pistas, reproduce en **streaming** o envía pistas y listas a la cola de descargas con `Ctrl + D`.
 - Miniaturas, filtro en vivo, caché por sección y estados de carga accesibles.
 
 ### 🎧 Reproductor integrado
 - Cola de reproducción con **repetir todo / repetir una** y **modo aleatorio**.
+- Panel de **letras sincronizadas en tiempo real (*Modo Karaoke*)** con soporte `.lrc` local y respaldo en LRCLIB (`Ctrl + L`).
+- **Temporizador de apagado (*Sleep Timer*)** con atenuación suave (*soft fade-out*, `Ctrl + T`) y selector de **velocidad de reproducción** (`0.75x` a `2.0x` con `[`, `]`, `\`).
 - Reproducción continua, saltos de 5 y 30 segundos, volumen continuo, silencio y volumen máximo.
 - Transcodificación transparente de **OPUS / OGG / WebM** para reproducirlos sin códecs externos.
 - Exportación de la biblioteca a **M3U8** y reproducción de toda la colección con un clic.
@@ -76,8 +78,11 @@ Desarrollado por **narayan project's**.
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | Abrir carpeta de descargas |
 | <kbd>Ctrl</kbd> + <kbd>,</kbd> | Preferencias y herramientas |
 | <kbd>Ctrl</kbd> + <kbd>K</kbd> | Gestor de sesión y cookies |
-| <kbd>Ctrl</kbd> + <kbd>L</kbd> | Lista completa de atajos |
-| <kbd>Espacio</kbd> | Reproducir / pausar |
+| <kbd>F2</kbd> | Lista completa de atajos |
+| <kbd>Ctrl</kbd> + <kbd>Espacio</kbd> | Reproducir / pausar |
+| <kbd>Ctrl</kbd> + <kbd>L</kbd> | Mostrar / ocultar letras sincronizadas (en Reproductor) |
+| <kbd>Ctrl</kbd> + <kbd>T</kbd> | Ciclar temporizador de apagado (en Reproductor) |
+| <kbd>[</kbd> / <kbd>]</kbd> / <kbd>\</kbd> | Reducir / aumentar / restablecer velocidad (en Reproductor) |
 | <kbd>Ctrl</kbd> + <kbd>←</kbd> / <kbd>→</kbd> | Pista anterior / siguiente |
 | <kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> | Retroceder / avanzar 5 segundos |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> | Retroceder / avanzar 30 segundos |

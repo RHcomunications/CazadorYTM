@@ -363,6 +363,7 @@ public class BinaryUpdater
             callback?.Invoke("[SISTEMA] Extrayendo ejecutables de FFmpeg...");
             if (Directory.Exists(extractDir))
                 Directory.Delete(extractDir, true);
+            AppUpdaterService.ValidateZipArchive(zipPath, extractDir);
             ZipFile.ExtractToDirectory(zipPath, extractDir);
 
             string? ffmpegSrc = null, ffprobeSrc = null, ffplaySrc = null;
@@ -435,6 +436,7 @@ public class BinaryUpdater
             callback?.Invoke("[SISTEMA] Extrayendo Deno...");
             if (Directory.Exists(extractDir))
                 Directory.Delete(extractDir, true);
+            AppUpdaterService.ValidateZipArchive(zipPath, extractDir);
             ZipFile.ExtractToDirectory(zipPath, extractDir);
 
             string? denoSrc = null;

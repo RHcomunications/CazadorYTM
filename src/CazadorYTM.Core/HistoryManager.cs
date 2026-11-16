@@ -16,6 +16,7 @@ public class HistoryManager
     private sealed class SharedState
     {
         public readonly object Lock = new();
+        public readonly object FlushLock = new();
         public List<DownloadHistoryRecord>? CachedRecords;
         public bool HasPendingChanges;
         public Timer? DebounceTimer;
@@ -101,6 +102,14 @@ public class HistoryManager
 
         foreach (var path in orphaned)
         {
+            if (_sharedStates.TryGetValue(path, out var orphanedState))
+            {
+                lock (orphanedState.Lock)
+                {
+                    orphanedState.DebounceTimer?.Dispose();
+                    orphanedState.DebounceTimer = null;
+                }
+            }
             _sharedStates.Remove(path);
         }
     }
@@ -202,7 +211,6 @@ public class HistoryManager
             _state.HasPendingChanges = true;
             if (_debounceMilliseconds <= 0)
             {
-                FlushInternal();
                 return;
             }
 
@@ -217,19 +225,30 @@ public class HistoryManager
         }
     }
 
+    private void FlushIfImmediate()
+    {
+        if (_debounceMilliseconds <= 0)
+        {
+            FlushInternal();
+        }
+    }
+
     private void FlushInternal()
     {
-        List<DownloadHistoryRecord>? toWrite = null;
-        lock (_state.Lock)
+        lock (_state.FlushLock)
         {
-            if (!_state.HasPendingChanges || _state.CachedRecords == null) return;
-            toWrite = new List<DownloadHistoryRecord>(_state.CachedRecords);
-            _state.HasPendingChanges = false;
-        }
+            List<DownloadHistoryRecord>? toWrite = null;
+            lock (_state.Lock)
+            {
+                if (!_state.HasPendingChanges || _state.CachedRecords == null) return;
+                toWrite = new List<DownloadHistoryRecord>(_state.CachedRecords);
+                _state.HasPendingChanges = false;
+            }
 
-        if (toWrite != null)
-        {
-            SaveToDiskInternal(toWrite);
+            if (toWrite != null)
+            {
+                SaveToDiskInternal(toWrite);
+            }
         }
     }
 
@@ -311,6 +330,8 @@ public class HistoryManager
             ScheduleFlush();
         }
 
+        FlushIfImmediate();
+
         if (!batchMode)
         {
             GlobalHistoryChanged?.Invoke();
@@ -341,6 +362,7 @@ public class HistoryManager
             ScheduleFlush();
         }
 
+        FlushIfImmediate();
         GlobalHistoryChanged?.Invoke();
     }
 
@@ -365,6 +387,7 @@ public class HistoryManager
 
         if (removed > 0)
         {
+            FlushIfImmediate();
             GlobalHistoryChanged?.Invoke();
         }
         return removed;
@@ -378,6 +401,7 @@ public class HistoryManager
             ScheduleFlush();
         }
 
+        FlushIfImmediate();
         GlobalHistoryChanged?.Invoke();
     }
 

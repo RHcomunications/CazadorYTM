@@ -166,13 +166,11 @@ public partial class RadarViewModel : ObservableObject, IDisposable
             AllItems.Clear();
             FilteredItems.Clear();
             StatusText = LocalizationService.Instance["RadarStatusNoSession"];
-            CompleteLoad(cts);
             return;
         }
 
         if (!force && TryUseCachedSection(section))
         {
-            CompleteLoad(cts);
             return;
         }
 

@@ -30,7 +30,7 @@ Este documento define las directrices maestras de comportamiento, calidad, arqui
    - Cualquier nueva clave o texto en la UI debe agregarse simultáneamente en ambos idiomas.
    - Ejecutar siempre `scripts/Verify-I18n.ps1` tras modificar cadenas.
 
-2. **Integridad de Pruebas Unitarias (235+ tests)**:
+2. **Integridad de Pruebas Unitarias (264+ tests)**:
    - Toda suite de pruebas debe pasar al 100% sin advertencias ni omisiones (`dotnet test CazadorYTM.slnx -c Release`).
    - Todo cambio o nueva funcionalidad debe contar con pruebas en `CazadorYTM.Tests` o `CazadorYTM.Gui.Tests`.
 

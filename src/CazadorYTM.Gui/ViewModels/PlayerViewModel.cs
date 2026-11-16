@@ -64,12 +64,16 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _speedRatioText = "1.00x";
 
+    [ObservableProperty]
+    private string _accessibleSpeedText = string.Empty;
+
     // Sleep Timer fields
     private DispatcherTimer? _sleepTimer;
     private DateTime _sleepDeadlineUtc;
     private TimeSpan _sleepRemaining = TimeSpan.Zero;
     private double _preFadeVolume = 0.8;
     private bool _sleepFadeApplied;
+    private bool _suppressVolumeSideEffects;
 
     [ObservableProperty]
     private SleepTimerOption _sleepTimerMode = SleepTimerOption.Off;
@@ -156,7 +160,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         UpdateSleepTimerText();
 
         SpeedRatio = _player.SpeedRatio;
-        SpeedRatioText = $"{SpeedRatio.ToString("0.00", CultureInfo.InvariantCulture)}x";
+        UpdateSpeedTexts(SpeedRatio);
         LyricsStatusText = LocalizationService.Instance.Get("PlayerLyricsEmpty", "Letras no cargadas");
 
         _player.StateChanged += OnPlayerStateChanged;
@@ -171,6 +175,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         UpdateQueueStatusText();
         UpdatePositionTexts(TimeSpan.FromSeconds(PositionSeconds), TimeSpan.FromSeconds(DurationSeconds));
         UpdateSleepTimerText();
+        UpdateSpeedTexts(SpeedRatio);
 
         if (HasLyrics)
         {
@@ -330,6 +335,11 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     partial void OnVolumeChanged(double value)
     {
         _player.Volume = value;
+        if (_suppressVolumeSideEffects)
+        {
+            return;
+        }
+
         UpdateVolumeTexts(value);
 
         lock (_volumeSaveLock)
@@ -629,7 +639,13 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     partial void OnSpeedRatioChanged(double value)
     {
         _player.SpeedRatio = value;
+        UpdateSpeedTexts(value);
+    }
+
+    private void UpdateSpeedTexts(double value)
+    {
         SpeedRatioText = $"{value.ToString("0.00", CultureInfo.InvariantCulture)}x";
+        AccessibleSpeedText = $"{LocalizationService.Instance.Get("PlayerSpeedAutomationName", "Velocidad de reproducción")}: {SpeedRatioText}";
     }
 
     [RelayCommand]
@@ -719,7 +735,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         {
             if (!_sleepFadeApplied) _preFadeVolume = Volume;
             _sleepFadeApplied = true;
-            Volume = Math.Min(Volume, _preFadeVolume * (_sleepRemaining.TotalSeconds / 5.0));
+            SetFadeVolume(Math.Min(Volume, _preFadeVolume * (_sleepRemaining.TotalSeconds / 5.0)));
         }
         else if (_sleepRemaining <= TimeSpan.Zero)
         {
@@ -748,13 +764,26 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
             {
                 if (!_sleepFadeApplied) _preFadeVolume = Volume;
                 _sleepFadeApplied = true;
-                Volume = Math.Min(Volume, _preFadeVolume * (remaining.TotalSeconds / 4.0));
+                SetFadeVolume(Math.Min(Volume, _preFadeVolume * (remaining.TotalSeconds / 4.0)));
             }
             else if (_sleepFadeApplied)
             {
                 _sleepFadeApplied = false;
-                Volume = _preFadeVolume;
+                SetFadeVolume(_preFadeVolume);
             }
+        }
+    }
+
+    private void SetFadeVolume(double volume)
+    {
+        _suppressVolumeSideEffects = true;
+        try
+        {
+            Volume = volume;
+        }
+        finally
+        {
+            _suppressVolumeSideEffects = false;
         }
     }
 

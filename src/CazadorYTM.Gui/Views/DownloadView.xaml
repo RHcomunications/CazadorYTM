@@ -8,7 +8,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              AutomationProperties.Name="{loc:Loc TabDownloads}"
-             KeyboardNavigation.TabNavigation="Cycle">
+             KeyboardNavigation.TabNavigation="Continue">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="24,20,24,24" MaxWidth="920" HorizontalAlignment="Stretch">
 
@@ -74,8 +74,7 @@
                     <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" FontSize="14"
                                Foreground="{DynamicResource SystemControlHighlightAccentBrush}"
                                AutomationProperties.Name="{Binding StatusText}"
-                               AutomationProperties.LiveSetting="Polite"
-                               acc:LiveRegion.Announce="{Binding StatusText}"/>
+                               AutomationProperties.LiveSetting="Polite"/>
                     <TextBlock Text="{Binding ProgressDetail}" FontSize="12"
                                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,2,0,0"/>
                 </StackPanel>

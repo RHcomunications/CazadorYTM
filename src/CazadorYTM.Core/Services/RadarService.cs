@@ -112,18 +112,7 @@ public static class RadarService
             }
 
             var args = new List<string> { "--ignore-config", "-J", "--flat-playlist", "--no-warnings" };
-
-            // Configurar cookies para acceder a la cuenta autenticada
-            if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-            {
-                args.Add("--cookies");
-                args.Add(cookiesPath);
-            }
-            else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
-            {
-                args.Add("--cookies-from-browser");
-                args.Add(cookiesBrowser.ToLower());
-            }
+            YtDlpArgumentBuilder.AppendCookieArgs(args, cookiesPath, cookiesBrowser);
 
             // Identificador especial de YouTube / YTM según la sección
             string targetUrl = section switch
@@ -273,17 +262,7 @@ public static class RadarService
             }
 
             var args = new List<string> { "--ignore-config", "-J", "--flat-playlist", "--no-warnings" };
-
-            if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-            {
-                args.Add("--cookies");
-                args.Add(cookiesPath);
-            }
-            else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
-            {
-                args.Add("--cookies-from-browser");
-                args.Add(cookiesBrowser.ToLower());
-            }
+            YtDlpArgumentBuilder.AppendCookieArgs(args, cookiesPath, cookiesBrowser);
 
             string targetUrl = playlistUrlOrId;
             if (!Helpers.IsUrl(targetUrl))
@@ -422,17 +401,7 @@ public static class RadarService
             if (!File.Exists(exe)) return null;
 
             var args = new List<string> { "--ignore-config", "-g", "-f", "bestaudio/best", "--no-warnings" };
-
-            if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-            {
-                args.Add("--cookies");
-                args.Add(cookiesPath);
-            }
-            else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
-            {
-                args.Add("--cookies-from-browser");
-                args.Add(cookiesBrowser.ToLower());
-            }
+            YtDlpArgumentBuilder.AppendCookieArgs(args, cookiesPath, cookiesBrowser);
 
             args.Add("--");
             args.Add(videoUrlOrId);

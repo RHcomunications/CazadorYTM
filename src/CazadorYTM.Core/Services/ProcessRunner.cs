@@ -24,6 +24,15 @@ public static class ProcessRunner
 {
     private const int DefaultMaxCapturedChars = 4 * 1024 * 1024;
 
+    private sealed class StreamCaptureState
+    {
+        public readonly object Lock = new();
+        public readonly StringBuilder OutputBuilder = new();
+        public readonly StringBuilder ErrorBuilder = new();
+        public bool OutputTruncated;
+        public bool ErrorTruncated;
+    }
+
     public static async Task<ProcessResult> RunAsync(
         string fileName,
         IEnumerable<string> arguments,
@@ -68,10 +77,7 @@ public static class ProcessRunner
         }
 
         using var process = new Process { StartInfo = psi };
-        var outputBuilder = new StringBuilder();
-        var errorBuilder = new StringBuilder();
-        var outputTruncated = false;
-        var errorTruncated = false;
+        var capture = new StreamCaptureState();
 
         using var outputWaitHandle = new SemaphoreSlim(0, 1);
         using var errorWaitHandle = new SemaphoreSlim(0, 1);
@@ -84,7 +90,10 @@ public static class ProcessRunner
             }
             else
             {
-                AppendBounded(outputBuilder, e.Data, maxCapturedChars, ref outputTruncated);
+                lock (capture.Lock)
+                {
+                    AppendBounded(capture.OutputBuilder, e.Data, maxCapturedChars, ref capture.OutputTruncated);
+                }
                 InvokeSafely(outputLineCallback, e.Data);
             }
         };
@@ -97,7 +106,10 @@ public static class ProcessRunner
             }
             else
             {
-                AppendBounded(errorBuilder, e.Data, maxCapturedChars, ref errorTruncated);
+                lock (capture.Lock)
+                {
+                    AppendBounded(capture.ErrorBuilder, e.Data, maxCapturedChars, ref capture.ErrorTruncated);
+                }
                 InvokeSafely(errorLineCallback, e.Data);
             }
         };
@@ -131,14 +143,14 @@ public static class ProcessRunner
                 {
                     KillProcess(process);
                     await WaitForStreamsAsync(outputWaitHandle, errorWaitHandle);
-                    return BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated, canceled: true);
+                    return BuildResult(process, capture, canceled: true);
                 }
 
                 if (completedTask == timeoutTask)
                 {
                     KillProcess(process);
                     await WaitForStreamsAsync(outputWaitHandle, errorWaitHandle);
-                    var timeoutResult = BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated);
+                    var timeoutResult = BuildResult(process, capture);
                     timeoutResult.TimedOut = true;
                     timeoutResult.ExitCode = -999;
                     timeoutResult.StandardError += "\n[ERROR] Proceso cancelado defensivamente por tiempo de espera (Timeout).";
@@ -147,7 +159,7 @@ public static class ProcessRunner
 
                 await processExitTask;
                 await WaitForStreamsAsync(outputWaitHandle, errorWaitHandle);
-                return BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated);
+                return BuildResult(process, capture);
             }
             finally
             {
@@ -157,19 +169,32 @@ public static class ProcessRunner
         catch (OperationCanceledException)
         {
             KillProcess(process);
-            return BuildResult(process, outputBuilder, errorBuilder, outputTruncated, errorTruncated, canceled: true);
+            return BuildResult(process, capture, canceled: true);
         }
         catch (Exception ex)
         {
             KillProcess(process);
+            string stdout;
+            bool outTrunc;
+            bool errTrunc;
+            lock (capture.Lock)
+            {
+                stdout = capture.OutputBuilder.ToString();
+                outTrunc = capture.OutputTruncated;
+                errTrunc = capture.ErrorTruncated;
+            }
             return new ProcessResult
             {
                 ExitCode = -1,
-                StandardOutput = outputBuilder.ToString(),
+                StandardOutput = stdout,
                 StandardError = $"Excepción defensiva al ejecutar proceso: {ex.Message}",
-                OutputTruncated = outputTruncated,
-                ErrorTruncated = errorTruncated
+                OutputTruncated = outTrunc,
+                ErrorTruncated = errTrunc
             };
+        }
+        finally
+        {
+            ProcessTracker.Untrack(process);
         }
     }
 
@@ -249,10 +274,7 @@ public static class ProcessRunner
 
     private static ProcessResult BuildResult(
         Process process,
-        StringBuilder outputBuilder,
-        StringBuilder errorBuilder,
-        bool outputTruncated,
-        bool errorTruncated,
+        StreamCaptureState capture,
         bool canceled = false)
     {
         var exitCode = -998;
@@ -280,16 +302,28 @@ public static class ProcessRunner
             }
         }
 
+        string stdout;
+        string stderr;
+        bool outTrunc;
+        bool errTrunc;
+        lock (capture.Lock)
+        {
+            stdout = capture.OutputBuilder.ToString();
+            stderr = capture.ErrorBuilder.ToString();
+            outTrunc = capture.OutputTruncated;
+            errTrunc = capture.ErrorTruncated;
+        }
+
         return new ProcessResult
         {
             ExitCode = exitCode,
-            StandardOutput = outputBuilder.ToString(),
+            StandardOutput = stdout,
             StandardError = canceled
-                ? errorBuilder + "Operación cancelada por el usuario o sistema."
-                : errorBuilder.ToString(),
+                ? stderr + "Operación cancelada por el usuario o sistema."
+                : stderr,
             Canceled = canceled,
-            OutputTruncated = outputTruncated,
-            ErrorTruncated = errorTruncated
+            OutputTruncated = outTrunc,
+            ErrorTruncated = errTrunc
         };
     }
 }

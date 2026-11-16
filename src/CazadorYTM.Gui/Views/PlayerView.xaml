@@ -8,7 +8,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              AutomationProperties.Name="{loc:Loc PlayerPanelName}"
-             KeyboardNavigation.TabNavigation="Cycle">
+             KeyboardNavigation.TabNavigation="Continue">
 
     <UserControl.InputBindings>
         <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding PlayPauseCommand}"/>
@@ -136,7 +136,7 @@
                         <Button x:Name="BtnSpeed" Content="{Binding SpeedRatioText}" Command="{Binding CycleSpeedCommand}"
                                 Height="32" Padding="12,0" Margin="0,0,10,0"
                                 ToolTip="{loc:Loc PlayerSpeedToolTip}"
-                                AutomationProperties.Name="{loc:Loc PlayerSpeedAutomationName}"
+                                AutomationProperties.Name="{Binding AccessibleSpeedText}"
                                 AutomationProperties.HelpText="{loc:Loc PlayerSpeedHelp}"/>
 
                         <!-- Sleep Timer Control -->
@@ -206,6 +206,11 @@
                                  KeyboardNavigation.DirectionalNavigation="Contained"
                                  AutomationProperties.Name="{loc:Loc PlayerLyricsPanelTitle}"
                                  AutomationProperties.HelpText="{loc:Loc PlayerLyricsListHelp}">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding Text}"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Text}" FontSize="14" TextWrapping="Wrap" Margin="4,3"/>
@@ -221,10 +226,10 @@
                            acc:LiveRegion.Announce="{Binding TrackAnnouncement}"
                            Height="1" Width="1" Opacity="0.01" Focusable="False"/>
 
-                <!-- Live Region for assertive volume updates during manipulation -->
+                <!-- Live Region for polite volume updates during manipulation -->
                 <TextBlock x:Name="VolumeLiveAnnouncer" 
                            Text="{Binding VolumeAnnouncement}" 
-                           AutomationProperties.LiveSetting="Assertive"
+                           AutomationProperties.LiveSetting="Polite"
                            acc:LiveRegion.Announce="{Binding VolumeAnnouncement}"
                            Height="1" Width="1" Opacity="0.01" Focusable="False"/>
 

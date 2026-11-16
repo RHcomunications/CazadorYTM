@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using CazadorYTM.Core.Models;
+using CazadorYTM.Gui.Accessibility;
 using CazadorYTM.Gui.ViewModels;
 
 public partial class HistoryView : UserControl
@@ -13,56 +14,8 @@ public partial class HistoryView : UserControl
         InitializeComponent();
     }
 
-    public void FocusListAndItem(DownloadEntry? entry = null)
-    {
-        Dispatcher.InvokeAsync(() =>
-        {
-            if (ListHistory.Visibility != Visibility.Visible) return;
-
-            var target = entry ?? ListHistory.SelectedItem as DownloadEntry ?? (ListHistory.Items.Count > 0 ? ListHistory.Items[0] as DownloadEntry : null);
-            if (target == null)
-            {
-                ListHistory.Focus();
-                return;
-            }
-
-            var index = ListHistory.Items.IndexOf(target);
-            if (index < 0) index = 0;
-
-            ListHistory.SelectedIndex = index;
-            FocusItemContainer(index);
-        }, System.Windows.Threading.DispatcherPriority.Loaded);
-    }
-
-    private void FocusItemContainer(int index)
-    {
-        if (index < 0 || index >= ListHistory.Items.Count) return;
-
-        var item = ListHistory.Items[index];
-        ListHistory.ScrollIntoView(item);
-
-        if (ListHistory.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem lbi)
-        {
-            lbi.Focus();
-            Keyboard.Focus(lbi);
-        }
-        else
-        {
-            Dispatcher.InvokeAsync(() =>
-            {
-                if (index < ListHistory.Items.Count &&
-                    ListHistory.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem retryLbi)
-                {
-                    retryLbi.Focus();
-                    Keyboard.Focus(retryLbi);
-                }
-                else
-                {
-                    ListHistory.Focus();
-                }
-            }, System.Windows.Threading.DispatcherPriority.Loaded);
-        }
-    }
+    public void FocusListAndItem(DownloadEntry? entry = null) =>
+        ListBoxNavigationHelper.FocusListAndItem(ListHistory, entry);
 
     private void TxtSearchHistory_PreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -80,63 +33,18 @@ public partial class HistoryView : UserControl
             vm.SelectedEntry = entry;
         }
 
-        if (ListHistory.SelectedIndex >= 0 && ListHistory.IsKeyboardFocusWithin)
-        {
-            FocusItemContainer(ListHistory.SelectedIndex);
-        }
+        ListBoxNavigationHelper.SyncSelectionFocus(ListHistory);
     }
 
     private void ListHistory_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (DataContext is not HistoryViewModel vm) return;
 
+        if (ListBoxNavigationHelper.HandleUpDownKey(ListHistory, e)) return;
+
         var modifiers = Keyboard.Modifiers;
         var hasNavigationModifier =
             (modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift)) != 0;
-
-        if (!hasNavigationModifier && e.Key is Key.Up or Key.Down)
-        {
-            e.Handled = true;
-
-            var count = ListHistory.Items.Count;
-            if (count == 0) return;
-
-            var curIdx = ListHistory.SelectedIndex;
-            if (curIdx < 0)
-            {
-                ListHistory.SelectedIndex = 0;
-                FocusItemContainer(0);
-                return;
-            }
-
-            if (e.Key == Key.Up)
-            {
-                if (curIdx == 0)
-                {
-                    FocusItemContainer(0);
-                    return;
-                }
-
-                var nextIdx = curIdx - 1;
-                ListHistory.SelectedIndex = nextIdx;
-                FocusItemContainer(nextIdx);
-                return;
-            }
-
-            if (e.Key == Key.Down)
-            {
-                if (curIdx >= count - 1)
-                {
-                    FocusItemContainer(count - 1);
-                    return;
-                }
-
-                var nextIdx = curIdx + 1;
-                ListHistory.SelectedIndex = nextIdx;
-                FocusItemContainer(nextIdx);
-                return;
-            }
-        }
 
         if (!hasNavigationModifier && (e.Key is Key.Left or Key.Right))
         {

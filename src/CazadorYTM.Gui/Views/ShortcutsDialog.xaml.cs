@@ -21,7 +21,7 @@ public partial class ShortcutsDialog : Window
         var shortcuts = new List<ShortcutItem>
         {
             // Globales
-            new("Ctrl + L", loc["ScOpenTable"]),
+            new("F2", loc["ScOpenTable"]),
             new("Ctrl + 1", loc["ScOpenDownloads"]),
             new("Ctrl + 2", loc["ScOpenLibrary"]),
             new("Ctrl + 3", loc["ScOpenPlayer"]),

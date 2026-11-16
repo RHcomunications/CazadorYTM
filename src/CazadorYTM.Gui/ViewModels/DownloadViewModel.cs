@@ -403,7 +403,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
     private async Task SubmitInput()
     {
         if (string.IsNullOrWhiteSpace(InputText))
@@ -415,7 +415,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         await SearchAndAnalyze();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanStartOperation))]
     private async Task StartDownload()
     {
         await SubmitInput();
@@ -461,13 +461,27 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                 searchSource: SelectedSearchSource,
                 progressCallback: dict =>
                 {
-                    if (dict.TryGetValue("percent", out var pctStr) && double.TryParse(pctStr, out var pct))
+                    double pct = 0;
+                    var hasPct = dict.TryGetValue("percent", out var pctStr) && double.TryParse(pctStr, out pct);
+                    string? eta = null;
+                    string? spd = null;
+                    var hasEtaSpd = dict.TryGetValue("eta", out eta) && dict.TryGetValue("speed", out spd);
+                    var pctText = pctStr;
+
+                    void ApplyProgress()
                     {
-                        ProgressPercentage = pct;
+                        if (hasPct) ProgressPercentage = pct;
+                        if (hasEtaSpd) ProgressDetail = $"{pctText}% | Velocidad: {spd} | ETA: {eta}";
                     }
-                    if (dict.TryGetValue("eta", out var eta) && dict.TryGetValue("speed", out var spd))
+
+                    var dispatcher = Application.Current?.Dispatcher;
+                    if (dispatcher != null && !dispatcher.CheckAccess())
                     {
-                        ProgressDetail = $"{pctStr}% | Velocidad: {spd} | ETA: {eta}";
+                        dispatcher.InvokeAsync(ApplyProgress, System.Windows.Threading.DispatcherPriority.Normal);
+                    }
+                    else
+                    {
+                        ApplyProgress();
                     }
                 }));
 
@@ -566,7 +580,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
 
         try
         {
-            var throttler = new SemaphoreSlim(SelectedConcurrent);
+            using var throttler = new SemaphoreSlim(SelectedConcurrent);
             var tasks = entries.Select(async entry =>
             {
                 await throttler.WaitAsync(cts.Token);
@@ -635,7 +649,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                                     if (hasPct) slot.Progress = pct;
                                     if (hasSpd && spd != null) slot.Speed = spd;
                                     if (hasEta && eta != null) slot.Eta = eta;
-                                }, System.Windows.Threading.DispatcherPriority.Background);
+                                }, System.Windows.Threading.DispatcherPriority.Normal);
                             }
                         }));
 

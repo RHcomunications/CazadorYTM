@@ -10,6 +10,7 @@ public sealed class ClipboardLinkMonitor : IDisposable
     private readonly Action<string> _onLinkDetected;
     private readonly Func<bool> _canMonitor;
     private string _lastUrl = string.Empty;
+    private bool _disposed;
 
     public ClipboardLinkMonitor(
         Func<string?> readClipboardText,
@@ -24,13 +25,16 @@ public sealed class ClipboardLinkMonitor : IDisposable
         _timer.Tick += (_, _) => Poll();
     }
 
-    public void Start() => _timer.Start();
+    public void Start()
+    {
+        if (!_disposed) _timer.Start();
+    }
 
     public void Stop() => _timer.Stop();
 
     public void Poll()
     {
-        if (!_canMonitor()) return;
+        if (_disposed || !_canMonitor()) return;
 
         try
         {
@@ -60,5 +64,9 @@ public sealed class ClipboardLinkMonitor : IDisposable
         host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
         host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
 
-    public void Dispose() => _timer.Stop();
+    public void Dispose()
+    {
+        _disposed = true;
+        _timer.Stop();
+    }
 }

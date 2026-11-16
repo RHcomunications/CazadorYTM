@@ -113,6 +113,26 @@ public class MainWindowTabAccessibilityTests
         Assert.True(MainWindow.ShouldHandleTabSelectionChanged(isLoaded: true, originalSource: mainTabs, mainTabs));
     }
 
+    [Fact]
+    public void MainViewModel_CloseTab_PreservesLastRemainingTab()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var vm = new MainViewModel();
+            Assert.NotEmpty(vm.OpenTabs);
+
+            while (vm.OpenTabs.Count > 1)
+            {
+                vm.CloseTabCommand.Execute(vm.OpenTabs[^1]);
+            }
+
+            Assert.Single(vm.OpenTabs);
+            var lastTab = vm.OpenTabs[0];
+            vm.CloseTabCommand.Execute(lastTab);
+            Assert.Single(vm.OpenTabs);
+        });
+    }
+
     private static T? FindChild<T>(DependencyObject root) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)

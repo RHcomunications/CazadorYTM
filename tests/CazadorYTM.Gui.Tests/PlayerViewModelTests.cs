@@ -351,4 +351,41 @@ public class PlayerViewModelTests
             Assert.False(vm.IsLyricsLoading);
         });
     }
+
+    [Fact]
+    public void AccessibleSpeedText_IncludesControlPurposeAndSpeedValue()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var vm = new PlayerViewModel();
+            vm.ResetSpeedCommand.Execute(null);
+            Assert.Contains("1.00x", vm.AccessibleSpeedText);
+            Assert.NotEqual("1.00x", vm.AccessibleSpeedText);
+
+            vm.SpeedUpCommand.Execute(null);
+            Assert.Contains("1.25x", vm.AccessibleSpeedText);
+        });
+    }
+
+    [Fact]
+    public void SleepTimer_TimedMode_AppliesFadeWhenDeadlineWithinFiveSeconds()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var vm = new PlayerViewModel();
+            vm.Volume = 0.8;
+            vm.SetSleepTimer("15");
+            Assert.True(vm.IsSleepTimerActive);
+            Assert.Equal(SleepTimerOption.Min15, vm.SleepTimerMode);
+
+            var deadlineField = typeof(PlayerViewModel).GetField("_sleepDeadlineUtc", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            deadlineField?.SetValue(vm, DateTime.UtcNow.AddSeconds(2.5));
+
+            var tickMethod = typeof(PlayerViewModel).GetMethod("OnSleepTimerTick", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            tickMethod?.Invoke(vm, new object?[] { null, EventArgs.Empty });
+
+            Assert.True(vm.Volume < 0.8);
+            Assert.Contains("80", vm.AccessibleVolumeText);
+        });
+    }
 }

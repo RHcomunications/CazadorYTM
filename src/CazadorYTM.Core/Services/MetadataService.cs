@@ -144,6 +144,10 @@ public static class MetadataService
             {
                 throw;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch { }
         }
 
@@ -191,6 +195,10 @@ public static class MetadataService
                         return parsed;
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch { }
         }
 
@@ -205,19 +213,17 @@ public static class MetadataService
 
     public static async Task<SearchResult> GetMetadataAsync(string userInput, bool isSearch = false, int limit = 10,
         string? cookiesBrowser = null, string? proxy = null,
-        Action<string>? loggerCallback = null, string? cookiesPath = null, string searchSource = "YouTube Music")
+        Action<string>? loggerCallback = null, string? cookiesPath = null, string searchSource = "YouTube Music",
+        System.Threading.CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (isSearch && (searchSource == "YouTube Music" || searchSource == "YouTube (General)"))
         {
             try
             {
                 var entries = new List<DownloadEntry>();
 
-                var query = (searchSource == "YouTube Music" && !userInput.Contains("topic", StringComparison.OrdinalIgnoreCase))
-                    ? $"{userInput}"
-                    : userInput;
-
-                await foreach (var video in _youtubeClient.Search.GetVideosAsync(query))
+                await foreach (var video in _youtubeClient.Search.GetVideosAsync(userInput, cancellationToken))
                 {
                     if (entries.Count >= limit) break;
 
@@ -248,13 +254,17 @@ public static class MetadataService
                     };
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 loggerCallback?.Invoke($"[AVISO] YoutubeExplode ({e.Message}), consultando con yt-dlp...");
             }
         }
 
-        return await Task.Run(() => GetMetadataFromYtdlp(userInput, isSearch, limit, cookiesBrowser, proxy, loggerCallback, cookiesPath, searchSource));
+        return await Task.Run(() => GetMetadataFromYtdlp(userInput, isSearch, limit, cookiesBrowser, proxy, loggerCallback, cookiesPath, searchSource, cancellationToken), cancellationToken);
     }
 
     public static SearchResult GetMetadata(string userInput, bool isSearch = false, int limit = 10,
@@ -266,7 +276,8 @@ public static class MetadataService
     }
 
     private static SearchResult GetMetadataFromYtdlp(string userInput, bool isSearch, int limit,
-        string? cookiesBrowser, string? proxy, Action<string>? loggerCallback, string? cookiesPath, string searchSource = "YouTube Music")
+        string? cookiesBrowser, string? proxy, Action<string>? loggerCallback, string? cookiesPath, string searchSource = "YouTube Music",
+        System.Threading.CancellationToken cancellationToken = default)
     {
         try
         {
@@ -278,17 +289,7 @@ public static class MetadataService
             }
 
             var args = new List<string> { "--ignore-config", "-J", "--flat-playlist", "--no-warnings" };
-
-            if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-            {
-                args.Add("--cookies");
-                args.Add(cookiesPath);
-            }
-            else if (!string.IsNullOrEmpty(cookiesBrowser) && cookiesBrowser.ToLower() != "ninguno")
-            {
-                args.Add("--cookies-from-browser");
-                args.Add(cookiesBrowser.ToLower());
-            }
+            YtDlpArgumentBuilder.AppendCookieArgs(args, cookiesPath, cookiesBrowser);
 
             if (!string.IsNullOrEmpty(proxy))
             {
@@ -326,10 +327,12 @@ public static class MetadataService
                 exe,
                 args,
                 timeoutMs: 45000,
-                maxCapturedChars: 16 * 1024 * 1024).GetAwaiter().GetResult();
+                maxCapturedChars: 16 * 1024 * 1024,
+                cancellationToken: cancellationToken).GetAwaiter().GetResult();
 
             if (runResult.Canceled)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 return new SearchResult();
             }
 
@@ -431,6 +434,10 @@ public static class MetadataService
             }
 
             return new SearchResult();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception e)
         {
@@ -548,14 +555,19 @@ public static class MetadataService
                                 limit: 1,
                                 cookiesBrowser: cookiesBrowser,
                                 proxy: proxy,
-                                searchSource: searchSource);
+                                searchSource: searchSource,
+                                cancellationToken: cancellationToken);
 
                             if (meta.Entries.Count > 0)
                             {
                                 entry = meta.Entries[0];
                             }
                         }
-                        catch { }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch { }
                     }
 
                     return entry;

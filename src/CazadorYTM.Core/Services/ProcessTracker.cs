@@ -38,6 +38,25 @@ public static class ProcessTracker
         }
     }
 
+    public static void Untrack(Process? process)
+    {
+        if (process is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (process.HasExited)
+            {
+                TrackedProcesses.TryRemove(new KeyValuePair<int, Process>(process.Id, process));
+            }
+        }
+        catch
+        {
+        }
+    }
+
     public static void KillAll(TimeSpan? waitTimeout = null)
     {
         var timeout = waitTimeout ?? TimeSpan.FromSeconds(5);

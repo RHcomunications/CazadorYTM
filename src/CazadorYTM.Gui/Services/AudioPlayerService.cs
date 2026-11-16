@@ -147,21 +147,37 @@ public class AudioPlayerService : IAudioPlayerService
         _mediaPlayer.MediaFailed += async (s, e) =>
         {
             var failedPath = CurrentFilePath;
-            if (failedPath != null && !_isFallbackAttempt)
+            var ct = _playCts?.Token ?? CancellationToken.None;
+            try
             {
-                _isFallbackAttempt = true;
-                var transcoded = await _transcodeCache.TryTranscodeToTempWavAsync(failedPath);
-                if (transcoded != null && CurrentFilePath == failedPath)
+                if (failedPath != null && !_isFallbackAttempt && !ct.IsCancellationRequested)
                 {
-                    LogService.Instance.Info($"Reproduciendo mediante decodificador universal FFmpeg: {Path.GetFileName(failedPath)}");
-                    _mediaPlayer.Open(new Uri(transcoded, UriKind.Absolute));
-                    _mediaPlayer.Play();
-                    return;
+                    _isFallbackAttempt = true;
+                    var transcoded = await _transcodeCache.TryTranscodeToTempWavAsync(failedPath, ct);
+                    if (!ct.IsCancellationRequested && transcoded != null && CurrentFilePath == failedPath)
+                    {
+                        LogService.Instance.Info($"Reproduciendo mediante decodificador universal FFmpeg: {Path.GetFileName(failedPath)}");
+                        _mediaPlayer.Open(new Uri(transcoded, UriKind.Absolute));
+                        _mediaPlayer.Play();
+                        return;
+                    }
                 }
             }
-            _isFallbackAttempt = false;
-            Stop();
-            LogService.Instance.Error($"Error al reproducir audio: {e.ErrorException?.Message ?? "Formato o códec no soportado"}");
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                LogService.Instance.Error($"Error en fallback de audio: {ex.Message}");
+            }
+
+            if (!ct.IsCancellationRequested)
+            {
+                _isFallbackAttempt = false;
+                Stop();
+                LogService.Instance.Error($"Error al reproducir audio: {e.ErrorException?.Message ?? "Formato o códec no soportado"}");
+            }
         };
     }
 

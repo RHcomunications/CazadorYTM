@@ -1,12 +1,14 @@
 namespace CazadorYTM.Gui.Accessibility;
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Automation.Peers;
 using System.Windows.Threading;
 
 public static class LiveRegion
 {
+    private static readonly ConditionalWeakTable<FrameworkElement, DispatcherTimer> DebounceTimers = new();
     public static readonly DependencyProperty AnnounceProperty =
         DependencyProperty.RegisterAttached(
             "Announce",
@@ -36,12 +38,25 @@ public static class LiveRegion
             return;
         }
 
-        element.Dispatcher.InvokeAsync(() =>
+        var timer = DebounceTimers.GetValue(element, el =>
         {
-            if (element.IsLoaded)
+            var t = new DispatcherTimer(DispatcherPriority.Background, el.Dispatcher)
             {
-                Raise(element);
-            }
-        }, DispatcherPriority.Background);
+                Interval = TimeSpan.FromMilliseconds(150)
+            };
+            t.Tick += (_, _) =>
+            {
+                t.Stop();
+                if (el.IsLoaded)
+                {
+                    Raise(el);
+                }
+            };
+            el.Unloaded += (_, _) => t.Stop();
+            return t;
+        });
+
+        timer.Stop();
+        timer.Start();
     }
 }

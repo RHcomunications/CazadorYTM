@@ -316,7 +316,7 @@ public static class AppUpdaterService
         Process.Start(psi);
     }
 
-    private static void ValidateZipArchive(string zipPath, string destinationDir)
+    internal static void ValidateZipArchive(string zipPath, string destinationDir)
     {
         var destinationRoot = Path.GetFullPath(destinationDir);
         long totalLength = 0;
@@ -358,6 +358,12 @@ public static class AppUpdaterService
 
     public static string GenerateUpdateBatchScript(string actualSourceDir, string targetBaseDir, string? tempRoot = null)
     {
+        static string EscapeBatchPath(string path) => path.Replace("%", "%%", StringComparison.Ordinal);
+
+        var safeSourceDir = EscapeBatchPath(actualSourceDir);
+        var safeTargetDir = EscapeBatchPath(targetBaseDir);
+        var safeTempRoot = string.IsNullOrEmpty(tempRoot) ? null : EscapeBatchPath(tempRoot);
+
         var batContent = new StringBuilder();
         batContent.AppendLine("@echo off");
         batContent.AppendLine("chcp 65001 > nul");
@@ -376,15 +382,19 @@ public static class AppUpdaterService
         batContent.AppendLine(")");
         batContent.AppendLine(":APPLY_COPY");
         batContent.AppendLine("timeout /t 1 /nobreak > nul");
-        batContent.AppendLine($"xcopy \"{actualSourceDir}\\*\" \"{targetBaseDir}\\\" /E /Y /Q /R /H");
-        batContent.AppendLine($"cd /d \"{targetBaseDir}\"");
+        batContent.AppendLine($"xcopy \"{safeSourceDir}\\*\" \"{safeTargetDir}\\\" /E /Y /Q /R /H");
+        batContent.AppendLine("if errorlevel 1 (");
+        batContent.AppendLine("    timeout /t 2 /nobreak > nul");
+        batContent.AppendLine($"    xcopy \"{safeSourceDir}\\*\" \"{safeTargetDir}\\\" /E /Y /Q /R /H");
+        batContent.AppendLine(")");
+        batContent.AppendLine($"cd /d \"{safeTargetDir}\"");
         batContent.AppendLine("if exist \"CazadorYTM.Gui.exe\" (");
         batContent.AppendLine("    start \"\" \"CazadorYTM.Gui.exe\"");
         batContent.AppendLine(")");
-        if (!string.IsNullOrEmpty(tempRoot))
+        if (!string.IsNullOrEmpty(safeTempRoot))
         {
             batContent.AppendLine("cd /d \"%TEMP%\"");
-            batContent.AppendLine($"start \"\" /b cmd /c \"timeout /t 3 /nobreak >nul & rd /s /q \\\"{tempRoot}\\\"\"");
+            batContent.AppendLine($"start \"\" /b cmd /c \"timeout /t 3 /nobreak >nul & rd /s /q \\\"{safeTempRoot}\\\"\"");
         }
         batContent.AppendLine("exit");
         return batContent.ToString();

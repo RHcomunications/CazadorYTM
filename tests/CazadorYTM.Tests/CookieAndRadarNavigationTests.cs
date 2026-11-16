@@ -301,4 +301,23 @@ public class CookieAndRadarNavigationTests : IDisposable
         Assert.Equal("Sesión caducada", ex.Message);
         Assert.Same(inner, ex.InnerException);
     }
+
+    [Fact]
+    public void YtDlpArgumentBuilder_AppendCookieArgs_PrefersExistingCookiesFileOverBrowser()
+    {
+        var tempCookies = Path.Combine(_tempDir, "cookies_arg_test.txt");
+        File.WriteAllText(tempCookies, "# Netscape HTTP Cookie File\n");
+
+        var argsWithFile = new List<string>();
+        YtDlpArgumentBuilder.AppendCookieArgs(argsWithFile, tempCookies, "Chrome");
+        Assert.Equal(new[] { "--cookies", tempCookies }, argsWithFile);
+
+        var argsWithBrowser = new List<string>();
+        YtDlpArgumentBuilder.AppendCookieArgs(argsWithBrowser, Path.Combine(_tempDir, "missing.txt"), "Firefox");
+        Assert.Equal(new[] { "--cookies-from-browser", "firefox" }, argsWithBrowser);
+
+        var argsWithNone = new List<string>();
+        YtDlpArgumentBuilder.AppendCookieArgs(argsWithNone, null, "Ninguno");
+        Assert.Empty(argsWithNone);
+    }
 }

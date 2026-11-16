@@ -8,6 +8,19 @@ using System.Text;
 
 public static class YtDlpArgumentBuilder
 {
+    public static void AppendCookieArgs(List<string> args, string? cookiesPath, string? cookiesBrowser)
+    {
+        if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
+        {
+            args.Add("--cookies");
+            args.Add(cookiesPath);
+        }
+        else if (!string.IsNullOrEmpty(cookiesBrowser) && !cookiesBrowser.Equals("ninguno", StringComparison.OrdinalIgnoreCase))
+        {
+            args.Add("--cookies-from-browser");
+            args.Add(cookiesBrowser.ToLowerInvariant());
+        }
+    }
     public static List<string> Build(string formatType = "mp3", string bitrate = "320k", bool sponsorblock = false,
         string? cookiesBrowser = null, string? playlistItems = null, string? rawArgs = null,
         string? ffmpegLocation = null, string? proxy = null, bool normalize = false,
@@ -45,14 +58,7 @@ public static class YtDlpArgumentBuilder
             args.AddRange(new[] { "--sponsorblock-remove", "sponsor,intro,outro,selfpromo,preview,filler,interaction,music_offtopic" });
         }
 
-        if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
-        {
-            args.AddRange(new[] { "--cookies", cookiesPath });
-        }
-        else if (!string.IsNullOrEmpty(cookiesBrowser) && cookiesBrowser.ToLower() != "ninguno")
-        {
-            args.AddRange(new[] { "--cookies-from-browser", cookiesBrowser.ToLower() });
-        }
+        AppendCookieArgs(args, cookiesPath, cookiesBrowser);
 
         var clientExtractor = !string.IsNullOrEmpty(playerClient)
             ? $"youtube:player_client={playerClient}"
