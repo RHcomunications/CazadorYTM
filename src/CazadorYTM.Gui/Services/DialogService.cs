@@ -23,11 +23,11 @@ public class DialogService
     public Action<string, string, MessageBoxImage>? MessageHandler { get; set; }
     public Func<string, string?, bool>? ConfirmationHandler { get; set; }
 
-    public string? SelectFolder(string? initialDirectory = null)
+    public string? SelectFolder(string? initialDirectory = null, string? title = null)
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Seleccionar carpeta de destino",
+            Title = title ?? "Seleccionar carpeta de destino",
             InitialDirectory = !string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory)
                 ? initialDirectory
                 : Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)
@@ -40,11 +40,11 @@ public class DialogService
         return null;
     }
 
-    public string? SelectFile(string filter, string? initialDirectory = null)
+    public string? SelectFile(string filter, string? initialDirectory = null, string? title = null)
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Seleccionar archivo",
+            Title = title ?? "Seleccionar archivo",
             Filter = filter,
             InitialDirectory = !string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory)
                 ? initialDirectory
@@ -58,11 +58,11 @@ public class DialogService
         return null;
     }
 
-    public string? SaveFile(string defaultFileName, string filter)
+    public string? SaveFile(string defaultFileName, string filter, string? title = null)
     {
         var dialog = new SaveFileDialog
         {
-            Title = "Guardar archivo",
+            Title = title ?? "Guardar archivo",
             FileName = defaultFileName,
             Filter = filter
         };

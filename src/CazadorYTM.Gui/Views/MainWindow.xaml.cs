@@ -58,6 +58,29 @@ public partial class MainWindow : Window
             return;
         }
 
+        // F6 (or Esc inside tab content when menu/dropdowns are closed) returns focus to the active tab header
+        if (e.Key == Key.F6 && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift)) == 0)
+        {
+            e.Handled = true;
+            if (MainMenu.Visibility == Visibility.Visible)
+            {
+                _previousFocus = null;
+                MainMenu.Visibility = Visibility.Collapsed;
+            }
+            FocusSelectedTab();
+            return;
+        }
+
+        if (e.Key == Key.Escape &&
+            MainMenu.Visibility == Visibility.Collapsed &&
+            Keyboard.FocusedElement is not TabItem &&
+            !IsInsideOpenComboBox(Keyboard.FocusedElement as DependencyObject))
+        {
+            e.Handled = true;
+            FocusSelectedTab();
+            return;
+        }
+
         // Track bare Alt key press
         if (e.SystemKey == Key.LeftAlt || e.SystemKey == Key.RightAlt)
         {
@@ -196,6 +219,19 @@ public partial class MainWindow : Window
                 return;
             }
         }, DispatcherPriority.Input);
+    }
+
+    private static bool IsInsideOpenComboBox(DependencyObject? element)
+    {
+        while (element != null)
+        {
+            if (element is ComboBox combo && combo.IsDropDownOpen)
+            {
+                return true;
+            }
+            element = System.Windows.Media.VisualTreeHelper.GetParent(element);
+        }
+        return false;
     }
 
     private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject

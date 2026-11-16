@@ -9,10 +9,77 @@ using System.Threading;
 
 public class AppConfig
 {
-    private readonly ReaderWriterLockSlim _lock = new();
+    private sealed class SharedConfigState
+    {
+        public readonly ReaderWriterLockSlim Lock = new();
+        public readonly object SaveLock = new();
+        public Dictionary<string, object> Data;
+        public bool IsLoaded;
+
+        public SharedConfigState(Dictionary<string, object> initialData)
+        {
+            Data = initialData;
+        }
+    }
+
+    private static readonly object _registryLock = new();
+    private static readonly List<WeakReference<AppConfig>> _instances = new();
+    private static readonly Dictionary<string, SharedConfigState> _sharedStates =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private readonly string _path;
     private readonly string _baseDir;
-    private Dictionary<string, object> _data;
+    private readonly SharedConfigState _state;
+
+    private static string ResolveNormalizedPath(string path)
+    {
+        try { return Path.GetFullPath(path); }
+        catch { return path; }
+    }
+
+    private static void PruneDeadInstancesLocked()
+    {
+        var livePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = _instances.Count - 1; i >= 0; i--)
+        {
+            if (_instances[i].TryGetTarget(out var cfg))
+            {
+                livePaths.Add(cfg._path);
+            }
+            else
+            {
+                _instances.RemoveAt(i);
+            }
+        }
+
+        if (_sharedStates.Count == 0) return;
+
+        var orphaned = _sharedStates.Keys.Where(p => !livePaths.Contains(p)).ToList();
+        foreach (var path in orphaned)
+        {
+            if (_sharedStates.TryGetValue(path, out var state))
+            {
+                state.Lock.Dispose();
+                _sharedStates.Remove(path);
+            }
+        }
+    }
+
+    private static Dictionary<string, object> CreateInitialData()
+    {
+        var defaultFolder = GetDefaultDownloadsFolder();
+        var data = new Dictionary<string, object>(Defaults, StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(data["carpeta_destino"] as string))
+        {
+            data["carpeta_destino"] = defaultFolder;
+            data["destination_folder"] = defaultFolder;
+        }
+        if (string.IsNullOrEmpty(data["cookies_path"] as string))
+        {
+            data["cookies_path"] = Path.Combine(Helpers.GetAppDataDir(), "cookies.txt");
+        }
+        return data;
+    }
 
     private static readonly Dictionary<string, string> Synonyms = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -93,123 +160,149 @@ public class AppConfig
         _baseDir = baseDir ?? Helpers.GetBaseDir();
         if (baseDir != null && (File.Exists(baseDir) || baseDir.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
         {
-            _path = baseDir;
+            _path = ResolveNormalizedPath(baseDir);
             _baseDir = Path.GetDirectoryName(_path) ?? string.Empty;
         }
         else
         {
             var appData = Helpers.GetAppDataDir();
-            _path = Path.Combine(appData, Constants.ConfigFilename);
+            _path = ResolveNormalizedPath(Path.Combine(appData, Constants.ConfigFilename));
         }
 
-        var defaultFolder = GetDefaultDownloadsFolder();
-        _data = new Dictionary<string, object>(Defaults, StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrEmpty(_data["carpeta_destino"] as string))
+        lock (_registryLock)
         {
-            _data["carpeta_destino"] = defaultFolder;
-            _data["destination_folder"] = defaultFolder;
+            PruneDeadInstancesLocked();
+            if (!_sharedStates.TryGetValue(_path, out var existing))
+            {
+                existing = new SharedConfigState(CreateInitialData());
+                _sharedStates[_path] = existing;
+            }
+            _state = existing;
+            _instances.Add(new WeakReference<AppConfig>(this));
         }
-        if (string.IsNullOrEmpty(_data["cookies_path"] as string))
-            _data["cookies_path"] = Path.Combine(Helpers.GetAppDataDir(), "cookies.txt");
 
-        Load();
+        EnsureInitialLoad();
+    }
+
+    private void EnsureInitialLoad()
+    {
+        lock (_state.SaveLock)
+        {
+            _state.Lock.EnterWriteLock();
+            try
+            {
+                if (_state.IsLoaded) return;
+                LoadLocked();
+            }
+            finally { _state.Lock.ExitWriteLock(); }
+        }
     }
 
     public void Load()
     {
-        _lock.EnterWriteLock();
-        try
+        lock (_state.SaveLock)
         {
-            if (!File.Exists(_path)) return;
+            _state.Lock.EnterWriteLock();
             try
             {
-                if (new FileInfo(_path).Length > 10 * 1024 * 1024) return;
-                var json = File.ReadAllText(_path);
-                var saved = JsonHelper.Deserialize<Dictionary<string, JsonElement>>(json);
-                if (saved != null)
-                {
-                    foreach (var (key, val) in saved)
-                    {
-                        if (val.ValueKind == JsonValueKind.String)
-                            _data[key] = val.GetString() ?? "";
-                        else if (val.ValueKind == JsonValueKind.Number && val.TryGetInt32(out var intVal))
-                            _data[key] = intVal;
-                        else if (val.ValueKind == JsonValueKind.Number && val.TryGetInt64(out var longVal))
-                            _data[key] = (int)longVal;
-                        else if (val.ValueKind == JsonValueKind.True || val.ValueKind == JsonValueKind.False)
-                            _data[key] = val.GetBoolean();
-                        else
-                        {
-                            var obj = val.Deserialize<object>();
-                            if (obj != null) _data[key] = obj;
-                        }
-
-                        if (Synonyms.TryGetValue(key, out var syn) && !_data.ContainsKey(syn))
-                        {
-                            _data[syn] = _data[key];
-                        }
-                    }
-                    Validate();
-                }
+                LoadLocked();
             }
-            catch (JsonException)
+            finally { _state.Lock.ExitWriteLock(); }
+        }
+    }
+
+    private void LoadLocked()
+    {
+        _state.IsLoaded = true;
+        if (!File.Exists(_path)) return;
+        try
+        {
+            if (new FileInfo(_path).Length > 10 * 1024 * 1024) return;
+            var json = File.ReadAllText(_path);
+            var saved = JsonHelper.Deserialize<Dictionary<string, JsonElement>>(json);
+            if (saved != null)
             {
-                var defaultFolder = GetDefaultDownloadsFolder();
-                if (File.Exists(_path))
+                foreach (var (key, val) in saved)
                 {
-                    try { File.Copy(_path, _path + ".bak", true); }
-                    catch { }
+                    if (val.ValueKind == JsonValueKind.String)
+                        _state.Data[key] = val.GetString() ?? "";
+                    else if (val.ValueKind == JsonValueKind.Number && val.TryGetInt32(out var intVal))
+                        _state.Data[key] = intVal;
+                    else if (val.ValueKind == JsonValueKind.Number && val.TryGetInt64(out var longVal))
+                        _state.Data[key] = (int)longVal;
+                    else if (val.ValueKind == JsonValueKind.True || val.ValueKind == JsonValueKind.False)
+                        _state.Data[key] = val.GetBoolean();
+                    else
+                    {
+                        var obj = val.Deserialize<object>();
+                        if (obj != null) _state.Data[key] = obj;
+                    }
+
+                    if (Synonyms.TryGetValue(key, out var syn) && !_state.Data.ContainsKey(syn))
+                    {
+                        _state.Data[syn] = _state.Data[key];
+                    }
                 }
-                _data = new Dictionary<string, object>(Defaults, StringComparer.OrdinalIgnoreCase)
-                {
-                    ["carpeta_destino"] = defaultFolder,
-                    ["destination_folder"] = defaultFolder,
-                    ["cookies_path"] = Path.Combine(Helpers.GetAppDataDir(), "cookies.txt")
-                };
+                Validate();
             }
         }
-        finally { _lock.ExitWriteLock(); }
+        catch (JsonException)
+        {
+            if (File.Exists(_path))
+            {
+                try { File.Copy(_path, _path + ".bak", true); }
+                catch { }
+            }
+            _state.Data = CreateInitialData();
+        }
     }
 
     private void Validate()
     {
-        var dest = (_data.TryGetValue("destination_folder", out var dObj1) ? dObj1 as string : null) ??
-                   (_data.TryGetValue("carpeta_destino", out var dObj2) ? dObj2 as string : null) ?? "";
+        var dest = (_state.Data.TryGetValue("destination_folder", out var dObj1) ? dObj1 as string : null) ??
+                   (_state.Data.TryGetValue("carpeta_destino", out var dObj2) ? dObj2 as string : null) ?? "";
         dest = dest.Trim();
         if (string.IsNullOrEmpty(dest) || !Directory.Exists(dest))
             dest = GetDefaultDownloadsFolder();
 
-        _data["destination_folder"] = dest;
-        _data["carpeta_destino"] = dest;
+        _state.Data["destination_folder"] = dest;
+        _state.Data["carpeta_destino"] = dest;
 
-        var fmt = (_data.TryGetValue("format", out var fObj1) ? fObj1 as string : null) ??
-                  (_data.TryGetValue("formato", out var fObj2) ? fObj2 as string : null) ?? "mp3";
+        var fmt = (_state.Data.TryGetValue("format", out var fObj1) ? fObj1 as string : null) ??
+                  (_state.Data.TryGetValue("formato", out var fObj2) ? fObj2 as string : null) ?? "mp3";
         if (!Constants.FormatsRaw.Contains(fmt.ToLower()))
             fmt = "mp3";
 
-        _data["format"] = fmt;
-        _data["formato"] = fmt;
+        _state.Data["format"] = fmt;
+        _state.Data["formato"] = fmt;
 
-        var cb = (_data.TryGetValue("cookies_browser", out var bObj1) ? bObj1 as string : null) ??
-                 (_data.TryGetValue("browser_cookies", out var bObj2) ? bObj2 as string : null) ?? "Ninguno";
+        var cb = (_state.Data.TryGetValue("cookies_browser", out var bObj1) ? bObj1 as string : null) ??
+                 (_state.Data.TryGetValue("browser_cookies", out var bObj2) ? bObj2 as string : null) ?? "Ninguno";
         if (!Constants.Browsers.Contains(cb))
             cb = "Ninguno";
 
-        _data["cookies_browser"] = cb;
-        _data["browser_cookies"] = cb;
+        _state.Data["cookies_browser"] = cb;
+        _state.Data["browser_cookies"] = cb;
 
-        if (_data.TryGetValue("max_concurrent", out var mcObj))
+        if (_state.Data.TryGetValue("max_concurrent", out var mcObj))
         {
             if (mcObj is int mc && (mc < 1 || mc > 5))
-                _data["max_concurrent"] = 3;
+                _state.Data["max_concurrent"] = 3;
         }
     }
 
     public void Save()
     {
-        _lock.EnterWriteLock();
-        try
+        lock (_state.SaveLock)
         {
+            string json;
+            _state.Lock.EnterReadLock();
+            try
+            {
+                json = JsonHelper.Serialize(_state.Data);
+            }
+            finally { _state.Lock.ExitReadLock(); }
+
             var tmpPath = $"{_path}.{Guid.NewGuid():N}.tmp";
             try
             {
@@ -217,12 +310,12 @@ public class AppConfig
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
-                var json = JsonHelper.Serialize(_data);
                 File.WriteAllText(tmpPath, json);
                 File.Move(tmpPath, _path, overwrite: true);
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[AppConfig.Save] Error saving config: {ex.Message}");
                 if (File.Exists(tmpPath))
                 {
                     try { File.Delete(tmpPath); }
@@ -230,15 +323,14 @@ public class AppConfig
                 }
             }
         }
-        finally { _lock.ExitWriteLock(); }
     }
 
     public T Get<T>(string key, T defaultValue = default!)
     {
-        _lock.EnterReadLock();
+        _state.Lock.EnterReadLock();
         try
         {
-            if (_data.TryGetValue(key, out var val) && val is not null)
+            if (_state.Data.TryGetValue(key, out var val) && val is not null)
             {
                 if (val is T tVal) return tVal;
                 try
@@ -251,7 +343,7 @@ public class AppConfig
                 }
             }
 
-            if (Synonyms.TryGetValue(key, out var syn) && _data.TryGetValue(syn, out var synVal) && synVal is not null)
+            if (Synonyms.TryGetValue(key, out var syn) && _state.Data.TryGetValue(syn, out var synVal) && synVal is not null)
             {
                 if (synVal is T tVal) return tVal;
                 try
@@ -266,27 +358,27 @@ public class AppConfig
 
             return defaultValue;
         }
-        finally { _lock.ExitReadLock(); }
+        finally { _state.Lock.ExitReadLock(); }
     }
 
     public void Set<T>(string key, T value)
     {
-        _lock.EnterWriteLock();
+        _state.Lock.EnterWriteLock();
         try
         {
-            _data[key] = value!;
+            _state.Data[key] = value!;
             if (Synonyms.TryGetValue(key, out var syn))
             {
-                _data[syn] = value!;
+                _state.Data[syn] = value!;
             }
         }
-        finally { _lock.ExitWriteLock(); }
+        finally { _state.Lock.ExitWriteLock(); }
     }
 
     public Dictionary<string, object> GetAll()
     {
-        _lock.EnterReadLock();
-        try { return new Dictionary<string, object>(_data); }
-        finally { _lock.ExitReadLock(); }
+        _state.Lock.EnterReadLock();
+        try { return new Dictionary<string, object>(_state.Data); }
+        finally { _state.Lock.ExitReadLock(); }
     }
 }

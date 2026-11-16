@@ -70,12 +70,20 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _verifyStatusText = "Listo para verificar";
 
+    public sealed record StartupTabOption(string Key, string Label);
+
     public ObservableCollection<string> Bitrates { get; } = new(Constants.Bitrates);
     public ObservableCollection<int> ConcurrencyOptions { get; } = new(Constants.MaxConcurrentValues);
     public ObservableCollection<string> Browsers { get; } = new(Constants.Browsers);
     public ObservableCollection<string> ThemeOptions { get; } = new(Constants.ThemeOptions);
     public ObservableCollection<string> LanguageOptions { get; } = new(Constants.LanguageOptions);
-    public ObservableCollection<string> StartupTabOptions { get; } = new(Constants.StartupTabOptions);
+    public ObservableCollection<StartupTabOption> StartupTabOptions { get; } = new()
+    {
+        new("Descarga", LocalizationService.Instance.Get("TabDownloads", "Descargas")),
+        new("Biblioteca", LocalizationService.Instance.Get("TabLibrary", "Biblioteca")),
+        new("Reproductor", LocalizationService.Instance.Get("TabPlayer", "Reproductor")),
+        new("Radar YTM", LocalizationService.Instance.Get("TabRadar", "Radar YTM"))
+    };
 
     [ObservableProperty]
     private string _selectedStartupTab = "Descarga";
@@ -113,15 +121,12 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SelectDestinationFolder()
     {
-        var dialog = new OpenFolderDialog
+        var selected = DialogService.Instance.SelectFolder(
+            DestinationFolder,
+            "Seleccionar carpeta predeterminada de descargas");
+        if (!string.IsNullOrEmpty(selected))
         {
-            Title = "Seleccionar carpeta predeterminada de descargas",
-            InitialDirectory = Directory.Exists(DestinationFolder) ? DestinationFolder : Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)
-        };
-
-        if (dialog.ShowDialog() == true)
-        {
-            DestinationFolder = dialog.FolderName;
+            DestinationFolder = selected;
         }
     }
 

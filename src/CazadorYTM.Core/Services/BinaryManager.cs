@@ -118,72 +118,58 @@ public static class BinaryManager
 
     public static string? GetDenoPath(string? baseDir = null)
     {
+        if (!string.IsNullOrEmpty(baseDir) && baseDir != ".")
+            return GetDenoPathImpl(baseDir);
+
         _cacheLock.EnterReadLock();
         try { return _denoPathLazy.Value; }
         finally { _cacheLock.ExitReadLock(); }
     }
 
-    private static string? GetDenoPathImpl(string? baseDir)
-    {
-        var resolvedBase = string.IsNullOrEmpty(baseDir) ? Helpers.GetBaseDir() : baseDir;
-        var searchDirs = new List<string> { resolvedBase };
-
-        if (IsWindows)
-        {
-            searchDirs.Add(Path.Combine(resolvedBase, "internal"));
-            if (Path.GetFileName(resolvedBase) == "internal")
-                searchDirs.Add(Path.GetDirectoryName(resolvedBase) ?? string.Empty);
-        }
-        else
-        {
-            searchDirs.Add(Path.Combine(resolvedBase, "internal"));
-        }
-
-        foreach (var d in searchDirs)
-        {
-            var p = Path.Combine(d, IsWindows ? "deno.exe" : "deno");
-            if (File.Exists(p))
-                return p;
-        }
-
-        return FindInPath("deno");
-    }
+    private static string? GetDenoPathImpl(string? baseDir) =>
+        FindExecutable("deno", baseDir, throwIfMissing: false);
 
     public static string? GetYtDlpPath(string? baseDir = null)
     {
+        if (!string.IsNullOrEmpty(baseDir) && baseDir != ".")
+            return GetYtDlpPathImpl(baseDir);
+
         _cacheLock.EnterReadLock();
         try { return _ytDlpPathLazy.Value; }
         finally { _cacheLock.ExitReadLock(); }
     }
 
-    private static string? GetYtDlpPathImpl(string? baseDir)
+    private static string? GetYtDlpPathImpl(string? baseDir) =>
+        FindExecutable("yt-dlp", baseDir, throwIfMissing: true);
+
+    private static string? FindExecutable(string baseName, string? baseDir, bool throwIfMissing)
     {
         var resolvedBase = string.IsNullOrEmpty(baseDir) || baseDir == "." ? Helpers.GetBaseDir() : baseDir;
-        var searchDirs = new List<string> { resolvedBase };
+        var searchDirs = new List<string>
+        {
+            resolvedBase,
+            Path.Combine(resolvedBase, "internal")
+        };
 
-        if (IsWindows)
+        if (IsWindows && Path.GetFileName(resolvedBase) == "internal")
         {
-            searchDirs.Add(Path.Combine(resolvedBase, "internal"));
-            if (Path.GetFileName(resolvedBase) == "internal")
-                searchDirs.Add(Path.GetDirectoryName(resolvedBase) ?? string.Empty);
-        }
-        else
-        {
-            searchDirs.Add(Path.Combine(resolvedBase, "internal"));
+            searchDirs.Add(Path.GetDirectoryName(resolvedBase) ?? string.Empty);
         }
 
+        var exeName = IsWindows ? $"{baseName}.exe" : baseName;
         foreach (var d in searchDirs)
         {
-            var p = Path.Combine(d, IsWindows ? "yt-dlp.exe" : "yt-dlp");
+            if (string.IsNullOrEmpty(d)) continue;
+            var p = Path.Combine(d, exeName);
             if (File.Exists(p))
                 return p;
         }
 
-        var sysPath = FindInPath("yt-dlp");
-        if (sysPath != null)
+        var sysPath = FindInPath(baseName);
+        if (sysPath != null || !throwIfMissing)
             return sysPath;
 
-        throw new FileNotFoundException("¡Ejecutable 'yt-dlp.exe' no encontrado! Haz clic en Actualizar Motor.");
+        throw new FileNotFoundException($"¡Ejecutable '{exeName}' no encontrado! Haz clic en Actualizar Motor.");
     }
 
     public static string? ResolveCookiesPath(string? providedPath = null)

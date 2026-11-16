@@ -27,6 +27,27 @@ public partial class PreferencesWindow : Window
             }
         }, DispatcherPriority.Input);
 
+        PrefTabs.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key is Key.Down or Key.Enter && Keyboard.FocusedElement is TabItem)
+            {
+                e.Handled = true;
+                (PrefTabs.SelectedContent as UIElement)?.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+            }
+        };
+
+        BtnCancel.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key == Key.Tab && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+            {
+                if (PrefTabs.SelectedItem is TabItem item)
+                {
+                    e.Handled = true;
+                    item.Focus();
+                }
+            }
+        };
+
         PreviewKeyDown += (s, e) =>
         {
             if (e.Key == Key.Escape)

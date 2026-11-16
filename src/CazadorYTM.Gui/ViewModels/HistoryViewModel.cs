@@ -1,11 +1,14 @@
 namespace CazadorYTM.Gui.ViewModels;
 
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CazadorYTM.Core;
@@ -16,6 +19,8 @@ using CazadorYTM.Gui.Services;
 public partial class HistoryViewModel : ObservableObject, IDisposable
 {
     private readonly HistoryManager _historyManager;
+    private readonly CancellationTokenSource _lifecycleCts = new();
+    private DispatcherTimer? _searchDebounceTimer;
     private bool _disposed;
 
     public event Action<DownloadEntry>? RetryRequested;
@@ -47,17 +52,61 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        if (_searchDebounceTimer != null)
+        {
+            _searchDebounceTimer.Stop();
+            _searchDebounceTimer.Tick -= OnSearchDebounceTick;
+            _searchDebounceTimer = null;
+        }
+        _lifecycleCts.Cancel();
+        _lifecycleCts.Dispose();
         HistoryManager.GlobalHistoryChanged -= OnGlobalHistoryChanged;
+    }
+
+    private void OnSearchDebounceTick(object? sender, EventArgs e)
+    {
+        _searchDebounceTimer?.Stop();
+        if (!_disposed)
+        {
+            ApplyFilter();
+        }
+    }
+
+    private void FlushPendingFilter()
+    {
+        if (_searchDebounceTimer != null && _searchDebounceTimer.IsEnabled)
+        {
+            _searchDebounceTimer.Stop();
+            ApplyFilter();
+        }
     }
 
     partial void OnSearchFilterChanged(string value)
     {
-        ApplyFilter();
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
+        {
+            ApplyFilter();
+            return;
+        }
+
+        if (_searchDebounceTimer == null)
+        {
+            _searchDebounceTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(150)
+            };
+            _searchDebounceTimer.Tick += OnSearchDebounceTick;
+        }
+
+        _searchDebounceTimer.Stop();
+        _searchDebounceTimer.Start();
     }
 
     [RelayCommand]
     public void RefreshHistory()
     {
+        _searchDebounceTimer?.Stop();
         HistoryEntries.Clear();
         var entries = _historyManager.GetEntries();
         foreach (var entry in entries)
@@ -93,60 +142,110 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
         }
     }
 
-    private string? ResolveActualFilePath(DownloadEntry target)
+    private static List<string?> ResolveActualFilePathsBatch(IReadOnlyList<DownloadEntry> targets, string configuredDestFolder, CancellationToken ct = default)
     {
-        if (!string.IsNullOrEmpty(target.FilePath) && File.Exists(target.FilePath))
-        {
-            return target.FilePath;
-        }
+        var results = new List<string?>(targets.Count);
+        var defaultFolders = new List<string>(2);
 
-        // Try searching in target's recorded folder or configured destination folder
-        var searchFolders = new System.Collections.Generic.List<string>(2);
-        if (!string.IsNullOrEmpty(target.FilePath) && Directory.Exists(target.FilePath))
-        {
-            searchFolders.Add(target.FilePath);
-        }
-
-        var config = new AppConfig();
-        var destFolder = config.Get("destination_folder", "");
+        var destFolder = configuredDestFolder;
         if (string.IsNullOrEmpty(destFolder) || !Directory.Exists(destFolder))
         {
             destFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), Constants.MultiDownloadFolder);
         }
-
-        if (Directory.Exists(destFolder) && !searchFolders.Contains(destFolder, StringComparer.OrdinalIgnoreCase))
+        if (Directory.Exists(destFolder))
         {
-            searchFolders.Add(destFolder);
+            defaultFolders.Add(destFolder);
         }
 
-        foreach (var folder in searchFolders)
+        // Cache per-folder enumeration once per batch while keeping each entry's fallback scoped to its own folders.
+        var folderFileCache = new Dictionary<string, List<(string FullPath, string FileName)>>(StringComparer.OrdinalIgnoreCase);
+        List<(string FullPath, string FileName)> GetFolderFiles(string folder)
         {
+            if (folderFileCache.TryGetValue(folder, out var cached)) return cached;
+            var list = new List<(string, string)>();
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(folder, "*", SafeSearchOptions))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    list.Add((file, Path.GetFileName(file)));
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch { }
+            folderFileCache[folder] = list;
+            return list;
+        }
+
+        foreach (var target in targets)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!string.IsNullOrEmpty(target.FilePath) && File.Exists(target.FilePath))
+            {
+                results.Add(target.FilePath);
+                continue;
+            }
+
+            var entryFolders = new List<string>(3);
+            if (!string.IsNullOrEmpty(target.FilePath) && Directory.Exists(target.FilePath))
+            {
+                entryFolders.Add(target.FilePath);
+            }
+            foreach (var df in defaultFolders)
+            {
+                if (!entryFolders.Contains(df, StringComparer.OrdinalIgnoreCase))
+                {
+                    entryFolders.Add(df);
+                }
+            }
+
+            string? resolved = null;
             if (!string.IsNullOrEmpty(target.FilePath) && !Directory.Exists(target.FilePath))
             {
                 var fname = Path.GetFileName(target.FilePath);
                 if (!string.IsNullOrEmpty(fname))
                 {
-                    var test = Path.Combine(folder, fname);
-                    if (File.Exists(test)) return test;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(target.Title))
-            {
-                try
-                {
-                    var sanitizedTitle = Helpers.SanitizeFilename(target.Title);
-                    if (!string.IsNullOrWhiteSpace(sanitizedTitle))
+                    foreach (var folder in entryFolders)
                     {
-                        var match = Directory.EnumerateFiles(folder, $"*{sanitizedTitle}*", SafeSearchOptions).FirstOrDefault();
-                        if (match != null) return match;
+                        var test = Path.Combine(folder, fname);
+                        if (File.Exists(test))
+                        {
+                            resolved = test;
+                            break;
+                        }
                     }
                 }
-                catch { }
             }
+
+            if (resolved == null && !string.IsNullOrWhiteSpace(target.Title))
+            {
+                var sanitizedTitle = Helpers.SanitizeFilename(target.Title);
+                if (!string.IsNullOrWhiteSpace(sanitizedTitle))
+                {
+                    foreach (var folder in entryFolders)
+                    {
+                        var match = GetFolderFiles(folder)
+                            .FirstOrDefault(f => f.FileName.Contains(sanitizedTitle, StringComparison.OrdinalIgnoreCase));
+                        if (!string.IsNullOrEmpty(match.FullPath))
+                        {
+                            resolved = match.FullPath;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            results.Add(resolved ?? target.FilePath);
         }
 
-        return target.FilePath;
+        return results;
+    }
+
+    private string? ResolveActualFilePath(DownloadEntry target)
+    {
+        var dest = new AppConfig().Get("destination_folder", "");
+        return ResolveActualFilePathsBatch(new[] { target }, dest)[0];
     }
 
     [RelayCommand]
@@ -171,15 +270,27 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
         NotificationService.Instance.Notify(LocalizationService.Instance["TitlePlayer"], string.Format(LocalizationService.Instance["MsgPlayingTrack"], target.Title), NotificationType.Info);
 
         // Construir la cola completa en segundo plano sin bloquear la interfaz
+        FlushPendingFilter();
         var snapshot = FilteredEntries.ToList();
-        var allTracks = await Task.Run(() =>
+        var destFolder = new AppConfig().Get("destination_folder", "");
+        var ct = _disposed ? new CancellationToken(true) : _lifecycleCts.Token;
+        List<string> allTracks;
+        try
         {
-            return snapshot
-                .Select(ResolveActualFilePath)
-                .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
-                .Cast<string>()
-                .ToList();
-        });
+            allTracks = await Task.Run(() =>
+            {
+                return ResolveActualFilePathsBatch(snapshot, destFolder, ct)
+                    .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
+                    .Cast<string>()
+                    .ToList();
+            }, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_disposed || ct.IsCancellationRequested) return;
 
         var targetIdx = allTracks.IndexOf(realPath);
         if (targetIdx >= 0)
@@ -196,6 +307,7 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task PlayAllAsync()
     {
+        FlushPendingFilter();
         var snapshot = FilteredEntries.ToList();
         if (snapshot.Count == 0)
         {
@@ -203,14 +315,25 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var allTracks = await Task.Run(() =>
+        var destFolder = new AppConfig().Get("destination_folder", "");
+        var ct = _disposed ? new CancellationToken(true) : _lifecycleCts.Token;
+        List<string> allTracks;
+        try
         {
-            return snapshot
-                .Select(ResolveActualFilePath)
-                .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
-                .Cast<string>()
-                .ToList();
-        });
+            allTracks = await Task.Run(() =>
+            {
+                return ResolveActualFilePathsBatch(snapshot, destFolder, ct)
+                    .Where(p => !string.IsNullOrEmpty(p) && File.Exists(p))
+                    .Cast<string>()
+                    .ToList();
+            }, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_disposed || ct.IsCancellationRequested) return;
 
         if (allTracks.Count == 0)
         {
@@ -227,6 +350,7 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task ExportPlaylistM3U8Async()
     {
+        FlushPendingFilter();
         var snapshot = FilteredEntries.ToList();
         if (snapshot.Count == 0)
         {
@@ -234,13 +358,26 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var allTracks = await Task.Run(() =>
+        var destFolder = new AppConfig().Get("destination_folder", "");
+        var ct = _disposed ? new CancellationToken(true) : _lifecycleCts.Token;
+        List<(DownloadEntry Entry, string? Path)> allTracks;
+        try
         {
-            return snapshot
-                .Select(e => (Entry: e, Path: ResolveActualFilePath(e)))
-                .Where(t => !string.IsNullOrEmpty(t.Path) && File.Exists(t.Path))
-                .ToList();
-        });
+            allTracks = await Task.Run(() =>
+            {
+                var resolved = ResolveActualFilePathsBatch(snapshot, destFolder, ct);
+                return snapshot
+                    .Zip(resolved, (e, p) => (Entry: e, Path: p))
+                    .Where(t => !string.IsNullOrEmpty(t.Path) && File.Exists(t.Path))
+                    .ToList();
+            }, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_disposed || ct.IsCancellationRequested) return;
 
         if (allTracks.Count == 0)
         {
@@ -278,21 +415,31 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
     public void ExportPlaylistM3U8() => _ = ExportPlaylistM3U8Async();
 
     [RelayCommand]
-    public void OpenContainingFolder(DownloadEntry? entry = null)
+    public async Task OpenContainingFolderAsync(DownloadEntry? entry = null)
     {
         var target = entry ?? SelectedEntry ?? FilteredEntries.FirstOrDefault();
+        var destFolder = new AppConfig().Get("destination_folder", "");
         if (target == null)
         {
-            var config = new AppConfig();
-            var dest = config.Get("destination_folder", "");
-            if (Directory.Exists(dest))
+            if (Directory.Exists(destFolder))
             {
-                Process.Start("explorer.exe", dest);
+                Process.Start("explorer.exe", destFolder);
             }
             return;
         }
 
-        var realPath = ResolveActualFilePath(target);
+        var ct = _disposed ? new CancellationToken(true) : _lifecycleCts.Token;
+        string? realPath;
+        try
+        {
+            realPath = await Task.Run(() => ResolveActualFilePathsBatch(new[] { target }, destFolder, ct)[0], ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        if (_disposed || ct.IsCancellationRequested) return;
+
         if (!string.IsNullOrEmpty(realPath) && File.Exists(realPath))
         {
             try
@@ -372,14 +519,27 @@ public partial class HistoryViewModel : ObservableObject, IDisposable
     public async Task CleanMissingEntriesAsync()
     {
         var all = HistoryEntries.ToList();
-        var missing = await Task.Run(() =>
+        var destFolder = new AppConfig().Get("destination_folder", "");
+        var ct = _disposed ? new CancellationToken(true) : _lifecycleCts.Token;
+        List<DownloadEntry> missing;
+        try
         {
-            return all.Where(e =>
+            missing = await Task.Run(() =>
             {
-                var path = ResolveActualFilePath(e);
-                return string.IsNullOrEmpty(path) || !File.Exists(path);
-            }).ToList();
-        });
+                var resolved = ResolveActualFilePathsBatch(all, destFolder, ct);
+                return all
+                    .Zip(resolved, (e, p) => (Entry: e, Path: p))
+                    .Where(t => string.IsNullOrEmpty(t.Path) || !File.Exists(t.Path))
+                    .Select(t => t.Entry)
+                    .ToList();
+            }, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_disposed || ct.IsCancellationRequested) return;
 
         if (missing.Count == 0)
         {

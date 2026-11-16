@@ -211,4 +211,45 @@ public class RadarViewModelTests
         vm.IsLoading = false;
         Assert.True(vm.IsEmpty);
     }
+
+    [Fact]
+    public async Task LoadSectionAsync_Albums_CachesWithinTtl()
+    {
+        var fetchCalls = 0;
+        var vm = new RadarViewModel(
+            config: null,
+            fetchSectionAsync: (section, _) =>
+            {
+                fetchCalls++;
+                return Task.FromResult(new List<RadarItem>
+                {
+                    new() { Id = "MPRE123", Title = "Album Test", Artist = "Artist", IsPlaylist = true, Section = section }
+                });
+            },
+            checkSessionConnected: () => true);
+
+        await vm.LoadSectionAsync(RadarSection.Albums, force: false);
+        Assert.Equal(1, fetchCalls);
+        Assert.Single(vm.FilteredItems);
+        Assert.Equal("MPRE123", vm.FilteredItems[0].Id);
+
+        // Second non-forced load must hit TTL cache
+        await vm.LoadSectionAsync(RadarSection.Albums, force: false);
+        Assert.Equal(1, fetchCalls);
+    }
+
+    [Fact]
+    public async Task LoadSectionAsync_WhenSessionExpired_SetsIsSessionExpired()
+    {
+        var vm = new RadarViewModel(
+            config: null,
+            fetchSectionAsync: (_, _) => throw new YouTubeMusicSessionExpiredException("Expired"),
+            checkSessionConnected: () => true);
+
+        await vm.LoadSectionAsync(RadarSection.Artists, force: true);
+
+        Assert.True(vm.IsSessionExpired);
+        Assert.False(vm.HasSessionConnected);
+        Assert.True(vm.HasError);
+    }
 }

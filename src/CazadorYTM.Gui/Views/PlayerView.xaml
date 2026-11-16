@@ -8,7 +8,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              AutomationProperties.Name="{loc:Loc PlayerPanelName}"
-             KeyboardNavigation.TabNavigation="Continue">
+             KeyboardNavigation.TabNavigation="Cycle">
 
     <UserControl.InputBindings>
         <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding PlayPauseCommand}"/>

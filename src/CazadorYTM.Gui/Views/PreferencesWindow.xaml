@@ -10,7 +10,8 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         AutomationProperties.Name="{loc:Loc PreferencesTitle}"
-        AutomationProperties.HelpText="{loc:Loc PrefWindowHelpText}">
+        AutomationProperties.HelpText="{loc:Loc PrefWindowHelpText}"
+        KeyboardNavigation.TabNavigation="Cycle">
     <Grid Margin="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -23,6 +24,7 @@
 
         <!-- Tabs -->
         <TabControl x:Name="PrefTabs" Grid.Row="1" Margin="0,0,0,16"
+                    KeyboardNavigation.TabNavigation="Continue"
                     AutomationProperties.Name="{loc:Loc PrefTabsName}">
             <!-- Tab 1: General & Descargas -->
             <TabItem Header="{loc:Loc PrefDownloadsTab}">
@@ -76,7 +78,9 @@
 
                         <!-- Startup Tab -->
                         <Label x:Name="LblPrefStartupTab" Target="{Binding ElementName=CmbPrefStartupTab}" Content="{loc:Loc PrefStartupTab}" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="CmbPrefStartupTab" ItemsSource="{Binding StartupTabOptions}" SelectedItem="{Binding SelectedStartupTab}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
+                        <ComboBox x:Name="CmbPrefStartupTab" ItemsSource="{Binding StartupTabOptions}"
+                                  DisplayMemberPath="Label" SelectedValuePath="Key"
+                                  SelectedValue="{Binding SelectedStartupTab}" Height="36" Margin="0,0,0,14" HorizontalAlignment="Stretch"
                                   AutomationProperties.LabeledBy="{Binding ElementName=LblPrefStartupTab}"/>
 
                         <!-- Browser Cookies -->
@@ -169,9 +173,9 @@
 
         <!-- Bottom Actions -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="{loc:Loc Save}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding SaveCommand}" Width="120" Height="38" Margin="0,0,10,0"
+            <Button x:Name="BtnSave" Content="{loc:Loc Save}" Style="{DynamicResource AccentButtonStyle}" Command="{Binding SaveCommand}" Width="120" Height="38" Margin="0,0,10,0"
                     AutomationProperties.Name="{loc:Loc Save}" IsDefault="True"/>
-            <Button Content="{loc:Loc BtnCancel}" IsCancel="True" Command="{Binding CancelCommand}" Width="110" Height="38"
+            <Button x:Name="BtnCancel" Content="{loc:Loc BtnCancel}" IsCancel="True" Command="{Binding CancelCommand}" Width="110" Height="38"
                     AutomationProperties.Name="{loc:Loc BtnCancel}"/>
         </StackPanel>
     </Grid>

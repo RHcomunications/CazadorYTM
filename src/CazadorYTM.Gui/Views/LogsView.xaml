@@ -7,7 +7,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              AutomationProperties.Name="{loc:Loc LogsPanelName}"
-             KeyboardNavigation.TabNavigation="Continue">
+             KeyboardNavigation.TabNavigation="Cycle">
     <Grid Margin="24,20,24,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

@@ -252,17 +252,15 @@ public partial class CookiesManagerViewModel : ObservableObject
             return;
         }
 
-        var dialog = new SaveFileDialog
-        {
-            Title = "Exportar archivo de cookies de Cazador YTM",
-            Filter = "Archivo Netscape (*.txt)|*.txt|Archivo JSON (*.json)|*.json|Todos los archivos (*.*)|*.*",
-            FileName = "cazador_cookies.txt"
-        };
+        var selectedPath = DialogService.Instance.SaveFile(
+            "cazador_cookies.txt",
+            "Archivo Netscape (*.txt)|*.txt|Archivo JSON (*.json)|*.json|Todos los archivos (*.*)|*.*",
+            "Exportar archivo de cookies de Cazador YTM");
 
-        if (dialog.ShowDialog() == true)
+        if (!string.IsNullOrEmpty(selectedPath))
         {
-            var asJson = dialog.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
-            var result = await CookieService.ExportCookiesAsync(CurrentCookiesPath, dialog.FileName, asJson);
+            var asJson = selectedPath.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+            var result = await CookieService.ExportCookiesAsync(CurrentCookiesPath, selectedPath, asJson);
 
             if (result.Success)
             {
@@ -279,16 +277,14 @@ public partial class CookiesManagerViewModel : ObservableObject
     public async Task ImportCookies()
     {
         var loc = LocalizationService.Instance;
-        var dialog = new OpenFileDialog
-        {
-            Title = "Importar archivo de cookies existente",
-            Filter = "Archivos de Cookies (*.txt;*.json)|*.txt;*.json|Todos los archivos (*.*)|*.*"
-        };
+        var selectedPath = DialogService.Instance.SelectFile(
+            "Archivos de Cookies (*.txt;*.json)|*.txt;*.json|Todos los archivos (*.*)|*.*",
+            title: "Importar archivo de cookies existente");
 
-        if (dialog.ShowDialog() == true)
+        if (!string.IsNullOrEmpty(selectedPath))
         {
             var targetPath = Helpers.GetDefaultCookiesPath();
-            var result = await CookieService.ImportCookiesAsync(dialog.FileName, targetPath);
+            var result = await CookieService.ImportCookiesAsync(selectedPath, targetPath);
 
             if (result.Success)
             {
@@ -351,44 +347,10 @@ public partial class CookiesManagerViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void ExportLogs()
-    {
-        var dialog = new SaveFileDialog
-        {
-            Title = "Exportar registro de errores de Cazador YTM",
-            Filter = "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*",
-            FileName = $"cazador_registro_cookies_{DateTime.Now:yyyyMMdd_HHmmss}.log"
-        };
-
-        if (dialog.ShowDialog() == true)
-        {
-            if (LogService.Instance.ExportLogs(dialog.FileName))
-            {
-                NotificationService.Instance.Notify("Registro Exportado", $"Registro guardado en:\n{dialog.FileName}", NotificationType.Success);
-            }
-            else
-            {
-                NotificationService.Instance.NotifyError("Exportar Registro", "No se pudo guardar el archivo de registro.");
-            }
-        }
-    }
+    public void ExportLogs() => AppActionsHelper.ExportLogs("cazador_registro_cookies");
 
     [RelayCommand]
-    public void ContactSupport()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = Constants.SupportTelegramUrl,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Instance.NotifyError("Soporte Técnico", $"No se pudo abrir el enlace de soporte: {ex.Message}");
-        }
-    }
+    public void ContactSupport() => AppActionsHelper.ContactSupport();
 
     [RelayCommand]
     public void Close()

@@ -67,6 +67,22 @@ public class AppConfigTests : IDisposable
         var leftoverTmp = Directory.GetFiles(dir, $"{Path.GetFileName(_tempConfigPath)}.*.tmp");
         Assert.Empty(leftoverTmp);
     }
+
+    [Fact]
+    public void AppConfig_SharedState_PreservesMutationsAcrossInstances()
+    {
+        var first = new AppConfig(_tempConfigPath);
+        first.Set("custom_a", "alpha");
+
+        var second = new AppConfig(_tempConfigPath);
+        Assert.Equal("alpha", second.Get("custom_a", ""));
+
+        second.Set("custom_b", "beta");
+        second.Save();
+
+        Assert.Equal("beta", first.Get("custom_b", ""));
+        Assert.Equal("alpha", first.Get("custom_a", ""));
+    }
 }
 
 public class RadarItemTests

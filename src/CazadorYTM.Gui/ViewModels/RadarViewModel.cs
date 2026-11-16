@@ -76,15 +76,33 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     public ObservableCollection<RadarItem> AllItems { get; } = new();
     public ObservableCollection<RadarItem> FilteredItems { get; } = new();
 
+    private readonly CancellationTokenSource _lifecycleCts = new();
+    private readonly Func<RadarSection, CancellationToken, Task<List<RadarItem>>>? _fetchSectionOverride;
+    private readonly Func<bool>? _sessionCheckOverride;
+
     public RadarViewModel()
+        : this(null, null, null)
     {
-        _config = new AppConfig();
+    }
+
+    public RadarViewModel(
+        AppConfig? config,
+        Func<RadarSection, CancellationToken, Task<List<RadarItem>>>? fetchSectionAsync = null,
+        Func<bool>? checkSessionConnected = null)
+    {
+        _config = config ?? new AppConfig();
+        _fetchSectionOverride = fetchSectionAsync;
+        _sessionCheckOverride = checkSessionConnected;
         _statusText = LocalizationService.Instance["RadarStatusReady"];
         HasSessionConnected = CheckSessionConnected();
     }
 
     public bool CheckSessionConnected()
     {
+        if (_sessionCheckOverride != null)
+        {
+            return _sessionCheckOverride();
+        }
         try
         {
             _config.Load();
@@ -189,15 +207,17 @@ public partial class RadarViewModel : ObservableObject, IDisposable
             var browser = _config.Get("cookies_browser", "Ninguno");
             var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
 
-            var items = await RadarService.FetchRadarItemsAsync(
-                section,
-                cookiesBrowser: browser,
-                cookiesPath: cookiesPath,
-                logger: msg => LogService.Instance.Info(msg),
-                language: _config.Get("language", "es"),
-                cancellationToken: token);
+            var items = _fetchSectionOverride != null
+                ? await _fetchSectionOverride(section, token)
+                : await RadarService.FetchRadarItemsAsync(
+                    section,
+                    cookiesBrowser: browser,
+                    cookiesPath: cookiesPath,
+                    logger: msg => LogService.Instance.Info(msg),
+                    language: _config.Get("language", "es"),
+                    cancellationToken: token);
 
-            if (token.IsCancellationRequested)
+            if (_disposed || token.IsCancellationRequested)
             {
                 return;
             }
@@ -407,11 +427,12 @@ public partial class RadarViewModel : ObservableObject, IDisposable
 
     private async Task SetRatingAsync(RadarItem? item, RadarRating rating)
     {
-        if (item == null || item.IsPlaylist)
+        if (_disposed || item == null || item.IsPlaylist)
         {
             return;
         }
 
+        var ct = _lifecycleCts.Token;
         var loc = LocalizationService.Instance;
         var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
         var language = _config.Get("language", "es");
@@ -419,7 +440,8 @@ public partial class RadarViewModel : ObservableObject, IDisposable
 
         try
         {
-            await RadarService.SetTrackRatingAsync(item.Id, rating, cookiesPath, language);
+            await RadarService.SetTrackRatingAsync(item.Id, rating, cookiesPath, language, ct);
+            if (_disposed || ct.IsCancellationRequested) return;
 
             StatusText = rating switch
             {
@@ -429,6 +451,10 @@ public partial class RadarViewModel : ObservableObject, IDisposable
             };
             HasError = false;
             NotificationService.Instance.Notify("Radar YTM", StatusText, NotificationType.Success);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return;
         }
         catch (Exception ex)
         {
@@ -444,11 +470,12 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     public async Task AddToPlaylist()
     {
         var item = SelectedItem;
-        if (item == null || item.IsPlaylist)
+        if (_disposed || item == null || item.IsPlaylist)
         {
             return;
         }
 
+        var ct = _lifecycleCts.Token;
         var loc = LocalizationService.Instance;
         var previousStatus = StatusText;
         var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
@@ -464,12 +491,15 @@ public partial class RadarViewModel : ObservableObject, IDisposable
                     cookiesBrowser: _config.Get("cookies_browser", "Ninguno"),
                     cookiesPath: cookiesPath,
                     logger: msg => LogService.Instance.Info(msg),
-                    language: language);
+                    language: language,
+                    cancellationToken: ct);
 
+                if (_disposed || ct.IsCancellationRequested) return;
                 _cachedPlaylists.Clear();
                 _cachedPlaylists.AddRange(playlists.Where(p => p.IsPlaylist));
             }
 
+            if (_disposed || ct.IsCancellationRequested) return;
             var choices = _cachedPlaylists
                 .Where(p => p.IsPlaylist && p.Id != "VLLM" && p.Id != "LM")
                 .ToList();
@@ -484,15 +514,18 @@ public partial class RadarViewModel : ObservableObject, IDisposable
             if (!string.IsNullOrWhiteSpace(selection.NewPlaylistTitle))
             {
                 await RadarService.CreatePlaylistWithTrackAsync(
-                    selection.NewPlaylistTitle!, item.Id, cookiesPath, language);
+                    selection.NewPlaylistTitle!, item.Id, cookiesPath, language, ct);
 
+                if (_disposed || ct.IsCancellationRequested) return;
                 InvalidatePlaylistCaches();
                 StatusText = Format(loc["RadarStatusPlaylistCreated"], selection.NewPlaylistTitle!, item.Title);
             }
             else if (!string.IsNullOrWhiteSpace(selection.PlaylistId))
             {
                 await RadarService.AddTrackToPlaylistAsync(
-                    selection.PlaylistId!, item.Id, cookiesPath, language);
+                    selection.PlaylistId!, item.Id, cookiesPath, language, ct);
+
+                if (_disposed || ct.IsCancellationRequested) return;
 
                 var playlistTitle = _cachedPlaylists
                     .FirstOrDefault(p => p.Id == selection.PlaylistId)?.Title ?? selection.PlaylistId!;
@@ -501,6 +534,10 @@ public partial class RadarViewModel : ObservableObject, IDisposable
 
             HasError = false;
             NotificationService.Instance.Notify("Radar YTM", StatusText, NotificationType.Success);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return;
         }
         catch (Exception ex)
         {
@@ -579,6 +616,8 @@ public partial class RadarViewModel : ObservableObject, IDisposable
 
         var browser = _config.Get("cookies_browser", "Ninguno");
         var cookiesPath = _config.Get("cookies_path", Helpers.GetDefaultCookiesPath());
+        if (_disposed) return;
+        var ct = _lifecycleCts.Token;
 
         try
         {
@@ -587,12 +626,16 @@ public partial class RadarViewModel : ObservableObject, IDisposable
                 cookiesBrowser: browser,
                 cookiesPath: cookiesPath,
                 logger: msg => LogService.Instance.Info(msg),
-                language: _config.Get("language", "es"));
+                language: _config.Get("language", "es"),
+                cancellationToken: ct);
+
+            if (_disposed || ct.IsCancellationRequested) return;
 
             if (tracks.Count > 0)
             {
                 var first = tracks[0];
                 await PlayItem(first);
+                if (_disposed || ct.IsCancellationRequested) return;
                 StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusPlayingFirstTrack", "Reproduciendo primer tema de '{0}': {1}"), playlistItem.Title, first.Title);
             }
             else
@@ -600,6 +643,9 @@ public partial class RadarViewModel : ObservableObject, IDisposable
                 StatusText = string.Format(LocalizationService.Instance.Get("RadarStatusNoTracksInPlaylist", "No se encontraron canciones en la lista '{0}'."), playlistItem.Title);
                 NotificationService.Instance.NotifyError("Radar YTM", StatusText);
             }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
@@ -651,7 +697,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     public async Task PlayItem(RadarItem? item)
     {
         item ??= SelectedItem;
-        if (item == null) return;
+        if (_disposed || item == null) return;
 
         if (item.IsPlaylist)
         {
@@ -708,7 +754,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     public void SendToDownload(RadarItem? item)
     {
         item ??= SelectedItem;
-        if (item == null) return;
+        if (_disposed || item == null) return;
 
         var entry = item.ToDownloadEntry();
         SendToDownloadRequested?.Invoke(entry);
@@ -730,53 +776,22 @@ public partial class RadarViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    public void ExportLogs()
-    {
-        var loc = LocalizationService.Instance;
-        var dialog = new SaveFileDialog
-        {
-            Title = loc.Get("TitleExportErrorLog", "Exportar Registro de Errores de Cazador YTM"),
-            Filter = loc.Get("LogFilesFilter", "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*"),
-            FileName = $"cazador_registro_error_{DateTime.Now:yyyyMMdd_HHmmss}.log"
-        };
-
-        if (dialog.ShowDialog() == true)
-        {
-            if (LogService.Instance.ExportLogs(dialog.FileName))
-            {
-                NotificationService.Instance.Notify(loc.Get("TitleLogExported", "Registro Exportado"), string.Format(loc.Get("MsgLogExportedSuccess", "Registro guardado exitosamente en:\n{0}"), dialog.FileName), NotificationType.Success);
-            }
-            else
-            {
-                NotificationService.Instance.NotifyError(loc.Get("TitleLogExported", "Registro Exportado"), loc.Get("MsgLogExportFailed", "No se pudo escribir el archivo de registro en el destino seleccionado."));
-            }
-        }
-    }
+    public void ExportLogs() => AppActionsHelper.ExportLogs("cazador_registro_error");
 
     [RelayCommand]
-    public void ContactSupport()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = Constants.SupportTelegramUrl,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Instance.NotifyError(LocalizationService.Instance.Get("TitleTechSupport", "Soporte Técnico"), string.Format(LocalizationService.Instance.Get("MsgSupportLinkError", "No se pudo abrir el enlace de soporte: {0}"), ex.Message));
-        }
-    }
+    public void ContactSupport() => AppActionsHelper.ContactSupport();
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _lifecycleCts.Cancel();
+        _lifecycleCts.Dispose();
         _loadCts?.Cancel();
         _loadCts?.Dispose();
+        _loadCts = null;
         _streamCts?.Cancel();
         _streamCts?.Dispose();
+        _streamCts = null;
     }
 }

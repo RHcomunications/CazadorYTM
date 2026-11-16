@@ -135,7 +135,7 @@
                     PreviewKeyDown="MainTabs_PreviewKeyDown"
                     AutomationProperties.Name="{loc:Loc MainTabsName}"
                     AutomationProperties.HelpText="{loc:Loc MainTabsHelpText}"
-                    KeyboardNavigation.TabNavigation="Continue">
+                    KeyboardNavigation.TabNavigation="Cycle">
             <TabControl.ItemContainerStyle>
                 <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
                     <Setter Property="AutomationProperties.Name" Value="{Binding Header}"/>

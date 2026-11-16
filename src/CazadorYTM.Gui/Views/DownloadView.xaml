@@ -8,7 +8,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              AutomationProperties.Name="{loc:Loc TabDownloads}"
-             KeyboardNavigation.TabNavigation="Continue">
+             KeyboardNavigation.TabNavigation="Cycle">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="24,20,24,24" MaxWidth="920" HorizontalAlignment="Stretch">
 

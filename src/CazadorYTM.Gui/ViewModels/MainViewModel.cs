@@ -94,7 +94,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void InitializeStartupTab()
     {
         var startup = _config.Get("startup_tab", "Descarga");
-        if (startup.Equals("Reproductor", StringComparison.OrdinalIgnoreCase))
+        if (startup.Equals("Biblioteca", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenOrFocusTab(MainTabType.History);
+        }
+        else if (startup.Equals("Reproductor", StringComparison.OrdinalIgnoreCase))
         {
             OpenOrFocusTab(MainTabType.Player);
         }
@@ -368,45 +372,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void ExportLogs()
-    {
-        var loc = LocalizationService.Instance;
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = loc.Get("TitleExportErrorLog", "Exportar Registro de Errores de Cazador YTM"),
-            Filter = loc.Get("LogFilesFilter", "Archivo de Registro (*.log)|*.log|Archivo de Texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*"),
-            FileName = $"cazador_registro_{DateTime.Now:yyyyMMdd_HHmmss}.log"
-        };
-
-        if (dialog.ShowDialog() == true)
-        {
-            if (LogService.Instance.ExportLogs(dialog.FileName))
-            {
-                NotificationService.Instance.Notify(loc.Get("TitleLogExported", "Registro Exportado"), string.Format(loc.Get("MsgLogExportedSuccess", "Registro guardado exitosamente en:\n{0}"), dialog.FileName), NotificationType.Success);
-            }
-            else
-            {
-                NotificationService.Instance.NotifyError(loc.Get("TitleLogExported", "Registro Exportado"), loc.Get("MsgLogExportFailed", "No se pudo escribir el archivo de registro en el destino seleccionado."));
-            }
-        }
-    }
+    private void ExportLogs() => AppActionsHelper.ExportLogs();
 
     [RelayCommand]
-    private void ContactSupport()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = Constants.SupportTelegramUrl,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Instance.NotifyError(LocalizationService.Instance.Get("TitleTechSupport", "Soporte Técnico"), string.Format(LocalizationService.Instance.Get("MsgSupportLinkError", "No se pudo abrir el enlace de soporte: {0}"), ex.Message));
-        }
-    }
+    private void ContactSupport() => AppActionsHelper.ContactSupport();
 
     [RelayCommand]
     private void ShowAbout()
