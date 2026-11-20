@@ -14,7 +14,6 @@ public static class DownloadEngine
     public delegate int DownloadOperation(CancellationToken? cancelEvent, Action<string>? loggerCallback, Action<Dictionary<string, string>>? progressCallback);
 
     private static readonly Regex AnsiEscapeRegex = new(@"\x1b\[[0-9;]*[a-zA-ZK]|\x1b\[[0-9;]*[A-Za-z]", RegexOptions.Compiled);
-    private static readonly Regex ProgressRegex = new(@"\[download\]\s+(\d+(?:\.\d+)?)%", RegexOptions.Compiled);
     private static readonly Regex DetailRegex = new(@"\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+(\S+)\s+at\s+(\S+)\s+ETA\s+(\S+)", RegexOptions.Compiled);
     private static readonly Regex DestRegex = new(@"Destination:\s*""?([^""\n]+)""?", RegexOptions.Compiled);
     private static readonly Regex AlreadyDownloadedRegex = new(@"\[download\]\s+""?([^""\n]+?)""?\s+has already been downloaded", RegexOptions.Compiled);
@@ -96,46 +95,6 @@ public static class DownloadEngine
         }
     }
 
-    public static void KillProcessTree(int pid)
-    {
-        if (pid <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            using var process = Process.GetProcessById(pid);
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(3000);
-            return;
-        }
-        catch
-        {
-        }
-
-        if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-        {
-            return;
-        }
-
-        try
-        {
-            var psi = new ProcessStartInfo("taskkill", $"/F /T /PID {pid}")
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                WindowStyle = ProcessWindowStyle.Hidden
-            };
-            using var taskkill = Process.Start(psi);
-            if (taskkill is not null && !taskkill.WaitForExit(5000))
-            {
-                try { taskkill.Kill(entireProcessTree: true); } catch { }
-            }
-        }
-        catch { }
-    }
-
     public static bool TrimSilenceFfmpeg(string filepath, string? ffmpegLoc = null,
         CancellationToken? cancelEvent = null, string? bitrate = null)
     {
@@ -198,7 +157,10 @@ public static class DownloadEngine
             }
         }
         catch (DownloadCancelled) { throw; }
-        catch { }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[DownloadEngine.TrimSilenceFfmpeg] {ex.Message}");
+        }
         finally
         {
             if (File.Exists(tempFilepath))
@@ -264,7 +226,6 @@ public static class DownloadEngine
         var lastErrorLine = string.Empty;
         var lineLock = new object();
         double lastDispatchedPct = -1;
-        var progressDict = new Dictionary<string, string>(4);
 
         void ProcessLine(string? line)
         {
@@ -272,6 +233,9 @@ public static class DownloadEngine
 
             var cleanLine = AnsiEscapeRegex.Replace(line, "").Trim();
             if (string.IsNullOrEmpty(cleanLine)) return;
+
+            Dictionary<string, string>? progressSnapshot = null;
+            string? logMessage = null;
 
             lock (lineLock)
             {
@@ -298,18 +262,20 @@ public static class DownloadEngine
                                 lastDispatchedPct = pct;
                                 if (progressCallback != null)
                                 {
-                                    progressDict["percent"] = pct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
-                                    progressDict["speed"] = speed;
-                                    progressDict["eta"] = eta;
-                                    progressDict["size"] = size;
-                                    progressCallback(new Dictionary<string, string>(progressDict));
+                                    progressSnapshot = new Dictionary<string, string>(4)
+                                    {
+                                        ["percent"] = pct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
+                                        ["speed"] = speed,
+                                        ["eta"] = eta,
+                                        ["size"] = size
+                                    };
                                 }
                             }
 
                             if (pct >= lastLogPct + 10 || pct >= 100)
                             {
                                 lastLogPct = (int)(pct / 10) * 10;
-                                loggerCallback?.Invoke(Helpers.SanitizeLogMessage($"[SISTEMA] Descargando: {pct:F1}% de {size} a {speed} (Restan {eta})"));
+                                logMessage = Helpers.SanitizeLogMessage($"[SISTEMA] Descargando: {pct:F1}% de {size} a {speed} (Restan {eta})");
                             }
                         }
                     }
@@ -322,8 +288,18 @@ public static class DownloadEngine
                         lastErrorLine = cleanLine;
                     }
 
-                    loggerCallback?.Invoke(Helpers.SanitizeLogMessage($"[yt-dlp] {cleanLine}"));
+                    logMessage = Helpers.SanitizeLogMessage($"[yt-dlp] {cleanLine}");
                 }
+            }
+
+            if (progressSnapshot != null)
+            {
+                progressCallback?.Invoke(progressSnapshot);
+            }
+
+            if (logMessage != null)
+            {
+                loggerCallback?.Invoke(logMessage);
             }
         }
 
@@ -515,10 +491,16 @@ public static class DownloadEngine
                     var waitTime = (int)Math.Pow(Constants.RetryBackoffBase, attempt);
                     loggerCallback?.Invoke($"[AVISO] Intento {attempt}/{Constants.MaxRetries} fallido: {e.Message}");
                     loggerCallback?.Invoke($"[SISTEMA] Reintentando en {waitTime}s...");
-                    for (var i = 0; i < waitTime; i++)
+                    if (cancelEvent.HasValue)
                     {
-                        CheckCancelled(cancelEvent);
-                        Thread.Sleep(1000);
+                        if (cancelEvent.Value.WaitHandle.WaitOne(waitTime * 1000))
+                        {
+                            CheckCancelled(cancelEvent);
+                        }
+                    }
+                    else
+                    {
+                        Thread.Sleep(waitTime * 1000);
                     }
                 }
                 else
@@ -624,54 +606,6 @@ public static class DownloadEngine
                 ErrorMessage = ex.Message
             };
         }
-    }
-
-    [Obsolete("Utilice RadarService.GetStreamUrlAsync en su lugar.")]
-    public static string? ExtractStreamUrl(string queryOrUrl, string? cookiesBrowser = null)
-    {
-        var exe = BinaryManager.GetYtDlpPath();
-        if (string.IsNullOrEmpty(exe))
-        {
-            return null;
-        }
-
-        var args = new List<string>
-        {
-            "--ignore-config",
-            "-g",
-            "-f",
-            "ba/b",
-            "--no-playlist"
-        };
-
-        if (!string.IsNullOrEmpty(cookiesBrowser) && cookiesBrowser.ToLower() != "ninguno")
-        {
-            args.Add("--cookies-from-browser");
-            args.Add(cookiesBrowser.ToLower());
-        }
-
-        args.Add("--");
-        var isUrl = Helpers.IsUrl(queryOrUrl);
-        args.Add(isUrl ? queryOrUrl : $"ytsearch1:{queryOrUrl}");
-
-        try
-        {
-            var result = ProcessRunner.RunAsync(
-                exe,
-                args,
-                timeoutMs: 15000,
-                maxCapturedChars: 1024 * 1024).GetAwaiter().GetResult();
-
-            if (result.Success && !string.IsNullOrWhiteSpace(result.StandardOutput))
-            {
-                return result.StandardOutput
-                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                    .FirstOrDefault();
-            }
-        }
-        catch { }
-
-        return null;
     }
 }
 

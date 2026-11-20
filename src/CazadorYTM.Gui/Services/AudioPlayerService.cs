@@ -223,12 +223,18 @@ public class AudioPlayerService : IAudioPlayerService
 
     public void UpdateQueueWithoutRestarting(IEnumerable<string> tracks, int currentIndex)
     {
+        var sourceList = tracks.ToList();
+        var currentTrack = (currentIndex >= 0 && currentIndex < sourceList.Count) ? sourceList[currentIndex] : null;
+
         _queue.Clear();
-        _queue.AddRange(tracks.Where(t => File.Exists(t) || Helpers.IsUrl(t)));
+        _queue.AddRange(sourceList.Where(t => Helpers.IsUrl(t) || (Path.IsPathRooted(t) && File.Exists(t))));
 
         if (_queue.Count > 0)
         {
-            CurrentQueueIndex = Math.Clamp(currentIndex, 0, _queue.Count - 1);
+            var remappedIndex = currentTrack != null ? _queue.IndexOf(currentTrack) : -1;
+            CurrentQueueIndex = remappedIndex >= 0
+                ? remappedIndex
+                : Math.Clamp(currentIndex, 0, _queue.Count - 1);
             StateChanged?.Invoke();
         }
         else

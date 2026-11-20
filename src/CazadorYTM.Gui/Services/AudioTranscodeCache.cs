@@ -10,9 +10,33 @@ public class AudioTranscodeCache
     private readonly object _cacheLock = new();
     private readonly Dictionary<string, string> _lruTranscodeCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _lruOrder = new();
+    private readonly HashSet<string> _pendingDeletes = new(StringComparer.OrdinalIgnoreCase);
     private const int MaxLruCachedTracks = 5;
 
     private string? _currentTempWav;
+
+    private void RetryPendingDeletesLocked()
+    {
+        if (_pendingDeletes.Count == 0) return;
+        var toRemove = new List<string>();
+        foreach (var path in _pendingDeletes)
+        {
+            if (path == _currentTempWav) continue;
+            if (!File.Exists(path))
+            {
+                toRemove.Add(path);
+                continue;
+            }
+            try
+            {
+                File.Delete(path);
+                toRemove.Add(path);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+        foreach (var p in toRemove) _pendingDeletes.Remove(p);
+    }
 
     public async Task<string?> TryTranscodeToTempWavAsync(string sourcePath, System.Threading.CancellationToken cancellationToken = default)
     {
@@ -52,6 +76,8 @@ public class AudioTranscodeCache
             {
                 lock (_cacheLock)
                 {
+                    RetryPendingDeletesLocked();
+
                     // Evict oldest if exceeding capacity
                     while (_lruOrder.Count >= MaxLruCachedTracks)
                     {
@@ -64,7 +90,12 @@ public class AudioTranscodeCache
                                 _lruTranscodeCache.Remove(oldest);
                                 if (oldestWav != _currentTempWav && File.Exists(oldestWav))
                                 {
-                                    try { File.Delete(oldestWav); } catch { }
+                                    try { File.Delete(oldestWav); }
+                                    catch { _pendingDeletes.Add(oldestWav); }
+                                }
+                                else if (oldestWav == _currentTempWav)
+                                {
+                                    _pendingDeletes.Add(oldestWav);
                                 }
                             }
                         }
@@ -103,6 +134,7 @@ public class AudioTranscodeCache
             _lruTranscodeCache.Clear();
             _lruOrder.Clear();
             _currentTempWav = null;
+            RetryPendingDeletesLocked();
         }
     }
 

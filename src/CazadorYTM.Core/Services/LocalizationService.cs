@@ -10,12 +10,14 @@ public class LocalizationService
     private static readonly Lazy<LocalizationService> _instance = new(() => new LocalizationService());
     public static LocalizationService Instance => _instance.Value;
 
-    private readonly Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _loadLock = new();
+    private Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string>? _loadingStrings;
     private string _currentLanguage = "es";
 
     public event Action? LanguageChanged;
 
-    public string CurrentLanguage => _currentLanguage;
+    public string CurrentLanguage => System.Threading.Volatile.Read(ref _currentLanguage);
 
     public LocalizationService()
     {
@@ -26,39 +28,53 @@ public class LocalizationService
 
     public void LoadLanguage(string langCode)
     {
-        _currentLanguage = string.IsNullOrWhiteSpace(langCode) ? "es" : langCode.ToLower().Trim();
-        _strings.Clear();
-
-        // 1. Load embedded defaults first
-        LoadEmbeddedDefaults(_currentLanguage);
-
-        // 2. Override with custom JSON dictionary if available in lang/
-        try
+        var normalizedLang = string.IsNullOrWhiteSpace(langCode) ? "es" : langCode.ToLower().Trim();
+        lock (_loadLock)
         {
-            var baseDir = Helpers.GetBaseDir();
-            var langFile = Path.Combine(baseDir, "lang", $"{_currentLanguage}.json");
-            if (File.Exists(langFile))
+            var nextStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _loadingStrings = nextStrings;
+            try
             {
-                var json = File.ReadAllText(langFile);
-                var dict = JsonHelper.Deserialize<Dictionary<string, string>>(json);
-                if (dict != null)
+                // 1. Load embedded defaults first
+                LoadEmbeddedDefaults(normalizedLang);
+
+                // 2. Override with custom JSON dictionary if available in lang/
+                try
                 {
-                    foreach (var (k, v) in dict)
+                    var baseDir = Helpers.GetBaseDir();
+                    var langFile = Path.Combine(baseDir, "lang", $"{normalizedLang}.json");
+                    if (File.Exists(langFile))
                     {
-                        if (!string.IsNullOrEmpty(v))
-                            _strings[k] = v;
+                        var json = File.ReadAllText(langFile);
+                        var dict = JsonHelper.Deserialize<Dictionary<string, string>>(json);
+                        if (dict != null)
+                        {
+                            foreach (var (k, v) in dict)
+                            {
+                                if (!string.IsNullOrEmpty(v))
+                                    nextStrings[k] = v;
+                            }
+                        }
                     }
                 }
+                catch { }
+
+                System.Threading.Volatile.Write(ref _currentLanguage, normalizedLang);
+                System.Threading.Volatile.Write(ref _strings, nextStrings);
+            }
+            finally
+            {
+                _loadingStrings = null;
             }
         }
-        catch { }
 
         LanguageChanged?.Invoke();
     }
 
     public string Get(string key, string? defaultValue = null)
     {
-        if (_strings.TryGetValue(key, out var val) && !string.IsNullOrEmpty(val))
+        var snapshot = System.Threading.Volatile.Read(ref _strings);
+        if (snapshot.TryGetValue(key, out var val) && !string.IsNullOrEmpty(val))
             return val;
         return defaultValue ?? key;
     }
@@ -67,7 +83,10 @@ public class LocalizationService
 
     private void SetDefault(string key, string value)
     {
-        _strings[key] = value;
+        if (_loadingStrings != null)
+        {
+            _loadingStrings[key] = value;
+        }
     }
 
     private void LoadEmbeddedDefaults(string lang)

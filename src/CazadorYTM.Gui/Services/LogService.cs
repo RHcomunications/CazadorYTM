@@ -15,12 +15,45 @@ public class LogService
     private const int MaxMessageLength = 8192;
     private readonly object _lock = new();
     private readonly string _logFilePath;
+    private StreamWriter? _writer;
+    private long _currentLogBytes;
+    private readonly System.Threading.Timer _flushTimer;
 
     public event Action<string, string>? OnLogReceived;
 
     public LogService()
     {
         _logFilePath = Path.Combine(Helpers.GetBaseDir(), "casador.log");
+        try
+        {
+            if (File.Exists(_logFilePath))
+            {
+                _currentLogBytes = new FileInfo(_logFilePath).Length;
+            }
+        }
+        catch { }
+
+        _flushTimer = new System.Threading.Timer(_ => Flush(), null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => Flush();
+    }
+
+    private void EnsureWriterLocked()
+    {
+        if (_writer != null) return;
+        var fs = new FileStream(_logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        _writer = new StreamWriter(fs, Encoding.UTF8) { AutoFlush = false };
+    }
+
+    public void Flush()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                _writer?.Flush();
+            }
+            catch { }
+        }
     }
 
     public void Log(string message, string level = "INFO")
@@ -32,18 +65,22 @@ public class LogService
         }
 
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-        var line = $"[{timestamp}] [{level.ToUpper()}] {message}";
+        var line = $"[{timestamp}] [{level.ToUpperInvariant()}] {message}";
 
         lock (_lock)
         {
             try
             {
-                if (File.Exists(_logFilePath) && new FileInfo(_logFilePath).Length >= MaxLogBytes)
+                var lineBytes = Encoding.UTF8.GetByteCount(line) + Environment.NewLine.Length;
+                if (_currentLogBytes + lineBytes >= MaxLogBytes)
                 {
-                    RotateLog();
+                    RotateLogLocked();
                 }
 
-                File.AppendAllText(_logFilePath, line + Environment.NewLine, Encoding.UTF8);
+                EnsureWriterLocked();
+                _writer!.WriteLine(line);
+                _currentLogBytes += lineBytes;
+                _flushTimer.Change(200, System.Threading.Timeout.Infinite);
             }
             catch { }
         }
@@ -61,8 +98,18 @@ public class LogService
         }
     }
 
-    private void RotateLog()
+    private void RotateLogLocked()
     {
+        if (_writer != null)
+        {
+            try { _writer.Flush(); } catch { }
+            finally
+            {
+                try { _writer.Dispose(); } catch { }
+                _writer = null;
+            }
+        }
+
         var backupPath = _logFilePath + ".1";
         try
         {
@@ -71,7 +118,10 @@ public class LogService
                 File.Delete(backupPath);
             }
 
-            File.Move(_logFilePath, backupPath);
+            if (File.Exists(_logFilePath))
+            {
+                File.Move(_logFilePath, backupPath);
+            }
         }
         catch
         {
@@ -81,6 +131,8 @@ public class LogService
             }
             catch { }
         }
+
+        _currentLogBytes = 0;
     }
 
     public void Info(string message) => Log(message, "INFO");
@@ -93,11 +145,14 @@ public class LogService
     {
         lock (_lock)
         {
+            try { _writer?.Flush(); } catch { }
             try
             {
                 if (File.Exists(_logFilePath))
                 {
-                    return File.ReadAllText(_logFilePath, Encoding.UTF8);
+                    using var fs = new FileStream(_logFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var sr = new StreamReader(fs, Encoding.UTF8);
+                    return sr.ReadToEnd();
                 }
             }
             catch { }

@@ -150,7 +150,6 @@ public class AppConfig
         ["deep_verify"] = false,
         ["trim_silence"] = false,
         ["lyrics_api_fallback"] = true,
-        ["font_size"] = "Normal",
         ["cookies_path"] = Helpers.GetDefaultCookiesPath(),
         ["proxy"] = ""
     };
