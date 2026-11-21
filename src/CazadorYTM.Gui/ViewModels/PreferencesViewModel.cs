@@ -133,63 +133,10 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CheckAppUpdate()
     {
-        var loc = LocalizationService.Instance;
         IsCheckingUpdates = true;
-        UpdateStatusText = loc["PrefStatusCheckingApp"];
-
         try
         {
-            var info = await AppUpdaterService.CheckAppUpdateAsync();
-            if (info.HasUpdate)
-            {
-                UpdateStatusText = string.Format(loc["PrefStatusNewAppAvailable"], info.LatestVersion);
-                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : string.Format(loc["MainMsgReleaseNotes"], info.ReleaseNotes);
-                var confirmMsg = string.Format(loc["MainMsgNewVersion"], info.CurrentVersion, info.LatestVersion, notesPreview);
-
-                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, loc["TitleAppUpdateAvailable"]);
-                if (accept)
-                {
-                    if (string.IsNullOrEmpty(info.AssetDownloadUrl))
-                    {
-                        // Open release page if no direct zip asset was found
-                        if (!string.IsNullOrEmpty(info.HtmlUrl))
-                        {
-                            Process.Start(new ProcessStartInfo(info.HtmlUrl) { UseShellExecute = true });
-                        }
-                        UpdateStatusText = loc["PrefStatusOpeningGitHub"];
-                        return;
-                    }
-
-                    UpdateStatusText = loc["PrefStatusDownloadingApp"];
-                    var baseDir = Helpers.GetBaseDir();
-                    await AppUpdaterService.DownloadAndApplyUpdateAsync(
-                        info.AssetDownloadUrl,
-                        baseDir,
-                        msg => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = msg),
-                        pct => Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = string.Format(loc["PrefStatusDownloadingAppPct"], pct)),
-                        info.AssetSha256,
-                        info.ChecksumDownloadUrl);
-
-                    Application.Current?.Dispatcher.Invoke(() => Application.Current.Shutdown());
-                }
-                else
-                {
-                    UpdateStatusText = loc["PrefStatusAppUpdatePostponed"];
-                }
-            }
-            else
-            {
-                UpdateStatusText = string.Format(loc["PrefStatusAppUpToDate"], Constants.AppVersion);
-                DialogService.Instance.ShowMessage(
-                    string.Format(loc["PrefMsgAppUpToDate"], Constants.AppVersion),
-                    loc["TitleApplicationUpToDate"],
-                    MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            UpdateStatusText = string.Format(loc["PrefStatusCheckAppError"], ex.Message);
-            DialogService.Instance.ShowMessage(string.Format(loc["PrefMsgCheckReleasesFailed"], ex.Message), loc["TitleError"], MessageBoxImage.Error);
+            await UpdateCoordinatorService.CheckAppUpdateAsync(status => UpdateStatusText = status);
         }
         finally
         {
@@ -200,73 +147,12 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CheckUpdates()
     {
-        var loc = LocalizationService.Instance;
         IsCheckingUpdates = true;
-        UpdateStatusText = loc["PrefStatusCheckingEngines"];
-
         try
         {
-            var baseDir = Helpers.GetBaseDir();
-            var updatesNeeded = await Task.Run(() => BinaryUpdater.CheckUpdates(baseDir));
-
-            if (updatesNeeded != null && updatesNeeded.Count > 0)
-            {
-                var details = string.Join("\n• ", updatesNeeded);
-                UpdateStatusText = string.Format(loc["PrefStatusUpdatesFound"], updatesNeeded.Count);
-
-                var confirmMessage = string.Format(loc["PrefMsgComponentsFound"], details);
-                var accept = DialogService.Instance.ShowConfirmation(confirmMessage, loc["TitleUpdatesAvailable"]);
-
-                if (accept)
-                {
-                    UpdateStatusText = loc["PrefStatusDownloadingEngines"];
-                    var updateResult = await Task.Run(() => BinaryUpdater.UpdateAll(baseDir, msg =>
-                    {
-                        Application.Current?.Dispatcher.Invoke(() => UpdateStatusText = msg);
-                    }));
-
-                    if (updateResult.Success)
-                    {
-                        UpdateStatusText = loc["PrefStatusAllEnginesUpdated"];
-                        DialogService.Instance.ShowMessage(loc["CommonMsgAllComponentsUpdated"], loc["TitleUpdateCompleted"], MessageBoxImage.Information);
-                        NotificationService.Instance.Notify(loc["TitleComponentsUpdated"], loc["MsgComponentsUpdatedSuccess"], NotificationType.Success);
-                    }
-                    else
-                    {
-                        var failed = string.Join(", ", updateResult.Failed);
-                        UpdateStatusText = string.Format(
-                            loc.Get("PrefStatusEnginesUpdatePartial", "Actualización incompleta. Fallaron: {0}"), failed);
-                        DialogService.Instance.ShowMessage(
-                            string.Format(loc.Get("PrefMsgComponentsUpdatePartial", "No se pudieron actualizar los siguientes componentes: {0}\n\nRevisa el registro para más detalles."), failed),
-                            loc.Get("TitleUpdateIncomplete", "Actualización incompleta"),
-                            MessageBoxImage.Warning);
-                        NotificationService.Instance.NotifyWarning(
-                            loc.Get("TitleUpdateIncomplete", "Actualización incompleta"),
-                            string.Format(loc.Get("MsgComponentsUpdatePartial", "Fallaron: {0}"), failed));
-                    }
-                }
-                else
-                {
-                    UpdateStatusText = loc["PrefStatusEnginesUpdateCanceled"];
-                }
-            }
-            else
-            {
-                var localYt = BinaryUpdater.GetLocalYtdlpVersion(baseDir) ?? "N/D";
-                var localFf = BinaryUpdater.GetLocalFfmpegVersion(baseDir) ?? "N/D";
-                var localDeno = BinaryUpdater.GetLocalDenoVersion(baseDir) ?? "N/D";
-
-                UpdateStatusText = loc["PrefStatusEnginesUpToDate"];
-                DialogService.Instance.ShowMessage(
-                    string.Format(loc["AdvMsgEngineUpToDate"], localYt, localFf, localDeno),
-                    loc["TitleComponentsUpToDate"],
-                    MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            UpdateStatusText = string.Format(loc["PrefStatusCheckEnginesError"], ex.Message);
-            DialogService.Instance.ShowMessage(string.Format(loc["PrefMsgVerifyUpdatesFailed"], ex.Message), loc["TitleError"], MessageBoxImage.Error);
+            await UpdateCoordinatorService.CheckComponentsUpdateAsync(
+                status => UpdateStatusText = status,
+                showDetailedVersionsWhenUpToDate: true);
         }
         finally
         {
@@ -292,7 +178,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
 
             var results = await Task.Run(() => FileVerifier.VerificarDirectorio(targetFolder, msg =>
             {
-                Application.Current.Dispatcher.Invoke(() => VerifyStatusText = msg);
+                Application.Current?.Dispatcher.Invoke(() => VerifyStatusText = msg);
             }));
 
             var (ok, warn, err) = Helpers.SummarizeResults(results);
@@ -302,7 +188,7 @@ public partial class PreferencesViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            VerifyStatusText = $"Error al verificar: {ex.Message}";
+            VerifyStatusText = string.Format(loc["PrefStatusVerifyError"], ex.Message);
             NotificationService.Instance.NotifyError(loc["TitleVerificationError"], ex.Message);
         }
         finally

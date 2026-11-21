@@ -10,6 +10,7 @@ using CazadorYTM.Gui.Services;
 
 internal static class WpfTestHost
 {
+    private static readonly object StartLock = new();
     private static Dispatcher? _dispatcher;
 
     public static void Run(Action action)
@@ -22,48 +23,53 @@ internal static class WpfTestHost
     {
         if (_dispatcher is not null) return;
 
-        using var ready = new ManualResetEventSlim(false);
-        var thread = new Thread(() =>
+        lock (StartLock)
         {
-            try
+            if (_dispatcher is not null) return;
+
+            using var ready = new ManualResetEventSlim(false);
+            var thread = new Thread(() =>
             {
-                RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
-            }
-            catch { }
-
-            var application = Application.Current as CazadorYTM.Gui.App;
-            if (application is null)
-            {
-                application = new CazadorYTM.Gui.App();
-                application.InitializeComponent();
-            }
-
-            DialogService.Instance.MessageHandler = (_, _, _) => { };
-            DialogService.Instance.ConfirmationHandler = (_, _) => true;
-
-            _dispatcher = Dispatcher.CurrentDispatcher;
-            ready.Set();
-            Dispatcher.Run();
-        })
-        {
-            IsBackground = true,
-            Name = "WpfTestHost"
-        };
-
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        ready.Wait();
-
-        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-        {
-            try
-            {
-                if (_dispatcher != null && !_dispatcher.HasShutdownStarted)
+                try
                 {
-                    _dispatcher.InvokeShutdown();
+                    RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
                 }
-            }
-            catch { }
-        };
+                catch { }
+
+                var application = Application.Current as CazadorYTM.Gui.App;
+                if (application is null)
+                {
+                    application = new CazadorYTM.Gui.App();
+                    application.InitializeComponent();
+                }
+
+                DialogService.Instance.MessageHandler = (_, _, _) => { };
+                DialogService.Instance.ConfirmationHandler = (_, _) => true;
+
+                _dispatcher = Dispatcher.CurrentDispatcher;
+                ready.Set();
+                Dispatcher.Run();
+            })
+            {
+                IsBackground = true,
+                Name = "WpfTestHost"
+            };
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            ready.Wait();
+
+            AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+            {
+                try
+                {
+                    if (_dispatcher != null && !_dispatcher.HasShutdownStarted)
+                    {
+                        _dispatcher.InvokeShutdown();
+                    }
+                }
+                catch { }
+            };
+        }
     }
 }

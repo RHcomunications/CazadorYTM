@@ -265,7 +265,7 @@ public class AudioPlayerService : IAudioPlayerService
             CurrentQueueIndex = 0;
         }
 
-        PlayInternal(filePath);
+        StartPlayback(filePath);
     }
 
     private void PlayTrackAtIndex(int index)
@@ -273,11 +273,16 @@ public class AudioPlayerService : IAudioPlayerService
         if (index >= 0 && index < _queue.Count)
         {
             CurrentQueueIndex = index;
-            PlayInternal(_queue[index]);
+            StartPlayback(_queue[index]);
         }
     }
 
-    private async void PlayInternal(string filePath)
+    private void StartPlayback(string filePath)
+    {
+        _ = PlayInternalAsync(filePath);
+    }
+
+    private async Task PlayInternalAsync(string filePath)
     {
         _playCts?.Cancel();
         _playCts?.Dispose();

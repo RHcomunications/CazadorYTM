@@ -5,10 +5,12 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CazadorYTM.Core;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
@@ -168,6 +170,41 @@ public partial class LogsViewModel : ObservableObject, IDisposable
             {
                 DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["CommonMsgExportFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
             }
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportDiagnosticsAsync()
+    {
+        var loc = LocalizationService.Instance;
+        var path = DialogService.Instance.SaveFile(
+            $"cazador_diagnostico_{DateTime.Now:yyyyMMdd_HHmmss}.txt",
+            "Archivos de texto (*.txt)|*.txt");
+
+        if (string.IsNullOrEmpty(path)) return;
+
+        try
+        {
+            var persistedLogs = LogService.Instance.GetAllLogsText();
+            var combinedLogs = !string.IsNullOrWhiteSpace(persistedLogs) ? persistedLogs : LogText;
+            var config = new AppConfig();
+            var baseDir = Helpers.GetBaseDir();
+
+            var report = await Task.Run(() =>
+                DiagnosticReportService.BuildReport(config, baseDir, combinedLogs, maxLogLines: 250));
+
+            await File.WriteAllTextAsync(path, report, Encoding.UTF8);
+            DialogService.Instance.ShowMessage(
+                loc["LogsMsgDiagnosticsExportDone"],
+                loc["TitleSuccess"],
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            DialogService.Instance.ShowMessage(
+                string.Format(loc["CommonMsgExportFailed"], ex.Message),
+                loc["TitleError"],
+                MessageBoxImage.Error);
         }
     }
 }

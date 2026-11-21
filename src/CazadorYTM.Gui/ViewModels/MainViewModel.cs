@@ -52,7 +52,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             if (e.PropertyName == nameof(DownloadVM.IsBusy) ||
                 e.PropertyName == nameof(DownloadVM.ProgressPercentage) ||
-                e.PropertyName == nameof(DownloadVM.StatusText))
+                e.PropertyName == nameof(DownloadVM.CurrentPhase))
             {
                 UpdateTaskbarProgress();
             }
@@ -209,14 +209,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var status = DownloadVM.StatusText ?? "";
-        if (status.Contains("Error", StringComparison.OrdinalIgnoreCase) || status.Contains("Fallo", StringComparison.OrdinalIgnoreCase))
+        if (DownloadVM.CurrentPhase == DownloadTaskPhase.Error)
         {
             TaskbarProgressState = System.Windows.Shell.TaskbarItemProgressState.Error;
             return;
         }
 
-        if (DownloadVM.ProgressPercentage <= 0.0 || (DownloadVM.ProgressPercentage >= 100.0 && status.Contains("Procesando", StringComparison.OrdinalIgnoreCase)))
+        if (DownloadVM.CurrentPhase == DownloadTaskPhase.Analyzing ||
+            DownloadVM.CurrentPhase == DownloadTaskPhase.PostProcessing ||
+            DownloadVM.ProgressPercentage <= 0.0)
         {
             TaskbarProgressState = System.Windows.Shell.TaskbarItemProgressState.Indeterminate;
             TaskbarProgressValue = 0.0;
@@ -247,95 +248,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task CheckAppUpdate()
-    {
-        try
-        {
-            var info = await AppUpdaterService.CheckAppUpdateAsync();
-            if (info.HasUpdate)
-            {
-                var notesPreview = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "" : string.Format(LocalizationService.Instance["MainMsgReleaseNotes"], info.ReleaseNotes);
-                var confirmMsg = string.Format(LocalizationService.Instance["MainMsgNewVersion"], info.CurrentVersion, info.LatestVersion, notesPreview);
-
-                var accept = DialogService.Instance.ShowConfirmation(confirmMsg, LocalizationService.Instance["TitleAppUpdate"]);
-                if (accept)
-                {
-                    if (string.IsNullOrEmpty(info.AssetDownloadUrl))
-                    {
-                        if (!string.IsNullOrEmpty(info.HtmlUrl))
-                        {
-                            Process.Start(new ProcessStartInfo(info.HtmlUrl) { UseShellExecute = true });
-                        }
-                        return;
-                    }
-
-                    var baseDir = Helpers.GetBaseDir();
-                    var loc = LocalizationService.Instance;
-                    NotificationService.Instance.Notify(loc.Get("TitleDownloadingUpdate", "Descargando actualización"), loc.Get("MsgDownloadingUpdate", "La actualización se está descargando en segundo plano..."), NotificationType.Info);
-                    await AppUpdaterService.DownloadAndApplyUpdateAsync(
-                        info.AssetDownloadUrl,
-                        baseDir,
-                        expectedSha256: info.AssetSha256,
-                        checksumUrl: info.ChecksumDownloadUrl);
-                    Application.Current?.Dispatcher.Invoke(() => Application.Current.Shutdown());
-                }
-            }
-            else
-            {
-                DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["MainMsgAppUpToDate"], Constants.AppVersion), LocalizationService.Instance["TitleAppUpToDate"]);
-            }
-        }
-        catch (Exception ex)
-        {
-            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["MainMsgCheckGithubFailed"], ex.Message), LocalizationService.Instance["TitleUpdateError"], MessageBoxImage.Error);
-        }
-    }
+    private Task CheckAppUpdate() => UpdateCoordinatorService.CheckAppUpdateAsync();
 
     [RelayCommand]
-    private async Task CheckComponentsUpdate()
-    {
-        try
-        {
-            var baseDir = Helpers.GetBaseDir();
-            var updatesNeeded = await Task.Run(() => BinaryUpdater.CheckUpdates(baseDir));
-            if (updatesNeeded != null && updatesNeeded.Count > 0)
-            {
-                var loc = LocalizationService.Instance;
-                var details = string.Join("\n• ", updatesNeeded);
-                var confirmMsg = string.Format(loc["MainMsgComponentsFound"], details);
-                if (DialogService.Instance.ShowConfirmation(confirmMsg, loc["TitleComponentsUpdate"]))
-                {
-                    NotificationService.Instance.Notify(loc.Get("TitleUpdatingComponents", "Actualizando componentes"), loc.Get("MsgUpdatingComponents", "Descargando e instalando componentes..."), NotificationType.Info);
-                    var updateResult = await Task.Run(() => BinaryUpdater.UpdateAll(baseDir));
-
-                    if (updateResult.Success)
-                    {
-                        NotificationService.Instance.Notify(loc.Get("TitleComponentsUpdated", "Componentes Actualizados"), loc.Get("MsgComponentsUpdatedSuccess", "yt-dlp, FFmpeg y Deno se han actualizado correctamente."), NotificationType.Success);
-                        DialogService.Instance.ShowMessage(loc["CommonMsgAllComponentsUpdated"], loc["TitleUpdateCompleted"]);
-                    }
-                    else
-                    {
-                        var failed = string.Join(", ", updateResult.Failed);
-                        NotificationService.Instance.NotifyWarning(
-                            loc.Get("TitleUpdateIncomplete", "Actualización incompleta"),
-                            string.Format(loc.Get("MsgComponentsUpdatePartial", "Fallaron: {0}"), failed));
-                        DialogService.Instance.ShowMessage(
-                            string.Format(loc.Get("PrefMsgComponentsUpdatePartial", "No se pudieron actualizar los siguientes componentes: {0}\n\nRevisa el registro para más detalles."), failed),
-                            loc.Get("TitleUpdateIncomplete", "Actualización incompleta"),
-                            MessageBoxImage.Warning);
-                    }
-                }
-            }
-            else
-            {
-                DialogService.Instance.ShowMessage(LocalizationService.Instance["MainMsgComponentsUpToDate"], LocalizationService.Instance["TitleComponentsUpToDate"]);
-            }
-        }
-        catch (Exception ex)
-        {
-            DialogService.Instance.ShowMessage(string.Format(LocalizationService.Instance["MainMsgUpdateComponentsFailed"], ex.Message), LocalizationService.Instance["TitleError"], MessageBoxImage.Error);
-        }
-    }
+    private Task CheckComponentsUpdate() => UpdateCoordinatorService.CheckComponentsUpdateAsync();
 
     [RelayCommand]
     private void OpenPreferences()

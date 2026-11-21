@@ -557,5 +557,10 @@
   "RadarCatArtists": "Artistas",
   "RadarCatArtistsHint": "Explorar artistas seguidos en tu biblioteca",
   "RadarStatusLoadingAlbums": "Cargando álbumes guardados...",
-  "RadarStatusLoadingArtists": "Cargando artistas seguidos..."
+  "RadarStatusLoadingArtists": "Cargando artistas seguidos...",
+  "PrefStatusVerifyError": "Error al verificar: {0}",
+  "RadarStatusPlayPlaylistError": "Error al reproducir lista: {0}",
+  "PrefExportDiagnostics": "Exportar diagnóstico",
+  "PrefExportDiagnosticsHelp": "Genera un archivo de diagnóstico seguro con versiones de motores, configuración sanitizada y registros recientes sin exponer cookies ni contraseñas",
+  "LogsMsgDiagnosticsExportDone": "Reporte de diagnóstico exportado correctamente (sin credenciales ni cookies)."
 }

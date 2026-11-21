@@ -49,7 +49,8 @@ Desarrollado por **narayan project's**.
 
 ### ♿ Accesibilidad universal (A11y / WCAG 2.2 AA / Section 508)
 - Compatibilidad con **NVDA**, **JAWS** y **Narrador** de Windows.
-- Navegación completa por teclado, foco visible de alto contraste y `AutomationProperties` en los controles clave.
+- Navegación jerárquica por teclado (`Tab` contenido dentro de la pestaña activa, <kbd>F6</kbd> / <kbd>Esc</kbd> para volver a la cabecera de pestañas), foco visible de alto contraste y `AutomationProperties` en los controles clave.
+- Ventana de **Preferencias** modal estilo Propiedades de Windows con pestañas conmutables por flechas y exportación de **paquete de diagnóstico seguro** (sin cookies ni credenciales).
 - Regiones activas (`LiveSetting`) para anunciar estados, errores y progreso.
 
 ### 🪟 Experiencia Windows 11
@@ -76,7 +77,8 @@ Desarrollado por **narayan project's**.
 | <kbd>Ctrl</kbd> + <kbd>W</kbd> | Cerrar la pestaña actual |
 | <kbd>Ctrl</kbd> + <kbd>O</kbd> | Cargar archivo de lista de URLs |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | Abrir carpeta de descargas |
-| <kbd>Ctrl</kbd> + <kbd>,</kbd> | Preferencias y herramientas |
+| <kbd>Ctrl</kbd> + <kbd>,</kbd> | Preferencias y herramientas (ventana modal con pestañas) |
+| <kbd>F6</kbd> / <kbd>Esc</kbd> | Volver a la cabecera de pestañas desde el contenido activo |
 | <kbd>Ctrl</kbd> + <kbd>K</kbd> | Gestor de sesión y cookies |
 | <kbd>F2</kbd> | Lista completa de atajos |
 | <kbd>Ctrl</kbd> + <kbd>Espacio</kbd> | Reproducir / pausar |

@@ -17,23 +17,9 @@ using CazadorYTM.Core.Models;
 
 public static class MetadataService
 {
-    private static readonly HttpClient _httpClient = new(new SocketsHttpHandler
-    {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-        ConnectTimeout = TimeSpan.FromSeconds(10),
-        AutomaticDecompression = System.Net.DecompressionMethods.All,
-        AllowAutoRedirect = true
-    })
-    {
-        Timeout = TimeSpan.FromSeconds(10)
-    };
+    private static readonly HttpClient _httpClient = SharedHttpClient.Metadata;
     private static readonly YoutubeClient _youtubeClient = new(_httpClient);
     private const int MaxMetadataEntries = 10000;
-
-    static MetadataService()
-    {
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"CazadorYTM/{Constants.AppVersion} (https://github.com/{Constants.GitHubRepo})");
-    }
 
     public static List<string> BuildLrclibCandidateUrls(string trackName, string? artistName = null, int? duration = null)
     {

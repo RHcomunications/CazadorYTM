@@ -34,22 +34,7 @@ public class BinaryUpdateResult
 public class BinaryUpdater
 {
     private readonly string _baseDir;
-    private static readonly HttpClient HttpClient = new(new SocketsHttpHandler
-    {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-        ConnectTimeout = TimeSpan.FromSeconds(15),
-        AllowAutoRedirect = true,
-        AutomaticDecompression = System.Net.DecompressionMethods.All
-    })
-    {
-        Timeout = TimeSpan.FromMinutes(15)
-    };
-
-    static BinaryUpdater()
-    {
-        HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"CazadorYTM/{Constants.AppVersion} (Windows NT 10.0; Win64; x64)");
-        HttpClient.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github.v3+json, application/json, text/plain, */*");
-    }
+    private static readonly HttpClient HttpClient = SharedHttpClient.GitHubAndDownloads;
 
     public BinaryUpdater(string? baseDir = null)
     {
@@ -252,23 +237,26 @@ public class BinaryUpdater
         catch { return null; }
     }
 
-    public static string? GetRemoteDenoVersion()
+    public static async Task<string?> GetRemoteDenoVersionAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var url = "https://api.github.com/repos/denoland/deno/releases/latest";
-            var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
+            var json = await HttpClient.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
             return BinaryUpdateLogic.ParseGithubTag(json);
         }
         catch { return null; }
     }
 
-    public static string? GetRemoteYtdlpVersion()
+    public static string? GetRemoteDenoVersion() =>
+        GetRemoteDenoVersionAsync().GetAwaiter().GetResult();
+
+    public static async Task<string?> GetRemoteYtdlpVersionAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var url = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
-            var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
+            var json = await HttpClient.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
             var tag = BinaryUpdateLogic.ParseYtdlpGithubTag(json);
             if (tag is not null)
                 return tag;
@@ -278,11 +266,14 @@ public class BinaryUpdater
         try
         {
             var url = "https://pypi.org/pypi/yt-dlp/json";
-            var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
+            var json = await HttpClient.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
             return BinaryUpdateLogic.ParseYtdlpPyPiVersion(json);
         }
         catch { return null; }
     }
+
+    public static string? GetRemoteYtdlpVersion() =>
+        GetRemoteYtdlpVersionAsync().GetAwaiter().GetResult();
 
     private static GithubAssetInfo GetLatestGithubAsset(string repo, string assetName)
     {
@@ -298,18 +289,21 @@ public class BinaryUpdater
         return asset;
     }
 
-    public static string? GetRemoteFfmpegVersion()
+    public static async Task<string?> GetRemoteFfmpegVersionAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var url = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest";
-            var json = HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
+            var json = await HttpClient.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
             return BinaryUpdateLogic.ParseFfmpegBuildDate(json);
         }
         catch { }
 
         return null;
     }
+
+    public static string? GetRemoteFfmpegVersion() =>
+        GetRemoteFfmpegVersionAsync().GetAwaiter().GetResult();
 
     public static bool IsFfmpegInstalled(string baseDir)
     {
@@ -334,12 +328,32 @@ public class BinaryUpdater
         return BinaryManager.GetDenoPath(baseDir) is not null;
     }
 
+    public static async Task<List<string>> CheckUpdatesAsync(string baseDir, CancellationToken cancellationToken = default)
+    {
+        var ytdlpInstalled = IsYtdlpInstalled(baseDir);
+        var denoInstalled = IsDenoInstalled(baseDir);
+        var ffmpegInstalled = IsFfmpegInstalled(baseDir);
+
+        var localYtTask = Task.Run(() => GetLocalYtdlpVersion(baseDir), cancellationToken);
+        var localDenoTask = Task.Run(() => GetLocalDenoVersion(baseDir), cancellationToken);
+        var localFfTask = Task.Run(() => GetLocalFfmpegVersion(baseDir), cancellationToken);
+
+        var remoteYtTask = GetRemoteYtdlpVersionAsync(cancellationToken);
+        var remoteDenoTask = GetRemoteDenoVersionAsync(cancellationToken);
+        var remoteFfTask = GetRemoteFfmpegVersionAsync(cancellationToken);
+
+        await Task.WhenAll(localYtTask, localDenoTask, localFfTask, remoteYtTask, remoteDenoTask, remoteFfTask)
+            .ConfigureAwait(false);
+
+        return BinaryUpdateLogic.BuildUpdatesNeeded(
+            ytdlpInstalled, localYtTask.Result, remoteYtTask.Result,
+            denoInstalled, localDenoTask.Result, remoteDenoTask.Result,
+            ffmpegInstalled, localFfTask.Result, remoteFfTask.Result);
+    }
+
     public static List<string> CheckUpdates(string baseDir)
     {
-        return BinaryUpdateLogic.BuildUpdatesNeeded(
-            IsYtdlpInstalled(baseDir), GetLocalYtdlpVersion(baseDir), GetRemoteYtdlpVersion(),
-            IsDenoInstalled(baseDir), GetLocalDenoVersion(baseDir), GetRemoteDenoVersion(),
-            IsFfmpegInstalled(baseDir), GetLocalFfmpegVersion(baseDir), GetRemoteFfmpegVersion());
+        return CheckUpdatesAsync(baseDir).GetAwaiter().GetResult();
     }
 
     public static bool DownloadFfmpegWithProgress(string baseDir, Action<string>? callback, Action<int>? progressCallback)

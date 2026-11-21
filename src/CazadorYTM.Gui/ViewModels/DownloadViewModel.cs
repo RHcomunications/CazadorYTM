@@ -16,6 +16,16 @@ using CazadorYTM.Core.Models;
 using CazadorYTM.Core.Services;
 using CazadorYTM.Gui.Services;
 
+public enum DownloadTaskPhase
+{
+    Idle,
+    Analyzing,
+    Downloading,
+    PostProcessing,
+    Completed,
+    Error
+}
+
 public partial class DownloadViewModel : ObservableObject, IDisposable
 {
     private readonly AppConfig _config;
@@ -75,6 +85,9 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _hasActiveBatchSlots = false;
+
+    [ObservableProperty]
+    private DownloadTaskPhase _currentPhase = DownloadTaskPhase.Idle;
 
     public ObservableCollection<string> Formats { get; } = new(Constants.FormatsDisplay);
     public ObservableCollection<string> Bitrates { get; } = new(Constants.Bitrates);
@@ -150,6 +163,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
 
         IsBusy = true;
+        CurrentPhase = DownloadTaskPhase.Analyzing;
         return true;
     }
 
@@ -157,6 +171,10 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
     {
         Interlocked.Exchange(ref _operationActive, 0);
         IsBusy = false;
+        if (CurrentPhase != DownloadTaskPhase.Error && CurrentPhase != DownloadTaskPhase.Completed)
+        {
+            CurrentPhase = DownloadTaskPhase.Idle;
+        }
     }
 
     private void OnClipboardLinkDetected(string url)
@@ -432,6 +450,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         var query = entry.Url ?? entry.Title ?? InputText;
         StatusText = $"Descargando: {entry.Title ?? query}...";
         ProgressPercentage = 0;
+        CurrentPhase = DownloadTaskPhase.Downloading;
         ProgressDetail = "Iniciando descarga...";
 
         try
@@ -462,7 +481,8 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                 progressCallback: dict =>
                 {
                     double pct = 0;
-                    var hasPct = dict.TryGetValue("percent", out var pctStr) && double.TryParse(pctStr, out pct);
+                    var hasPct = dict.TryGetValue("percent", out var pctStr) &&
+                        double.TryParse(pctStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out pct);
                     string? eta = null;
                     string? spd = null;
                     var hasEtaSpd = dict.TryGetValue("eta", out eta) && dict.TryGetValue("speed", out spd);
@@ -470,7 +490,13 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
 
                     void ApplyProgress()
                     {
-                        if (hasPct) ProgressPercentage = pct;
+                        if (hasPct)
+                        {
+                            ProgressPercentage = pct;
+                            CurrentPhase = pct >= 100.0
+                                ? DownloadTaskPhase.PostProcessing
+                                : DownloadTaskPhase.Downloading;
+                        }
                         if (hasEtaSpd) ProgressDetail = $"{pctText}% | Velocidad: {spd} | ETA: {eta}";
                     }
 
@@ -492,6 +518,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
 
             if (result.Success)
             {
+                CurrentPhase = DownloadTaskPhase.Completed;
                 StatusText = LocalizationService.Instance["DownloadStatusSuccess"];
                 ProgressPercentage = 100;
                 ProgressDetail = "Completado al 100%";
@@ -511,6 +538,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
             }
             else
             {
+                CurrentPhase = DownloadTaskPhase.Error;
                 StatusText = $"Error: {result.ErrorMessage ?? "Fallo en descarga"}";
                 LogService.Instance.Error($"Fallo de descarga: {result.ErrorMessage}");
                 NotificationService.Instance.NotifyError(LocalizationService.Instance["TitleDownloadError"], result.ErrorMessage ?? "Fallo al procesar el archivo.");
@@ -518,11 +546,13 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
+            CurrentPhase = DownloadTaskPhase.Idle;
             StatusText = LocalizationService.Instance["DownloadStatusCanceled"];
             LogService.Instance.Warn("Descarga cancelada por el usuario.");
         }
         catch (Exception ex)
         {
+            CurrentPhase = DownloadTaskPhase.Error;
             StatusText = $"Error: {ex.Message}";
             LogService.Instance.Error($"Error en proceso de descarga: {ex.Message}");
             NotificationService.Instance.NotifyError(LocalizationService.Instance["TitleDownloadError"], ex.Message);
@@ -557,6 +587,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         var successCount = 0;
         var startedCount = 0;
 
+        CurrentPhase = DownloadTaskPhase.Downloading;
         StatusText = $"Iniciando descarga de {total} canciones en '{Path.GetFileName(batchTargetFolder)}'...";
         ProgressPercentage = 0;
         ProgressDetail = $"0 de {total} completadas";
@@ -640,7 +671,8 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                             if (slot != null)
                             {
                                 double pct = 0;
-                                var hasPct = dict.TryGetValue("percent", out var pctStr) && double.TryParse(pctStr, out pct);
+                                var hasPct = dict.TryGetValue("percent", out var pctStr) &&
+                        double.TryParse(pctStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out pct);
                                 var hasSpd = dict.TryGetValue("speed", out var spd);
                                 var hasEta = dict.TryGetValue("eta", out var eta);
 
@@ -708,6 +740,7 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
                 return;
             }
 
+            CurrentPhase = successCount == 0 && total > 0 ? DownloadTaskPhase.Error : DownloadTaskPhase.Completed;
             StatusText = $"Lote completado: {successCount} de {total} descargadas correctamente.";
             ProgressPercentage = 100;
             ProgressDetail = $"Finalizado: {successCount} exitosas, {total - successCount} fallidas";
@@ -716,10 +749,12 @@ public partial class DownloadViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
+            CurrentPhase = DownloadTaskPhase.Idle;
             StatusText = "Descarga por lotes cancelada.";
         }
         catch (Exception ex)
         {
+            CurrentPhase = DownloadTaskPhase.Error;
             StatusText = $"Error en lote: {ex.Message}";
         }
         finally

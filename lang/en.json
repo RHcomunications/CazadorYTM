@@ -557,5 +557,10 @@
   "RadarCatArtists": "Artists",
   "RadarCatArtistsHint": "Explore followed artists in your library",
   "RadarStatusLoadingAlbums": "Loading saved albums...",
-  "RadarStatusLoadingArtists": "Loading followed artists..."
+  "RadarStatusLoadingArtists": "Loading followed artists...",
+  "PrefStatusVerifyError": "Verification error: {0}",
+  "RadarStatusPlayPlaylistError": "Error playing playlist: {0}",
+  "PrefExportDiagnostics": "Export diagnostics",
+  "PrefExportDiagnosticsHelp": "Generates a safe diagnostic report with engine versions, sanitized settings, and recent logs without exposing cookies or passwords",
+  "LogsMsgDiagnosticsExportDone": "Diagnostic report exported successfully (no credentials or cookies included)."
 }

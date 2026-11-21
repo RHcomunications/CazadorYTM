@@ -651,7 +651,7 @@ public partial class RadarViewModel : ObservableObject, IDisposable
         {
             HasError = true;
             ErrorMessage = ex.Message;
-            StatusText = $"Error al reproducir lista: {ex.Message}";
+            StatusText = string.Format(LocalizationService.Instance["RadarStatusPlayPlaylistError"], ex.Message);
         }
     }
 

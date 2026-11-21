@@ -29,22 +29,7 @@ public class AppReleaseInfo
 
 public static class AppUpdaterService
 {
-    private static readonly HttpClient HttpClient = new(new SocketsHttpHandler
-    {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-        ConnectTimeout = TimeSpan.FromSeconds(15),
-        AllowAutoRedirect = true,
-        AutomaticDecompression = System.Net.DecompressionMethods.All
-    })
-    {
-        Timeout = TimeSpan.FromMinutes(5)
-    };
-
-    static AppUpdaterService()
-    {
-        HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"CazadorYTM/{Constants.AppVersion} (Windows NT 10.0; Win64; x64)");
-        HttpClient.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github.v3+json, application/json, text/plain, */*");
-    }
+    private static readonly HttpClient HttpClient = SharedHttpClient.GitHubAndDownloads;
 
     public static async Task<AppReleaseInfo> CheckAppUpdateAsync(string repo = Constants.GitHubRepo)
     {
