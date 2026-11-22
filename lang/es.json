@@ -562,5 +562,9 @@
   "RadarStatusPlayPlaylistError": "Error al reproducir lista: {0}",
   "PrefExportDiagnostics": "Exportar diagnóstico",
   "PrefExportDiagnosticsHelp": "Genera un archivo de diagnóstico seguro con versiones de motores, configuración sanitizada y registros recientes sin exponer cookies ni contraseñas",
-  "LogsMsgDiagnosticsExportDone": "Reporte de diagnóstico exportado correctamente (sin credenciales ni cookies)."
+  "LogsMsgDiagnosticsExportDone": "Reporte de diagnóstico exportado correctamente (sin credenciales ni cookies).",
+  "ScReturnTabHeader": "Volver a la cabecera de pestañas desde el contenido activo",
+  "ScToggleLyrics": "Mostrar u ocultar el panel de letras sincronizadas",
+  "ScCycleSleepTimer": "Ciclar el temporizador de apagado (Sleep Timer)",
+  "ScPlaybackSpeed": "Reducir, aumentar o restablecer la velocidad de reproducción"
 }

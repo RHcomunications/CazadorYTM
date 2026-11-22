@@ -562,5 +562,9 @@
   "RadarStatusPlayPlaylistError": "Error playing playlist: {0}",
   "PrefExportDiagnostics": "Export diagnostics",
   "PrefExportDiagnosticsHelp": "Generates a safe diagnostic report with engine versions, sanitized settings, and recent logs without exposing cookies or passwords",
-  "LogsMsgDiagnosticsExportDone": "Diagnostic report exported successfully (no credentials or cookies included)."
+  "LogsMsgDiagnosticsExportDone": "Diagnostic report exported successfully (no credentials or cookies included).",
+  "ScReturnTabHeader": "Return focus to tab header from active content",
+  "ScToggleLyrics": "Show or hide synchronized lyrics panel",
+  "ScCycleSleepTimer": "Cycle sleep timer",
+  "ScPlaybackSpeed": "Decrease, increase, or reset playback speed"
 }

@@ -119,7 +119,29 @@
 <body>
     <main class="container">
         <h1>📜 Registro de Cambios (Changelog)</h1>
-        <p>Historial de evolución y mejoras de <strong>Cazador YTM</strong> desde sus primeras versiones hasta el lanzamiento oficial de la nueva generación.</p>
+        <p>Historial de evolución y mejoras de <strong>Cazador YTM</strong> desde sus primeras versiones hasta el lanzamiento actual.</p>
+
+        <h2>[Versión 1.6.0] — Accesibilidad Jerárquica, Rendimiento y Diagnóstico Seguro</h2>
+        <div class="card">
+            <h3><span class="tag tag-new">v1.6.0</span> Novedades y Optimizaciones</h3>
+            <ul>
+                <li><strong>⚙️ Ventana de Preferencias estilo Propiedades de Windows (Ctrl + ,)</strong>: Cuadro de diálogo modal con 4 pestañas conmutables con flechas y retorno automático a la cabecera desde <em>Cancelar</em>.</li>
+                <li><strong>♿ Jerarquía de navegación por teclado</strong>: El foco de <code>Tab</code> permanece dentro de la pestaña activa y <kbd>F6</kbd> / <kbd>Esc</kbd> regresan a la cabecera de pestañas; lista completa de atajos en <kbd>F2</kbd>.</li>
+                <li><strong>🩺 Exportar paquete de diagnóstico seguro</strong>: Nueva acción en <em>Preferencias → Registros y Diagnóstico</em> que recopila versiones de motores, configuración y logs recientes sanitizando automáticamente cookies, tokens y contraseñas de proxy.</li>
+                <li><strong>⚡ Optimizaciones de rendimiento</strong>: Localización <em>lock-free</em>, escritura de logs persistente, caché LRU de miniaturas, limpieza resiliente de temporales y comprobación paralela asíncrona de actualizaciones.</li>
+                <li><strong>🌐 Barra de tareas independiente del idioma</strong>: Indicador de progreso y error consistente en español e inglés.</li>
+            </ul>
+        </div>
+
+        <h2>[Versiones 1.5.0 – 1.5.1] — Letras Sincronizadas, Radar Extendido y Reproductor</h2>
+        <div class="card">
+            <h3><span class="tag tag-new">v1.5.x</span> Novedades Principales</h3>
+            <ul>
+                <li><strong>🎤 Letras sincronizadas (Modo Karaoke)</strong>: Panel en tiempo real (<kbd>Ctrl + L</kbd>) con soporte <code>.lrc</code> local y respaldo en LRCLIB.</li>
+                <li><strong>📡 Radar YTM ampliado</strong>: Nuevas vistas de <em>Álbumes guardados</em> y <em>Artistas seguidos</em> con lista virtualizada y navegación estable con flechas.</li>
+                <li><strong>⏱️ Temporizador de apagado y velocidad</strong>: Sleep Timer con atenuación suave (<kbd>Ctrl + T</kbd>) y control de velocidad de <code>0.75x</code> a <code>2.0x</code> (<kbd>[</kbd>, <kbd>]</kbd>, <kbd>\</kbd>).</li>
+            </ul>
+        </div>
 
         <h2>[Versión 1.0] — Lanzamiento de la Nueva Generación</h2>
         <p>Esta versión representa una reconstrucción integral de Cazador YTM, rediseñada desde sus cimientos para brindar una experiencia más ágil, moderna y accesible.</p>
